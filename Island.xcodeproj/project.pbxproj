@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		000000000000000000100011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000100010 /* Assets.xcassets */; };
 		000000000000000000100013 /* IslandApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000100012 /* IslandApp.swift */; };
 		000000000000000000100015 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000100014 /* AppDelegate.swift */; };
 		000000000000000000100017 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000100016 /* DesignTokens.swift */; };
@@ -30,10 +31,11 @@
 		00000000000000000010003B /* MusicExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003A /* MusicExpandedView.swift */; };
 		00000000000000000010003D /* IslandRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003C /* IslandRootView.swift */; };
 		00000000000000000010003F /* IslandNamespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003E /* IslandNamespace.swift */; };
-		000000000000000000100011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000100010 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		000000000000000000100005 /* Island.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Island.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000100010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		000000000000000000100012 /* IslandApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandApp.swift; sourceTree = "<group>"; };
 		000000000000000000100014 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		000000000000000000100016 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
@@ -57,8 +59,6 @@
 		00000000000000000010003A /* MusicExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicExpandedView.swift; sourceTree = "<group>"; };
 		00000000000000000010003C /* IslandRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandRootView.swift; sourceTree = "<group>"; };
 		00000000000000000010003E /* IslandNamespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandNamespace.swift; sourceTree = "<group>"; };
-		000000000000000000100010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		000000000000000000100005 /* Island.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Island.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +72,34 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		000000000000000000100002 = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000100003 /* Island */,
+				000000000000000000100004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		000000000000000000100003 /* Island */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000100043 /* Activities */,
+				000000000000000000100041 /* App */,
+				000000000000000000100042 /* Core */,
+				000000000000000000100040 /* UI */,
+				000000000000000000100010 /* Assets.xcassets */,
+			);
+			path = Island;
+			sourceTree = "<group>";
+		};
+		000000000000000000100004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000100005 /* Island.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		000000000000000000100040 /* UI */ = {
 			isa = PBXGroup;
 			children = (
@@ -179,38 +207,9 @@
 			path = ActivityEngine;
 			sourceTree = "<group>";
 		};
-		000000000000000000100003 /* Island */ = {
-			isa = PBXGroup;
-			children = (
-				000000000000000000100043 /* Activities */,
-				000000000000000000100041 /* App */,
-				000000000000000000100042 /* Core */,
-				000000000000000000100040 /* UI */,
-				000000000000000000100010 /* Assets.xcassets */,
-			);
-			path = Island;
-			sourceTree = "<group>";
-		};
-		000000000000000000100004 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				000000000000000000100005 /* Island.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		000000000000000000100002 = {
-			isa = PBXGroup;
-			children = (
-				000000000000000000100003 /* Island */,
-				000000000000000000100004 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-
 		000000000000000000100006 /* Island */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 000000000000000000100007 /* Build configuration list for PBXNativeTarget "Island" */;
@@ -231,7 +230,6 @@
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-
 		000000000000000000100001 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
@@ -307,7 +305,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-
 		000000000000000000100008 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -325,7 +322,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -335,7 +332,6 @@
 			};
 			name = Debug;
 		};
-
 		000000000000000000100009 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -353,7 +349,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -363,7 +359,6 @@
 			};
 			name = Release;
 		};
-
 		00000000000000000010000B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -404,7 +399,6 @@
 			};
 			name = Debug;
 		};
-
 		00000000000000000010000C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -441,7 +435,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-
 		000000000000000000100007 /* Build configuration list for PBXNativeTarget "Island" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -451,7 +444,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-
 		00000000000000000010000A /* Build configuration list for PBXProject "Island" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

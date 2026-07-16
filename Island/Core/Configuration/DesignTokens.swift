@@ -34,58 +34,50 @@ enum DesignTokens {
     // MARK: - Typography (measured, from Music Expanded + Call Expanded annotations)
 
     enum Typography {
-        static let title = Font.system(size: 17, weight: .bold, design: .default)       // heavier — visual anchor of the header
-        static let titleRegular = Font.system(size: 17, weight: .regular, design: .default) // Call name uses Regular 17
-        static let subtitle = Font.system(size: 11, weight: .regular, design: .default) // secondary via size + color, not a thin weight
-        static let timestamp = Font.system(size: 12, weight: .regular, design: .default)   // SF Pro Text Regular 12
-        static let letterSpacingTight: CGFloat = -0.41 // measured, applied via .tracking()
+        static let title = Font.system(size: 17, weight: .semibold)
+        static let titleRegular = Font.system(size: 17, weight: .regular)
+        static let subtitle = Font.system(size: 11, weight: .regular)
+        static let timestamp = Font.system(size: 12, weight: .regular)
+
+        static let letterSpacingTight: CGFloat = -0.25
     }
 
     // MARK: - Island shape (confirmed against Figma layer inspector)
 
     enum Shape {
-        /// The island body is flush/square where it meets the physical
-        /// notch (top) and rounded only where it "hangs" below it (bottom).
-        /// Confirmed directly against the Figma layer inspector — these are
-        /// no longer estimates.
-        static let compactTopRadius: CGFloat = 0     // confirmed
-        static let compactBottomRadius: CGFloat = 12  // confirmed
-        static let expandedTopRadius: CGFloat = 0     // confirmed
-        static let expandedBottomRadius: CGFloat = 48 // confirmed
-    }
+        static let compactTopRadius: CGFloat = 32
+        static let compactBottomRadius: CGFloat = 32
 
+        static let expandedTopRadius: CGFloat = 48
+        static let expandedBottomRadius: CGFloat = 48
+    }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
     enum MusicMetrics {
+
         // Compact
-        static let compactWidth: CGFloat = 298       // measured
-        /// Locked at exactly 38pt — confirmed Figma measurement. Do not
-        /// adjust; the notch-extension feel comes from the flush-top shape
-        /// and correct radius, not from shrinking this number further.
-        static let compactHeight: CGFloat = 38        // confirmed
-        static let compactIconSize: CGFloat = 24      // measured
-        static let compactIconCornerRadius: CGFloat = 6 // confirmed (Figma inspector)
+        static let compactWidth: CGFloat = 298
+        static let compactHeight: CGFloat = 38
+
+        static let compactIconSize: CGFloat = 22
+        static let compactIconCornerRadius: CGFloat = 6
 
         // Expanded
-        static let expandedWidth: CGFloat = 390      // measured
-        static let expandedHeight: CGFloat = 200      // measured
-        static let expandedEdgePadding: CGFloat = 24  // measured — used for sides + bottom
-        /// The physical notch's exclusion zone, measured directly off the
-        /// "Notch" annotation in the Figma reference: y:0-48, x:94-303
-        /// relative to the card. Content must clear the full 48pt height —
-        /// horizontal position isn't a safe way to dodge it since notch
-        /// width varies by hardware. This is why top padding is larger than
-        /// the side/bottom padding, not a mistake.
-        static let expandedTopPadding: CGFloat = 48    // measured (Figma "Notch" annotation)
-        /// Nudged down from the measured 65pt — slightly smaller reads
-        /// closer to Apple's own proportions without abandoning the Figma
-        /// baseline.
-        static let albumArtSize: CGFloat = 56          // derived (measured value was 65)
-        static let albumArtCornerRadius: CGFloat = 16 // measured
-        static let progressBarWidth: CGFloat = 242    // measured
-        static let playbackRowWidth: CGFloat = 101.3  // measured
-        static let playbackButtonSpacing: CGFloat = 38 // measured
-        static let waveformIconWidth: CGFloat = 43     // measured
+        static let expandedWidth: CGFloat = 390
+        static let expandedHeight: CGFloat = 188
+
+        static let expandedEdgePadding: CGFloat = 22
+        static let expandedTopPadding: CGFloat = 44
+
+        static let albumArtSize: CGFloat = 52
+        static let albumArtCornerRadius: CGFloat = 14
+
+        static let progressBarWidth: CGFloat = 242
+
+        static let playbackRowWidth: CGFloat = 104
+        static let playbackButtonSpacing: CGFloat = 34
+
+        static let waveformIconWidth: CGFloat = 34
     }
 
     // MARK: - Call metrics (measured, from "Expanded Callpng.png")

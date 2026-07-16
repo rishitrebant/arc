@@ -33,7 +33,10 @@ struct MusicCompactView: View {
         .padding(.horizontal, DesignTokens.Spacing.sm)
         .frame(width: metrics.compactWidth, height: metrics.compactHeight)
         .background(
-            IslandShape.body(bottomRadius: DesignTokens.Shape.compactBottomRadius)
+            IslandShape.body(
+                topRadius: DesignTokens.Shape.compactTopRadius,
+                bottomRadius: DesignTokens.Shape.compactBottomRadius
+            )
                 .fill(DesignTokens.Color.islandBackground)
                 .islandMatchedGeometry(id: "islandBody", namespace: namespace)
         )

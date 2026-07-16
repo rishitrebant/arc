@@ -1,13 +1,5 @@
 import SwiftUI
 
-/// Carries the root content's measured size up to `WindowManager`.
-struct IslandSizePreferenceKey: PreferenceKey {
-    static var defaultValue: CGSize = .zero
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
-        value = nextValue()
-    }
-}
-
 /// The single view hosted by `WindowManager`. Owns hover-delay arbitration
 /// and compact <-> expanded switching for whichever activity currently owns
 /// the island — per Hover Philosophy: "expansion must feel intentional,
@@ -18,13 +10,26 @@ struct IslandSizePreferenceKey: PreferenceKey {
 /// future activity (Calls, Bluetooth, AirDrop...) needs the same hover
 /// behavior — duplicating it per-activity would violate the "no duplicated
 /// business logic" rule in the Engineering Constitution.
+///
+/// NOTE on `onSizeChange`: this now reports a KNOWN target size (compact or
+/// expanded), not a measured one. It used to report the content's actual
+/// rendered size via GeometryReader/PreferenceKey, but that measurement
+/// jumps discretely the instant SwiftUI swaps to the other view — it can't
+/// reflect the smooth in-between sizes of an ongoing spring animation. That
+/// jump was the root cause of the window appearing to grow from one edge
+/// instead of from a fixed center. Since both target sizes are fixed
+/// constants, there's nothing to measure — we just tell WindowManager
+/// exactly what to animate to and when. The Music-specific size constants
+/// here are a known, called-out compromise: a future activity with
+/// different compact/expanded sizes would need this generalized (e.g. via
+/// the `Activity` protocol exposing its own sizes) rather than hardcoded.
 struct IslandRootView: View {
     @ObservedObject var activityManager: ActivityManager
 
-    /// Reports the current content size up to WindowManager so the panel's
-    /// hit-testing frame stays in sync with the animated SwiftUI content.
-    /// WindowManager owns positioning; this view only ever reports size.
-    var onSizeChange: (CGSize) -> Void = { _ in }
+    /// Reports the target size to animate to, and how long to delay before
+    /// starting (kept in sync with `AnimationTokens.shapeMorph`'s own
+    /// delay so the window and the SwiftUI content move in lockstep).
+    var onSizeChange: (CGSize, TimeInterval) -> Void = { _, _ in }
 
     /// Shared across whichever activity's compact/expanded views are on
     /// screen (via `islandNamespace` in the environment) so the island
@@ -37,6 +42,13 @@ struct IslandRootView: View {
     @State private var isExpanded = false
     @State private var hoverWorkItem: DispatchWorkItem?
 
+    private var compactSize: CGSize {
+        CGSize(width: DesignTokens.MusicMetrics.compactWidth, height: DesignTokens.MusicMetrics.compactHeight)
+    }
+    private var expandedSize: CGSize {
+        CGSize(width: DesignTokens.MusicMetrics.expandedWidth, height: DesignTokens.MusicMetrics.expandedHeight)
+    }
+
     var body: some View {
         Group {
             if let activity = activityManager.ownedActivity {
@@ -48,21 +60,10 @@ struct IslandRootView: View {
                     }
                 }
             } else {
-                Color.clear.frame(
-                    width: DesignTokens.MusicMetrics.compactWidth,
-                    height: DesignTokens.MusicMetrics.compactHeight
-                )
+                Color.clear.frame(width: compactSize.width, height: compactSize.height)
             }
         }
         .environment(\.islandNamespace, morphNamespace)
-        .background(
-            GeometryReader { proxy in
-                Color.clear.preference(key: IslandSizePreferenceKey.self, value: proxy.size)
-            }
-        )
-        .onPreferenceChange(IslandSizePreferenceKey.self) { size in
-            onSizeChange(size)
-        }
         .animation(AnimationTokens.ownershipChange, value: activityManager.ownedActivity?.id)
         .onHover { hovering in
             handleHover(hovering)
@@ -79,6 +80,7 @@ struct IslandRootView: View {
             // during the delay window — only commit if the state is still
             // what triggered this work item.
             guard isHovering == hovering else { return }
+
             // One explicit transaction covers the matchedGeometryEffect
             // frame/position interpolation AND the IslandShape corner-radius
             // interpolation together, so they move in lockstep rather than
@@ -86,6 +88,14 @@ struct IslandRootView: View {
             withAnimation(AnimationTokens.shapeMorph(isExpanding: hovering)) {
                 isExpanded = hovering
             }
+
+            // Fired at the exact same moment as the SwiftUI animation above,
+            // with the exact same delay-on-collapse, so the window frame
+            // and the visible content move in lockstep instead of the
+            // window jumping ahead.
+            let targetSize = hovering ? expandedSize : compactSize
+            let sizeDelay = hovering ? 0 : AnimationTokens.collapseShapeDelay
+            onSizeChange(targetSize, sizeDelay)
         }
         hoverWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)

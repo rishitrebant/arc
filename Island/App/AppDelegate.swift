@@ -24,8 +24,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let root = IslandRootView(
             activityManager: activityManager,
-            onSizeChange: { [weak windowManager] size in
-                windowManager?.resize(to: size)
+            onSizeChange: { [weak windowManager] size, delay in
+                windowManager?.animateToSize(size, delay: delay)
             }
         )
         windowManager.present(root)

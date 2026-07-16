@@ -16,15 +16,29 @@ enum AnimationTokens {
     /// the shared-geometry elements. ~200ms per Apple's Dynamic Island
     /// timing target (180-220ms), spring rather than a fixed ease so it
     /// feels physically responsive rather than mechanically animated.
-    static let shapeSpring = Animation.spring(response: 0.20, dampingFraction: 0.88)
+    ///
+    /// Exposed as a raw `TimeInterval` (not just a SwiftUI `Animation`) so
+    /// `WindowManager` — a plain AppKit class with no SwiftUI dependency —
+    /// can drive its own window-frame animation with the exact same
+    /// duration, keeping the window and the SwiftUI content in lockstep
+    /// instead of the window jumping ahead of the visual morph.
+    static let shapeDuration: TimeInterval = 0.20
+    static let shapeDampingFraction: Double = 0.88
+    static var shapeSpring: Animation { .spring(response: shapeDuration, dampingFraction: shapeDampingFraction) }
+
+    /// On collapse, content must clear out FIRST, and the shape only
+    /// shrinks once it does — otherwise text/controls would visibly clip
+    /// as the shape shrinks out from under them. This delay is shared by
+    /// both the SwiftUI shape morph AND the AppKit window-frame animation
+    /// (see `WindowManager.animateToSize`), so the window doesn't clip the
+    /// still-full-size content during that gap.
+    static let collapseShapeDelay: TimeInterval = 0.06
 
     /// Required sequence is directional, not symmetric: on expand, the
     /// shape leads (grows immediately) and content follows once there's
-    /// room. On collapse, content must clear out FIRST, and the shape only
-    /// shrinks once it does — otherwise text/controls would visibly clip
-    /// as the shape shrinks out from under them.
+    /// room. On collapse, content clears first (see `collapseShapeDelay`).
     static func shapeMorph(isExpanding: Bool) -> Animation {
-        isExpanding ? shapeSpring : shapeSpring.delay(0.06)
+        isExpanding ? shapeSpring : shapeSpring.delay(collapseShapeDelay)
     }
 
     /// Builds the asymmetric insertion/removal transition for one piece of

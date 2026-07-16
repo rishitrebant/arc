@@ -24,7 +24,8 @@ struct MusicExpandedView: View {
                 width: metrics.progressBarWidth
             )
             .transition(AnimationTokens.contentTransition(insertDelay: 0.05, removeDelay: 0.02))
-            .padding(.bottom, DesignTokens.Spacing.sm) // controls get breathing room, kept in budget
+            .padding(.top, 4)
+            .padding(.bottom, 26) // controls get breathing room, kept in budget
 
             controls
                 .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
@@ -33,14 +34,17 @@ struct MusicExpandedView: View {
         .padding([.horizontal, .bottom], metrics.expandedEdgePadding)
         .frame(width: metrics.expandedWidth, height: metrics.expandedHeight, alignment: .top)
         .background(
-            IslandShape.body(bottomRadius: DesignTokens.Shape.expandedBottomRadius)
+            IslandShape.body(
+                topRadius: DesignTokens.Shape.expandedTopRadius,
+                bottomRadius: DesignTokens.Shape.expandedBottomRadius
+            )
                 .fill(DesignTokens.Color.islandBackground)
                 .islandMatchedGeometry(id: "islandBody", namespace: namespace)
         )
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: DesignTokens.Spacing.md) {
+        HStack(alignment: .center, spacing: 28){
             AlbumArtView(
                 image: activity.playbackState?.artwork,
                 size: metrics.albumArtSize,
@@ -48,7 +52,7 @@ struct MusicExpandedView: View {
             )
             .islandMatchedGeometry(id: "albumArt", namespace: namespace)
 
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xxs) {
+            VStack(alignment: .leading, spacing: 5){
                 Text(activity.playbackState?.title ?? "")
                     .font(DesignTokens.Typography.title)
                     .foregroundStyle(DesignTokens.Color.primaryText)
@@ -57,7 +61,7 @@ struct MusicExpandedView: View {
                 Text(activity.playbackState?.artist ?? "")
                     .font(DesignTokens.Typography.subtitle)
                     .tracking(DesignTokens.Typography.letterSpacingTight)
-                    .foregroundStyle(DesignTokens.Color.secondaryText)
+                    .foregroundStyle(.white.opacity(0.58))
                     .lineLimit(1)
             }
             .transition(AnimationTokens.contentTransition(insertDelay: 0.02, removeDelay: 0.04))
@@ -66,6 +70,8 @@ struct MusicExpandedView: View {
 
             Waveform(isPlaying: activity.playbackState?.isPlaying ?? false)
                 .frame(width: metrics.waveformIconWidth)
+                .padding(.top, 3)
+                .padding(.trailing, 2)
                 .islandMatchedGeometry(id: "waveform", namespace: namespace)
         }
     }
