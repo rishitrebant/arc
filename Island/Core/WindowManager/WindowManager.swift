@@ -67,18 +67,22 @@ final class WindowManager {
         let targetOrigin = notchOrigin(on: notchScreen(), size: size)
         let targetFrame = NSRect(origin: targetOrigin, size: size)
 
-        let performResize = {
+        if delay > 0 {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(delay))
+
+                await NSAnimationContext.runAnimationGroup { context in
+                    context.duration = AnimationTokens.shapeDuration
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    window.animator().setFrame(targetFrame, display: true)
+                }
+            }
+        } else {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = AnimationTokens.shapeDuration
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 window.animator().setFrame(targetFrame, display: true)
             }
-        }
-
-        if delay > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: performResize)
-        } else {
-            performResize()
         }
     }
 

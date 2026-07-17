@@ -17,9 +17,11 @@ struct Waveform: View {
                     .frame(width: 3, height: barHeight(for: index))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 16)
+        .frame(width: 18, height: 16)
         .onAppear { setPulsing(isPlaying) }
-        .onChange(of: isPlaying) { newValue in setPulsing(newValue) }
+        .onChange(of: isPlaying) {
+            setPulsing(isPlaying)
+        }
     }
 
     /// Explicitly wraps the state change in its own `withAnimation` rather
