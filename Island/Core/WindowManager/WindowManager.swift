@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import QuartzCore
 
 /// Responsible ONLY for window creation, positioning, visibility, and
 /// display synchronization.
@@ -19,11 +18,25 @@ import QuartzCore
 /// side instead of from a fixed center.
 ///
 /// Since both target sizes are already known constants, there's no need to
-/// measure anything — we can just animate directly to the correct centered
-/// frame, in lockstep with the SwiftUI spring.
+/// measure anything — we drive directly to the correct centered frame,
+/// using a `SpringAnimator` built from the exact same physics as the
+/// SwiftUI content's spring (`AnimationTokens.shapePhysics`), instead of
+/// the previous `NSAnimationContext` + fixed-duration ease curve. That
+/// mismatch — a real spring on one side, a fixed ease curve on the other —
+/// is what made the window and the content visibly disagree about motion.
+/// The spring animator is also properly interruptible: retargeting
+/// mid-flight (e.g. the user moves the mouse in and out quickly) carries
+/// current position and velocity forward instead of restarting or racing
+/// a second animation, which is what the old `Task.sleep`-based delay path
+/// could do.
+///
+/// Everything about sizing/positioning below is unchanged from the
+/// original — this pass only touches *how* the frame gets from A to B,
+/// not what A and B are.
 @MainActor
 final class WindowManager {
     private var window: IslandWindow?
+    private var animator: SpringAnimator?
 
     private let defaultCompactSize = CGSize(
         width: DesignTokens.MusicMetrics.compactWidth,
@@ -39,9 +52,9 @@ final class WindowManager {
         let hosting = NSHostingView(rootView: rootView)
         hosting.frame = NSRect(origin: .zero, size: defaultCompactSize)
         // Lets the content view track the window's animated frame changes
-        // automatically (AppKit resizes it in step with the window
-        // animator), instead of us having to set its frame manually on
-        // every intermediate animation tick.
+        // automatically (AppKit resizes it in step with every frame we
+        // set), instead of us having to set its frame manually on every
+        // intermediate animation tick.
         hosting.autoresizingMask = [.width, .height]
 
         panel.contentView = hosting
@@ -49,6 +62,14 @@ final class WindowManager {
         panel.orderFrontRegardless()
 
         window = panel
+
+        let springAnimator = SpringAnimator(initialSize: defaultCompactSize, physics: AnimationTokens.shapePhysics)
+        springAnimator.onUpdate = { [weak self, weak panel] liveSize in
+            guard let self, let panel else { return }
+            let origin = self.notchOrigin(on: self.notchScreen(), size: liveSize)
+            panel.setFrame(NSRect(origin: origin, size: liveSize), display: true)
+        }
+        animator = springAnimator
     }
 
     /// Animates the window to `size`, centered on the notch, with its top
@@ -60,30 +81,12 @@ final class WindowManager {
     /// `AnimationTokens.shapeMorph`: on collapse, the SwiftUI content stays
     /// full-size for `AnimationTokens.collapseShapeDelay` while it fades
     /// out, so the window must wait that same amount before shrinking —
-    /// otherwise it would clip the still-full-size content.
+    /// otherwise it would clip the still-full-size content. Calling this
+    /// again before a previous call has settled (or before its delay has
+    /// elapsed) simply redirects the same spring — see `SpringAnimator`.
     func animateToSize(_ size: CGSize, delay: TimeInterval = 0) {
-        guard let window, size.width > 0, size.height > 0 else { return }
-
-        let targetOrigin = notchOrigin(on: notchScreen(), size: size)
-        let targetFrame = NSRect(origin: targetOrigin, size: size)
-
-        if delay > 0 {
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(delay))
-
-                await NSAnimationContext.runAnimationGroup { context in
-                    context.duration = AnimationTokens.shapeDuration
-                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    window.animator().setFrame(targetFrame, display: true)
-                }
-            }
-        } else {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = AnimationTokens.shapeDuration
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                window.animator().setFrame(targetFrame, display: true)
-            }
-        }
+        guard size.width > 0, size.height > 0 else { return }
+        animator?.animate(to: size, delay: delay)
     }
 
     private func notchScreen() -> NSScreen? {
