@@ -2,88 +2,56 @@ import SwiftUI
 
 /// The expanded, hover-triggered presentation of Music.
 ///
-/// This is deliberately NOT a responsive layout. The expanded island is
-/// always exactly 390×200 — a fixed physical object, not a window that
-/// reflows. Every element below has an explicit, named coordinate in
-/// `Layout`, positioned with `.position(x:y:)` against that fixed canvas.
-/// The ONLY things that vary between songs are the title and artist text
-/// (title truncates rather than reflowing anything around it). Nothing
-/// else moves, regardless of content — there is no `Spacer()` anywhere in
-/// this file driving primary layout.
+/// A fixed 390×200 canvas, not a responsive layout. Every element is
+/// placed at an explicit coordinate inside a single `ZStack(alignment:
+/// .topLeading)` — no `HStack`/`VStack`/`Spacer()` composing the overall
+/// layout, and no `GeometryReader` measuring anything to derive a
+/// position. The ONLY layout container used for composition is the small
+/// leading-aligned `VStack` for the title+artist block, since that's the
+/// one genuinely dynamic piece of content (title truncates rather than
+/// reflowing anything else).
 ///
-/// Coordinates are derived from the Figma measurements (390×200 canvas,
-/// 24pt side/bottom padding, 48pt notch-clearance top padding, 56pt
-/// artwork, 242pt progress track, 38pt-derived symmetric control spacing)
-/// and treated as the source of truth.
+/// Coordinates below are the measurements as given — treated as source of
+/// truth verbatim, not re-derived or "corrected" against any prior layout.
 struct MusicExpandedView: View {
     @ObservedObject var activity: MusicActivity
 
     @Environment(\.islandNamespace) private var namespace
 
-    /// The fixed coordinate grid for the expanded card. Every value here is
-    /// a deliberate placement, not a computed/responsive one — this is the
-    /// "hardware spec sheet" for the layout. All positions are CENTER
-    /// points, matching how `.position(x:y:)` places a view.
+    /// The fixed coordinate grid. `Origin` values are top-left points, used
+    /// with `.offset(x:y:)` against the ZStack's `.topLeading` alignment.
+    /// `Center` values are used with `.position(_:)`, which places a view's
+    /// center at an absolute point regardless of the parent's alignment.
     private enum Layout {
         static let canvasWidth: CGFloat = DesignTokens.MusicMetrics.expandedWidth   // 390
         static let canvasHeight: CGFloat = DesignTokens.MusicMetrics.expandedHeight // 200
 
-        // Content bounds: 24pt sides/bottom, 48pt notch-clearance top.
-        static let contentLeft: CGFloat = DesignTokens.MusicMetrics.expandedEdgePadding   // 24
-        static let contentRight: CGFloat = canvasWidth - DesignTokens.MusicMetrics.expandedEdgePadding // 366
-        static let contentTop: CGFloat = DesignTokens.MusicMetrics.expandedTopPadding     // 48
+        static let artOrigin = CGPoint(x: 24, y: 24)
+        static let artSize: CGFloat = 65
 
-        // Album artwork — fixed frame, top-left of the content area.
-        static let artSize: CGFloat = DesignTokens.MusicMetrics.albumArtSize // 56
-        static let artCenter = CGPoint(x: contentLeft + artSize / 2, y: contentTop + artSize / 2) // (52, 76)
+        static let waveformOrigin = CGPoint(x: 338.85, y: 24)
+        static let waveformSize = CGSize(width: 25.57, height: 24)
 
-        // Waveform — fixed frame, top-right of the content area, top-aligned with artwork.
-        static let waveformSize = CGSize(width: DesignTokens.MusicMetrics.waveformIconWidth, height: 16) // (43, 16)
-        static let waveformCenter = CGPoint(x: contentRight - waveformSize.width / 2, y: contentTop + waveformSize.height / 2) // (344.5, 56)
+        static let titleOrigin = CGPoint(x: 106, y: 36)
+        // No explicit width was given for the title block. Derived from the
+        // waveform's fixed x minus a small gap, so a long title truncates
+        // before ever reaching the waveform rather than overlapping it.
+        static let titleWidth: CGFloat = waveformOrigin.x - titleOrigin.x - 16
 
-        // Title/artist block — the only flexible content. Fixed box between
-        // artwork and waveform; title truncates rather than resizing this box.
-        static let textLeft: CGFloat = contentLeft + artSize + DesignTokens.Spacing.md // 104
-        static let textRight: CGFloat = waveformCenter.x - waveformSize.width / 2 - DesignTokens.Spacing.sm // 307
-        static let textWidth: CGFloat = textRight - textLeft // 203
-        static let textHeight: CGFloat = artSize - 12 // 44 — leaves room to top-align with artwork
-        static let textCenter = CGPoint(x: textLeft + textWidth / 2, y: contentTop + textHeight / 2) // (205.5, 70)
+        static let progressTrackOrigin = CGPoint(x: 71, y: 112)
+        static let progressTrackSize = CGSize(width: 242, height: 7)
 
-        // Progress row — elapsed label, track, remaining label all
-        // independently fixed, so none of them shift based on digit count.
-        static let progressRowY: CGFloat = contentTop + artSize + 8 // 112
-        static let timeLabelSize = CGSize(width: 34, height: 15)
-        static let trackWidth: CGFloat = DesignTokens.MusicMetrics.progressBarWidth // 242
-        static let trackHeight: CGFloat = 5
-        static let elapsedLabelCenter = CGPoint(x: contentLeft + timeLabelSize.width / 2, y: progressRowY + timeLabelSize.height / 2) // (41, 119.5)
-        static let trackCenter = CGPoint(
-            x: contentLeft + timeLabelSize.width + DesignTokens.Spacing.xs + trackWidth / 2,
-            y: elapsedLabelCenter.y
-        ) // (187, 119.5)
-        static let remainingLabelCenter = CGPoint(
-            x: trackCenter.x + trackWidth / 2 + DesignTokens.Spacing.xs + timeLabelSize.width / 2,
-            y: elapsedLabelCenter.y
-        ) // (333, 119.5)
+        static let elapsedOrigin = CGPoint(x: 24, y: 106)
+        static let remainingOrigin = CGPoint(x: 313, y: 106)
 
-        // Controls row — back / play-pause / forward, perfectly symmetric
-        // about the content area's horizontal center, plus AirPlay fixed at
-        // the trailing edge in the same column as the waveform above it.
-        static let controlsRowY: CGFloat =
-            canvasHeight
-            - DesignTokens.MusicMetrics.expandedEdgePadding
-            - playSize / 2
-        static let playSize: CGFloat = 34
-        static let controlCenterSpacing: CGFloat = 63 // center-to-center, identical on both sides — symmetric by construction
-        static let contentCenterX: CGFloat = (contentLeft + contentRight) / 2 // 195
-
-        static let playCenter = CGPoint(x: contentCenterX, y: controlsRowY)
-        static let backCenter = CGPoint(x: contentCenterX - controlCenterSpacing, y: controlsRowY)
-        static let forwardCenter = CGPoint(x: contentCenterX + controlCenterSpacing, y: controlsRowY)
-        static let airplayCenter = CGPoint(x: waveformCenter.x, y: controlsRowY) // same column as the waveform
+        static let previousCenter = CGPoint(x: 101, y: 140)
+        static let pauseCenter = CGPoint(x: 178, y: 140)
+        static let nextCenter = CGPoint(x: 249, y: 140)
+        static let airplayCenter = CGPoint(x: 322, y: 140)
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             IslandShape.body(
                 topRadius: DesignTokens.Shape.expandedTopRadius,
                 bottomRadius: DesignTokens.Shape.expandedBottomRadius
@@ -92,15 +60,20 @@ struct MusicExpandedView: View {
                 .islandMatchedGeometry(id: "islandBody", namespace: namespace)
 
             albumArt
-            textBlock
             waveform
-            progressRow
-            controlsRow
+            titleBlock
+            progressBar
+            elapsedLabel
+            remainingLabel
+            previousButton
+            pauseButton
+            nextButton
+            airplayButton
         }
         .frame(width: Layout.canvasWidth, height: Layout.canvasHeight)
     }
 
-    // MARK: - Fixed elements
+    // MARK: - Fixed elements (top-left coordinates via .offset)
 
     private var albumArt: some View {
         AlbumArtView(
@@ -109,20 +82,20 @@ struct MusicExpandedView: View {
             cornerRadius: DesignTokens.MusicMetrics.albumArtCornerRadius
         )
         .islandMatchedGeometry(id: "albumArt", namespace: namespace)
-        .position(Layout.artCenter)
+        .offset(x: Layout.artOrigin.x, y: Layout.artOrigin.y)
     }
 
     private var waveform: some View {
         Waveform(isPlaying: activity.playbackState?.isPlaying ?? false)
             .frame(width: Layout.waveformSize.width, height: Layout.waveformSize.height)
             .islandMatchedGeometry(id: "waveform", namespace: namespace)
-            .position(Layout.waveformCenter)
+            .offset(x: Layout.waveformOrigin.x, y: Layout.waveformOrigin.y)
     }
 
-    /// The only variable content in the layout. Fixed box — title truncates
-    /// with a tail ellipsis rather than ever resizing this box or shifting
-    /// anything around it.
-    private var textBlock: some View {
+    /// The only dynamic layout in this view — a small leading-aligned
+    /// VStack for title+artist. Fixed width; title truncates instead of
+    /// ever moving or resizing anything else.
+    private var titleBlock: some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.xxs) {
             Text(activity.playbackState?.title ?? "")
                 .font(DesignTokens.Typography.title)
@@ -137,80 +110,81 @@ struct MusicExpandedView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .frame(width: Layout.textWidth, height: Layout.textHeight, alignment: .topLeading)
+        .frame(width: Layout.titleWidth, alignment: .leading)
         .transition(AnimationTokens.contentTransition(insertDelay: 0.02, removeDelay: 0.04))
-        .position(Layout.textCenter)
+        .offset(x: Layout.titleOrigin.x, y: Layout.titleOrigin.y)
     }
 
-    /// Elapsed label, track, and remaining label are each independently
-    /// fixed — the track never shifts based on how wide the elapsed label's
-    /// text happens to render, since its position doesn't derive from the
-    /// label's width at all.
-    private var progressRow: some View {
-        Group {
-            Text(formatted(activity.playbackState?.elapsed ?? 0))
-                .font(DesignTokens.Typography.timestamp.monospacedDigit())
-                .tracking(DesignTokens.Typography.letterSpacingTight)
-                .foregroundStyle(DesignTokens.Color.secondaryText)
-                .frame(width: Layout.timeLabelSize.width, height: Layout.timeLabelSize.height, alignment: .leading)
-                .position(Layout.elapsedLabelCenter)
-
-            progressTrack
-                .frame(width: Layout.trackWidth, height: Layout.trackHeight)
-                .position(Layout.trackCenter)
-
-            Text("-" + formatted(remaining))
-                .font(DesignTokens.Typography.timestamp.monospacedDigit())
-                .tracking(DesignTokens.Typography.letterSpacingTight)
-                .foregroundStyle(DesignTokens.Color.secondaryText)
-                .frame(width: Layout.timeLabelSize.width, height: Layout.timeLabelSize.height, alignment: .trailing)
-                .position(Layout.remainingLabelCenter)
+    /// Track fill is computed directly from the known fixed track width —
+    /// no `GeometryReader` measurement needed since the track's size is
+    /// itself a fixed constant, not something derived at runtime.
+    private var progressBar: some View {
+        ZStack(alignment: .leading) {
+            Capsule().fill(Color.white.opacity(0.2))
+            Capsule()
+                .fill(DesignTokens.Color.primaryText)
+                .frame(width: Layout.progressTrackSize.width * progressFraction)
         }
+        .frame(width: Layout.progressTrackSize.width, height: Layout.progressTrackSize.height)
         .transition(AnimationTokens.contentTransition(insertDelay: 0.05, removeDelay: 0.02))
+        .offset(x: Layout.progressTrackOrigin.x, y: Layout.progressTrackOrigin.y)
     }
 
-    private var progressTrack: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.2))
-                Capsule()
-                    .fill(DesignTokens.Color.primaryText)
-                    .frame(width: proxy.size.width * progressFraction)
-            }
-        }
+    private var elapsedLabel: some View {
+        Text(formatted(activity.playbackState?.elapsed ?? 0))
+            .font(.system(size: 12, weight: .regular, design: .monospaced))
+            .tracking(DesignTokens.Typography.letterSpacingTight)
+            .foregroundStyle(DesignTokens.Color.secondaryText)
+            .transition(AnimationTokens.contentTransition(insertDelay: 0.05, removeDelay: 0.02))
+            .offset(x: Layout.elapsedOrigin.x, y: Layout.elapsedOrigin.y)
     }
 
-    private var controlsRow: some View {
-        Group {
-            PlaybackButton(systemName: "backward.fill", action: activity.skipBackward, size: 16)
-                .opacity(0.7)
-                .position(Layout.backCenter)
+    private var remainingLabel: some View {
+        Text("-" + formatted(remaining))
+            .font(DesignTokens.Typography.timestamp.monospacedDigit())
+            .tracking(DesignTokens.Typography.letterSpacingTight)
+            .foregroundStyle(DesignTokens.Color.secondaryText)
+            .transition(AnimationTokens.contentTransition(insertDelay: 0.05, removeDelay: 0.02))
+            .offset(x: Layout.remainingOrigin.x, y: Layout.remainingOrigin.y)
+    }
 
-            PlaybackButton(
-                systemName: (activity.playbackState?.isPlaying ?? false) ? "pause.fill" : "play.fill",
-                action: activity.togglePlayPause,
-                size: 20
-            )
-            .frame(width: Layout.playSize, height: Layout.playSize)
-            .background(Circle().fill(Color.white.opacity(0.14)))
-            .position(Layout.playCenter)
+    // MARK: - Fixed elements (center coordinates via .position)
 
-            PlaybackButton(systemName: "forward.fill", action: activity.skipForward, size: 16)
-                .opacity(0.7)
-                .position(Layout.forwardCenter)
+    private var previousButton: some View {
+        PlaybackButton(systemName: "backward.fill", action: activity.skipBackward, size: 16)
+            .opacity(0.7)
+            .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
+            .position(Layout.previousCenter)
+    }
 
-            // AirPlay-style routing icon — fixed in the same column as the
-            // waveform above it, matches "Music Hover.png" / "Music Expanded.png".
-            Image(systemName: "airplayaudio")
-                .font(.system(size: 18))
-                .foregroundStyle(DesignTokens.Color.primaryText)
-                .frame(width: Layout.waveformSize.width, height: Layout.playSize)
-                .position(Layout.airplayCenter)
-        }
+    private var pauseButton: some View {
+        PlaybackButton(
+            systemName: (activity.playbackState?.isPlaying ?? false) ? "pause.fill" : "play.fill",
+            action: activity.togglePlayPause,
+            size: 20
+        )
+        .frame(width: 34, height: 34)
+        .background(Circle().fill(Color.white.opacity(0.14)))
         .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
+        .position(Layout.pauseCenter)
     }
 
-    // MARK: - Derived values (not layout — just formatting)
+    private var nextButton: some View {
+        PlaybackButton(systemName: "forward.fill", action: activity.skipForward, size: 16)
+            .opacity(0.7)
+            .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
+            .position(Layout.nextCenter)
+    }
+
+    private var airplayButton: some View {
+        Image(systemName: "airplayaudio")
+            .font(.system(size: 18))
+            .foregroundStyle(DesignTokens.Color.primaryText)
+            .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
+            .position(Layout.airplayCenter)
+    }
+
+    // MARK: - Derived values (formatting only, not layout)
 
     private var remaining: TimeInterval {
         max((activity.playbackState?.duration ?? 0) - (activity.playbackState?.elapsed ?? 0), 0)

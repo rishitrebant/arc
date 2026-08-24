@@ -45,11 +45,11 @@ enum DesignTokens {
     // MARK: - Island shape (confirmed against Figma layer inspector)
 
     enum Shape {
-        static let compactTopRadius: CGFloat = 32
-        static let compactBottomRadius: CGFloat = 32
+        static let compactTopRadius: CGFloat = 48
+        static let compactBottomRadius: CGFloat = 48
 
-        static let expandedTopRadius: CGFloat = 24
-        static let expandedBottomRadius: CGFloat = 24
+        static let expandedTopRadius: CGFloat = 32
+        static let expandedBottomRadius: CGFloat = 32
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
@@ -69,8 +69,8 @@ enum DesignTokens {
         static let expandedEdgePadding: CGFloat = 22
         static let expandedTopPadding: CGFloat = 44
 
-        static let albumArtSize: CGFloat = 52
-        static let albumArtCornerRadius: CGFloat = 14
+        static let albumArtSize: CGFloat = 64
+        static let albumArtCornerRadius: CGFloat = 16
 
         static let progressBarWidth: CGFloat = 242
 
