@@ -42,6 +42,15 @@ struct IslandRootView: View {
     @State private var isExpanded = false
     @State private var hoverWorkItem: DispatchWorkItem?
 
+    /// True the instant a hover starts, false the instant it ends — no
+    /// delay either direction. Deliberately separate from `isExpanded`,
+    /// which only flips after `hoverActivationDelay`/
+    /// `hoverDeactivationDelay`. This is what drives the "noticed you"
+    /// shadow: it has to move independently of (and ahead of) the actual
+    /// expand, or there's nothing distinguishing "registered your hover"
+    /// from "committing to expand" — they'd just be the same delayed event.
+    @State private var isPrimed = false
+
     private var compactSize: CGSize {
         CGSize(width: DesignTokens.MusicMetrics.compactWidth, height: DesignTokens.MusicMetrics.compactHeight)
     }
@@ -65,6 +74,18 @@ struct IslandRootView: View {
         }
         .environment(\.islandNamespace, morphNamespace)
         .animation(AnimationTokens.ownershipChange, value: activityManager.ownedActivity?.id)
+        // The instant "noticed you" affordance — animates on its own the
+        // moment `isPrimed` changes, completely independent of the
+        // expand/collapse spring below. Color/radius/y are collapsed to
+        // zero at rest so there's nothing to see (and nothing to
+        // mis-render) until a hover actually begins.
+        .shadow(
+            color: isPrimed ? DesignTokens.Shadow.hoverColor : .clear,
+            radius: isPrimed ? DesignTokens.Shadow.hoverRadius : 0,
+            x: 0,
+            y: isPrimed ? DesignTokens.Shadow.hoverYOffset : 0
+        )
+        .animation(AnimationTokens.hoverPrimeTransition, value: isPrimed)
         .onHover { hovering in
             handleHover(hovering)
         }
@@ -73,6 +94,10 @@ struct IslandRootView: View {
     private func handleHover(_ hovering: Bool) {
         isHovering = hovering
         hoverWorkItem?.cancel()
+
+        // Fires immediately, no delay — this is the whole point. The
+        // shadow has to lead the expand, not share its timing with it.
+        isPrimed = hovering
 
         let delay = hovering ? AnimationTokens.hoverActivationDelay : AnimationTokens.hoverDeactivationDelay
         let workItem = DispatchWorkItem {

@@ -46,7 +46,7 @@ enum DesignTokens {
 
     enum Shape {
         static let compactTopRadius: CGFloat = 0
-        static let compactBottomRadius: CGFloat = 12
+        static let compactBottomRadius: CGFloat = 8
 
         static let expandedTopRadius: CGFloat = 18
         static let expandedBottomRadius: CGFloat = 18
@@ -56,11 +56,13 @@ enum DesignTokens {
     enum MusicMetrics {
 
         // Compact
-        static let compactWidth: CGFloat = 298
+        static let compactWidth: CGFloat = 263
+        //notch size - 179
         static let compactHeight: CGFloat = 33
 
         static let compactIconSize: CGFloat = 22
-        static let compactIconCornerRadius: CGFloat = 6
+        static let compactIconCornerRadius: CGFloat = 2
+        static let compactEdgePadding: CGFloat = 10
 
         // Expanded
         static let expandedWidth: CGFloat = 390
@@ -87,6 +89,35 @@ enum DesignTokens {
         static let expandedHeight: CGFloat = 158        // measured
         static let avatarSize: CGFloat = 50             // measured
         static let controlSpacing: CGFloat = 25         // measured
+    }
+
+    // MARK: - Hover affordance shadow (new — additive only, nothing above
+    // this line was touched)
+    //
+    // The instant, no-delay "I noticed you" cue shown the moment a hover
+    // begins, before the separately-timed expand actually commits. Values
+    // are derived to read as a soft elevation lift, not a hard drop shadow.
+
+    enum Shadow {
+        static let hoverColor = SwiftUI.Color.black.opacity(0.45)
+        static let hoverRadius: CGFloat = 16
+        static let hoverYOffset: CGFloat = 8
+
+        /// Extra transparent room carved around the visible pill so the
+        /// shadow above has somewhere to render into. AppKit clips all
+        /// drawing to the window's frame — a window sized exactly to the
+        /// pill (as it was) clips the shadow to nothing before it's ever
+        /// visible, regardless of how correct the SwiftUI shadow code is.
+        /// `WindowManager` builds the real window frame from the pill size
+        /// *plus* these insets, and pads the SwiftUI content by the same
+        /// amount so the pill still sits exactly where it should inside
+        /// the larger, invisible canvas. No top inset: the pill's top
+        /// edge must stay flush with the physical screen top (the notch
+        /// itself), so there's nowhere for a shadow to bleed upward into
+        /// regardless — and nothing is lost, since that direction is
+        /// covered by the camera housing in real life anyway.
+        static let canvasInsetX: CGFloat = hoverRadius + 4
+        static let canvasInsetBottom: CGFloat = hoverRadius + hoverYOffset + 4
     }
 
     // MARK: - Generic spacing scale (8pt / 16pt system)

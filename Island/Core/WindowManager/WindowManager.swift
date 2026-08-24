@@ -43,14 +43,41 @@ final class WindowManager {
         height: DesignTokens.MusicMetrics.compactHeight
     )
 
+    /// The window is always sized to the visible pill PLUS a transparent
+    /// margin (`DesignTokens.Shadow.canvasInsetX`/`canvasInsetBottom`) —
+    /// see that doc comment for why. `notchOrigin` doesn't need to change
+    /// to account for this: the inset is symmetric left/right and zero on
+    /// top, so centering/top-flushing the larger canvas automatically
+    /// centers/top-flushes the pill inside it too.
+    private func canvasSize(for contentSize: CGSize) -> CGSize {
+        CGSize(
+            width: contentSize.width + DesignTokens.Shadow.canvasInsetX * 2,
+            height: contentSize.height + DesignTokens.Shadow.canvasInsetBottom
+        )
+    }
+
     func present<Content: View>(_ rootView: Content) {
         let screen = notchScreen()
-        let origin = notchOrigin(on: screen, size: defaultCompactSize)
+        let canvas = canvasSize(for: defaultCompactSize)
+        let origin = notchOrigin(on: screen, size: canvas)
 
-        let panel = window ?? IslandWindow(contentRect: NSRect(origin: origin, size: defaultCompactSize))
+        let panel = window ?? IslandWindow(contentRect: NSRect(origin: origin, size: canvas))
 
-        let hosting = NSHostingView(rootView: rootView)
-        hosting.frame = NSRect(origin: .zero, size: defaultCompactSize)
+        // The pill itself is inset within the larger, otherwise-invisible
+        // canvas by exactly the same amount the window was grown by, so it
+        // still lands in the same visual position — just with transparent
+        // breathing room around it for the shadow to render into.
+        let paddedRoot = rootView.padding(
+            EdgeInsets(
+                top: 0,
+                leading: DesignTokens.Shadow.canvasInsetX,
+                bottom: DesignTokens.Shadow.canvasInsetBottom,
+                trailing: DesignTokens.Shadow.canvasInsetX
+            )
+        )
+
+        let hosting = NSHostingView(rootView: paddedRoot)
+        hosting.frame = NSRect(origin: .zero, size: canvas)
         // Lets the content view track the window's animated frame changes
         // automatically (AppKit resizes it in step with every frame we
         // set), instead of us having to set its frame manually on every
@@ -63,7 +90,7 @@ final class WindowManager {
 
         window = panel
 
-        let springAnimator = SpringAnimator(initialSize: defaultCompactSize, physics: AnimationTokens.shapePhysics)
+        let springAnimator = SpringAnimator(initialSize: canvas, physics: AnimationTokens.shapePhysics)
         springAnimator.onUpdate = { [weak self, weak panel] liveSize in
             guard let self, let panel else { return }
             let origin = self.notchOrigin(on: self.notchScreen(), size: liveSize)
@@ -77,6 +104,10 @@ final class WindowManager {
     /// symmetrically about that fixed horizontal center, never translating
     /// sideways, per the required behavior.
     ///
+    /// `size` is the visible PILL's target size (compact or expanded) —
+    /// same contract as before. The shadow-canvas inset is added
+    /// internally so callers never need to know about it.
+    ///
     /// `delay` lets the caller keep this in sync with
     /// `AnimationTokens.shapeMorph`: on collapse, the SwiftUI content stays
     /// full-size for `AnimationTokens.collapseShapeDelay` while it fades
@@ -86,7 +117,7 @@ final class WindowManager {
     /// elapsed) simply redirects the same spring — see `SpringAnimator`.
     func animateToSize(_ size: CGSize, delay: TimeInterval = 0) {
         guard size.width > 0, size.height > 0 else { return }
-        animator?.animate(to: size, delay: delay)
+        animator?.animate(to: canvasSize(for: size), delay: delay)
     }
 
     private func notchScreen() -> NSScreen? {
