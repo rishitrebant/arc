@@ -42,7 +42,7 @@ struct MusicExpandedView: View {
         static let progressTrackSize = CGSize(width: 242, height: 7)
 
         static let elapsedOrigin = CGPoint(x: 24, y: 106)
-        static let remainingOrigin = CGPoint(x: 313, y: 106)
+        static let remainingOrigin = CGPoint(x: 333, y: 106)
 
         // Transport row. Horizontal centering confirmed directly by you
         // ("play pause is in the center"); x-spacing measured (41).
@@ -185,8 +185,6 @@ struct MusicExpandedView: View {
             action: activity.togglePlayPause,
             size: 20
         )
-        .frame(width: 34, height: 34)
-        .background(Circle().fill(Color.white.opacity(0.14)))
         .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
         .position(Layout.pauseCenter)
     }

@@ -48,8 +48,8 @@ enum DesignTokens {
         static let compactTopRadius: CGFloat = 0
         static let compactBottomRadius: CGFloat = 12
 
-        static let expandedTopRadius: CGFloat = 18
-        static let expandedBottomRadius: CGFloat = 18
+        static let expandedTopRadius: CGFloat = 0
+        static let expandedBottomRadius: CGFloat = 32
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
@@ -90,7 +90,7 @@ enum DesignTokens {
         /// (prev↔pause, pause↔next) — measured, not guessed. Replaces the
         /// old 34, which produced 77/71pt gaps that never matched any
         /// real reference.
-        static let playbackButtonSpacing: CGFloat = 41
+        static let playbackButtonSpacing: CGFloat = 81
 
         /// Gap from the forward button's right edge to the AirPlay icon's
         /// left edge — measured, but NOT what actually positions AirPlay

@@ -89,7 +89,7 @@ struct MusicIslandView: View {
     private let progressSize = CGSize(width: 242, height: 7)
 
     private let elapsedOrigin = CGPoint(x: 24, y: 106)
-    private let remainingOrigin = CGPoint(x: 313, y: 106)
+    private let remainingOrigin = CGPoint(x: 333, y: 106)
 
     private let rowCenterY: CGFloat = 159.9
     private var pauseCenter: CGPoint { CGPoint(x: expandedSize.width / 2, y: rowCenterY) }
@@ -203,7 +203,7 @@ struct MusicIslandView: View {
     }
 
     private var previousButton: some View {
-        PlaybackButton(systemName: "backward.fill", action: activity.skipBackward, size: 16)
+        PlaybackButton(systemName: "backward.fill", action: activity.skipBackward, size: 20)
             .opacity(0.7)
             .position(previousCenter)
             .opacity(isExpanded ? 1 : 0)
@@ -215,10 +215,9 @@ struct MusicIslandView: View {
         PlaybackButton(
             systemName: (activity.playbackState?.isPlaying ?? false) ? "pause.fill" : "play.fill",
             action: activity.togglePlayPause,
-            size: 20
+            size: 34
         )
-        .frame(width: 34, height: 34)
-        .background(Circle().fill(Color.white.opacity(0.14)))
+
         .position(pauseCenter)
         .opacity(isExpanded ? 1 : 0)
         .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.08 : 0), value: isExpanded)
@@ -226,7 +225,7 @@ struct MusicIslandView: View {
     }
 
     private var nextButton: some View {
-        PlaybackButton(systemName: "forward.fill", action: activity.skipForward, size: 16)
+        PlaybackButton(systemName: "forward.fill", action: activity.skipForward, size: 20)
             .opacity(0.7)
             .position(nextCenter)
             .opacity(isExpanded ? 1 : 0)

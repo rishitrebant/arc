@@ -6,6 +6,7 @@ struct PlaybackButton: View {
     let action: () -> Void
 
     var size: CGFloat = 20
+    var buttonSize: CGFloat = 34
 
     var body: some View {
 
@@ -15,7 +16,7 @@ struct PlaybackButton: View {
                 .symbolRenderingMode(.hierarchical)
                 .font(.system(size: size, weight: .medium))
                 .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
+                .frame(width: buttonSize, height: buttonSize)
 
         }
         .buttonStyle(.plain)
