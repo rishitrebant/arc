@@ -22,13 +22,13 @@ protocol Activity: AnyObject, ObservableObject {
     /// knowing the concrete activity type.
     var isActivePublisher: AnyPublisher<Bool, Never> { get }
 
-    /// Compact (notch-width) presentation.
-    associatedtype CompactContent: View
-    @ViewBuilder func compactView() -> CompactContent
-
-    /// Expanded (hover) presentation.
-    associatedtype ExpandedContent: View
-    @ViewBuilder func expandedView() -> ExpandedContent
+    /// Single island presentation, parameterized by expansion state — NOT
+    /// two separate view types being swapped. This is deliberate: see
+    /// `MusicIslandView`'s doc comment for why having two independently
+    /// type-erased views (the old `compactView()`/`expandedView()`) made
+    /// smooth animation architecturally impossible, not just hard to tune.
+    associatedtype IslandContent: View
+    @ViewBuilder func islandView(isExpanded: Bool) -> IslandContent
 
     /// Called by ActivityManager when this activity begins owning the island.
     func didBecomeActive()

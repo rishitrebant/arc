@@ -48,8 +48,8 @@ enum DesignTokens {
         static let compactTopRadius: CGFloat = 0
         static let compactBottomRadius: CGFloat = 12
 
-        static let expandedTopRadius: CGFloat = 0
-        static let expandedBottomRadius: CGFloat = 24
+        static let expandedTopRadius: CGFloat = 18
+        static let expandedBottomRadius: CGFloat = 18
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
@@ -92,10 +92,12 @@ enum DesignTokens {
         static let playbackButtonSpacing: CGFloat = 41
 
         /// Gap from the forward button's right edge to the AirPlay icon's
-        /// left edge — measured. NOT yet wired into an absolute position;
-        /// see `MusicExpandedView.Layout.airplayCenter`, which still needs
-        /// either an absolute x or the AirPlay icon's own frame width to
-        /// use this correctly.
+        /// left edge — measured, but NOT what actually positions AirPlay
+        /// (see `MusicIslandView.airplayCenter`, which uses its own
+        /// directly-measured center instead — the two don't fully
+        /// reconcile; see that file's comment for the ~35pt discrepancy
+        /// this gap alone couldn't explain). Kept as a named constant
+        /// since it's still real, measured data, even if unused for now.
         static let airplayGap: CGFloat = 43
         static let airplayIconSize: CGFloat = 23
 

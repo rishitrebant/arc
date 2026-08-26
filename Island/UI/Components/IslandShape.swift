@@ -6,7 +6,7 @@ import SwiftUI
 /// This is a real `Shape` with explicit `animatableData`, not just a
 /// factory returning `UnevenRoundedRectangle` directly. That distinction
 /// matters for the morph: `matchedGeometryEffect` (used on this shape's
-/// view in both `MusicCompactView` and `MusicExpandedView`) interpolates
+/// view in both compact and expanded states within `MusicIslandView`)
 /// the view's FRAME — its position and size — but it does nothing for the
 /// shape's own internal parameters. Whether the corner radii themselves
 /// smoothly animate from `(0, 12)` to `(18, 18)`, instead of snapping

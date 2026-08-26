@@ -74,13 +74,8 @@ final class MusicActivity: ObservableObject {
     // MARK: - Rendering
 
     @ViewBuilder
-    func compactView() -> some View {
-        MusicCompactView(activity: self)
-    }
-
-    @ViewBuilder
-    func expandedView() -> some View {
-        MusicExpandedView(activity: self)
+    func islandView(isExpanded: Bool) -> some View {
+        MusicIslandView(activity: self, isExpanded: isExpanded)
     }
 }
 

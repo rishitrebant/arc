@@ -31,11 +31,12 @@ struct IslandRootView: View {
     /// delay so the window and the SwiftUI content move in lockstep).
     var onSizeChange: (CGSize, TimeInterval) -> Void = { _, _ in }
 
-    /// Shared across whichever activity's compact/expanded views are on
-    /// screen (via `islandNamespace` in the environment) so the island
-    /// body, artwork, and waveform can `matchedGeometryEffect` between
-    /// them — one continuous shape changing size, not one view replacing
-    /// another.
+    /// No longer used by Music (`MusicIslandView` is a single persistent
+    /// view now, not two views needing to be bridged — see its doc
+    /// comment). Kept in the environment for a future activity that
+    /// genuinely does need to morph BETWEEN two different view hierarchies
+    /// (e.g. an ownership handoff from Music to a Call), which is a
+    /// different situation than one activity's own compact↔expanded state.
     @Namespace private var morphNamespace
 
     @State private var isHovering = false
@@ -61,13 +62,10 @@ struct IslandRootView: View {
     var body: some View {
         Group {
             if let activity = activityManager.ownedActivity {
-                Group {
-                    if isExpanded {
-                        activity.expandedView()
-                    } else {
-                        activity.compactView()
-                    }
-                }
+                // ONE call, not a branch between two different views. This
+                // is the actual fix for the left-side-grows-first bug — see
+                // MusicIslandView's doc comment for the full explanation.
+                activity.islandView(isExpanded: isExpanded)
             } else {
                 Color.clear.frame(width: compactSize.width, height: compactSize.height)
             }
@@ -106,10 +104,11 @@ struct IslandRootView: View {
             // what triggered this work item.
             guard isHovering == hovering else { return }
 
-            // One explicit transaction covers the matchedGeometryEffect
-            // frame/position interpolation AND the IslandShape corner-radius
-            // interpolation together, so they move in lockstep rather than
-            // as two independently-timed animations.
+            // One transaction, one persisting view (`MusicIslandView`) —
+            // every modifier driven by `isExpanded` (frame size, element
+            // positions, opacities, the shape's corner radii) animates
+            // together automatically, with nothing left to fall out of
+            // sync.
             withAnimation(AnimationTokens.shapeMorph(isExpanding: hovering)) {
                 isExpanded = hovering
             }

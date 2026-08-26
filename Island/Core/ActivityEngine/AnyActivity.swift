@@ -14,8 +14,7 @@ final class AnyActivity: Identifiable {
 
     private let _isActive: () -> Bool
     private let _isActivePublisher: () -> AnyPublisher<Bool, Never>
-    private let _compactView: () -> AnyView
-    private let _expandedView: () -> AnyView
+    private let _islandView: (Bool) -> AnyView
     private let _didBecomeActive: () -> Void
     private let _didResignActive: () -> Void
 
@@ -23,16 +22,19 @@ final class AnyActivity: Identifiable {
         self.kind = A.kind
         self._isActive = { activity.isActive }
         self._isActivePublisher = { activity.isActivePublisher }
-        self._compactView = { AnyView(activity.compactView()) }
-        self._expandedView = { AnyView(activity.expandedView()) }
+        self._islandView = { isExpanded in AnyView(activity.islandView(isExpanded: isExpanded)) }
         self._didBecomeActive = { activity.didBecomeActive() }
         self._didResignActive = { activity.didResignActive() }
     }
 
     var isActive: Bool { _isActive() }
     var isActivePublisher: AnyPublisher<Bool, Never> { _isActivePublisher() }
-    func compactView() -> AnyView { _compactView() }
-    func expandedView() -> AnyView { _expandedView() }
+    /// One call site, one erased view — `IslandRootView` no longer chooses
+    /// between two different `AnyView`s. Same underlying concrete type
+    /// (e.g. `MusicIslandView`) erased every time, just with a different
+    /// `isExpanded` value, which is what lets SwiftUI treat this as a
+    /// single view updating rather than one being swapped for another.
+    func islandView(isExpanded: Bool) -> AnyView { _islandView(isExpanded) }
     func didBecomeActive() { _didBecomeActive() }
     func didResignActive() { _didResignActive() }
 }

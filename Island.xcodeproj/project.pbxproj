@@ -31,6 +31,7 @@
 		00000000000000000010003B /* MusicExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003A /* MusicExpandedView.swift */; };
 		00000000000000000010003D /* IslandRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003C /* IslandRootView.swift */; };
 		00000000000000000010003F /* IslandNamespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003E /* IslandNamespace.swift */; };
+		A5326961303ED0D800EDDE1E /* MusicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5326960303ED0D800EDDE1E /* MusicIslandView.swift */; };
 		A5C10834303CCE090029D5D2 /* SpringAnimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C10833303CCE090029D5D2 /* SpringAnimator.swift */; };
 /* End PBXBuildFile section */
 
@@ -60,6 +61,7 @@
 		00000000000000000010003A /* MusicExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicExpandedView.swift; sourceTree = "<group>"; };
 		00000000000000000010003C /* IslandRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandRootView.swift; sourceTree = "<group>"; };
 		00000000000000000010003E /* IslandNamespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandNamespace.swift; sourceTree = "<group>"; };
+		A5326960303ED0D800EDDE1E /* MusicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicIslandView.swift; sourceTree = "<group>"; };
 		A5C10833303CCE090029D5D2 /* SpringAnimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpringAnimator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -105,6 +107,7 @@
 		000000000000000000100040 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				A5326960303ED0D800EDDE1E /* MusicIslandView.swift */,
 				000000000000000000100044 /* Compact */,
 				000000000000000000100045 /* Components */,
 				000000000000000000100048 /* Expanded */,
@@ -291,6 +294,7 @@
 				000000000000000000100023 /* IslandWindow.swift in Sources */,
 				000000000000000000100025 /* WindowManager.swift in Sources */,
 				000000000000000000100027 /* MusicModels.swift in Sources */,
+				A5326961303ED0D800EDDE1E /* MusicIslandView.swift in Sources */,
 				000000000000000000100029 /* MusicService.swift in Sources */,
 				00000000000000000010002B /* HardcodedMusicService.swift in Sources */,
 				00000000000000000010002D /* MusicActivity.swift in Sources */,
