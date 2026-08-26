@@ -59,7 +59,7 @@ struct MusicIslandView: View {
     private var artCenter: CGPoint {
         isExpanded
             ? CGPoint(x: 24 + 65 / 2, y: 24 + 65 / 2)
-            : CGPoint(x: Metrics.compactEdgePadding + Metrics.compactIconSize / 2, y: compactSize.height / 2)
+            : CGPoint(x: Metrics.compactEdgePadding + Metrics.compactIconSize / 2, y: DesignTokens.MusicMetrics.compactContentCenterY)
     }
 
     private var waveformSize: CGSize {
@@ -72,7 +72,7 @@ struct MusicIslandView: View {
             ? CGPoint(x: 338.85 + 25.57 / 2, y: 24 + 24 / 2)
             : CGPoint(
                 x: compactSize.width - Metrics.compactEdgePadding - Metrics.compactIconSize / 2,
-                y: compactSize.height / 2
+                y: DesignTokens.MusicMetrics.compactContentCenterY
             )
     }
 
@@ -135,7 +135,7 @@ struct MusicIslandView: View {
         // mask that could itself fall out of sync. This is what prevents
         // expanded-only content from being visible/interactive beyond the
         // compact bounds mid-transition.
-        .clipped()
+       
     }
 
     // MARK: - Expanded-only content

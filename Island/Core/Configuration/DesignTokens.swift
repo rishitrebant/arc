@@ -59,7 +59,8 @@ enum DesignTokens {
         // symmetric flanks of 10 (edge padding) + 22 (icon) + 10 (gap to
         // notch) = 42 each. 42*2 + 179 = 263.
         static let compactWidth: CGFloat = 263
-        static let compactHeight: CGFloat = 33
+        static let compactHeight: CGFloat = 29
+        static let compactContentCenterY: CGFloat = 20
 
         static let compactIconSize: CGFloat = 22
         static let compactIconCornerRadius: CGFloat = 4
