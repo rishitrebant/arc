@@ -108,7 +108,12 @@ struct MusicIslandView: View {
                 bottomRadius: isExpanded ? ShapeTokens.expandedBottomRadius : ShapeTokens.compactBottomRadius
             )
             .fill(DesignTokens.Color.islandBackground)
-
+            .shadow(
+                color: .black.opacity(0.36),
+                radius: 4,
+                x: 0,
+                y: 4
+            )
             AlbumArtView(
                 image: activity.playbackState?.artwork,
                 size: artSize,

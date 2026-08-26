@@ -130,9 +130,9 @@ enum DesignTokens {
     // are derived to read as a soft elevation lift, not a hard drop shadow.
 
     enum Shadow {
-        static let hoverColor = SwiftUI.Color.black.opacity(0.45)
-        static let hoverRadius: CGFloat = 16
-        static let hoverYOffset: CGFloat = 8
+        static let hoverColor = SwiftUI.Color.black.opacity(0.24)
+        static let hoverRadius: CGFloat = 12
+        static let hoverYOffset: CGFloat = 6
 
         /// Extra transparent room carved around the visible pill so the
         /// shadow above has somewhere to render into. AppKit clips all

@@ -100,7 +100,7 @@ enum AnimationTokens {
     /// Per "Hover Philosophy": expansion must feel earned, never accidental —
     /// but Apple's own hover-intent windows are short. 0.35s read as
     /// sluggish; this is a deliberate but brief pause, not a lag.
-    static let hoverActivationDelay: TimeInterval = 0.15
+    static let hoverActivationDelay: TimeInterval = 0.40
 
     /// Collapse should feel calm without dragging — shorter than before,
     /// still a touch slower than activation so it doesn't feel like a flinch.
