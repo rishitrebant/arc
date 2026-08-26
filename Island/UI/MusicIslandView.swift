@@ -117,7 +117,8 @@ struct MusicIslandView: View {
             AlbumArtView(
                 image: activity.playbackState?.artwork,
                 size: artSize,
-                cornerRadius: artCornerRadius
+                cornerRadius: artCornerRadius,
+                showGlow: isExpanded
             )
             .position(artCenter)
 
