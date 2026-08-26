@@ -46,27 +46,36 @@ enum DesignTokens {
 
     enum Shape {
         static let compactTopRadius: CGFloat = 0
-        static let compactBottomRadius: CGFloat = 8
+        static let compactBottomRadius: CGFloat = 12
 
-        static let expandedTopRadius: CGFloat = 18
-        static let expandedBottomRadius: CGFloat = 18
+        static let expandedTopRadius: CGFloat = 0
+        static let expandedBottomRadius: CGFloat = 24
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
     enum MusicMetrics {
 
-        // Compact
+        // Compact — derived from your measured notch width (179) plus two
+        // symmetric flanks of 10 (edge padding) + 22 (icon) + 10 (gap to
+        // notch) = 42 each. 42*2 + 179 = 263.
         static let compactWidth: CGFloat = 263
-        //notch size - 179
         static let compactHeight: CGFloat = 33
 
         static let compactIconSize: CGFloat = 22
-        static let compactIconCornerRadius: CGFloat = 2
+        static let compactIconCornerRadius: CGFloat = 4
+
+        /// Distance from the pill's outer edge to the icon/waveform — NOT
+        /// the same as `Spacing.sm` (16), which other views still use.
+        /// Kept separate on purpose so tuning the compact pill never
+        /// silently moves spacing anywhere else.
         static let compactEdgePadding: CGFloat = 10
+
+        static let waveformBarCount: Int = 6
+        static let waveformBarSpacing: CGFloat = 1.83
 
         // Expanded
         static let expandedWidth: CGFloat = 390
-        static let expandedHeight: CGFloat = 188
+        static let expandedHeight: CGFloat = 200 // was 188
 
         static let expandedEdgePadding: CGFloat = 22
         static let expandedTopPadding: CGFloat = 44
@@ -76,10 +85,29 @@ enum DesignTokens {
 
         static let progressBarWidth: CGFloat = 242
 
-        static let playbackRowWidth: CGFloat = 104
-        static let playbackButtonSpacing: CGFloat = 34
+        /// Center-to-center distance between adjacent transport buttons
+        /// (prev↔pause, pause↔next) — measured, not guessed. Replaces the
+        /// old 34, which produced 77/71pt gaps that never matched any
+        /// real reference.
+        static let playbackButtonSpacing: CGFloat = 41
+
+        /// Gap from the forward button's right edge to the AirPlay icon's
+        /// left edge — measured. NOT yet wired into an absolute position;
+        /// see `MusicExpandedView.Layout.airplayCenter`, which still needs
+        /// either an absolute x or the AirPlay icon's own frame width to
+        /// use this correctly.
+        static let airplayGap: CGFloat = 43
+        static let airplayIconSize: CGFloat = 23
 
         static let waveformIconWidth: CGFloat = 34
+
+        /// Fraction of the waveform's bounding box left empty on each
+        /// side as breathing room around the bars ("thinner, shorter" per
+        /// feedback). This is an ESTIMATE, not a measurement — there was
+        /// no exact number given for how much smaller the bars should
+        /// read relative to their slot. Tell me the real number if you
+        /// have one and I'll swap this for it directly.
+        static let waveformContentInset: CGFloat = 0.15
     }
 
     // MARK: - Call metrics (measured, from "Expanded Callpng.png")

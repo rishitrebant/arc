@@ -1,23 +1,46 @@
 import SwiftUI
 
 /// The small animated waveform shown in the music pill (compact and
-/// expanded). Matches the yellow bars visible in `ongoing music.png`.
+/// expanded). Six thin bars, 1.83pt apart — matches Apple's own equalizer
+/// glyph proportions rather than the previous 4 thick bars.
+///
+/// Bar width is computed from whatever width the caller constrains this
+/// view to (via `.frame(width:)` at the call site), not hardcoded — the
+/// same component is used at two different sizes (22pt in the compact
+/// pill, 25.57pt in the expanded view) and both need to read as "the same
+/// waveform, scaled," not two different-looking waveforms that happen to
+/// share code.
 struct Waveform: View {
     var isPlaying: Bool
     var color: Color = DesignTokens.Color.musicAccent
-    var barCount: Int = 4
+    var barCount: Int = DesignTokens.MusicMetrics.waveformBarCount
+    var barSpacing: CGFloat = DesignTokens.MusicMetrics.waveformBarSpacing
+    /// Fraction of the bounding box's smaller dimension left as empty
+    /// margin on each side — see DesignTokens.MusicMetrics
+    /// .waveformContentInset for why this is an estimate, not a
+    /// measurement.
+    var contentInset: CGFloat = DesignTokens.MusicMetrics.waveformContentInset
 
     @State private var pulse = false
 
     var body: some View {
-        HStack(spacing: 2.5) {
-            ForEach(0..<barCount, id: \.self) { index in
-                Capsule()
-                    .fill(color)
-                    .frame(width: 3, height: barHeight(for: index))
+        GeometryReader { proxy in
+            let margin = min(proxy.size.width, proxy.size.height) * contentInset
+            let availableWidth = proxy.size.width - margin * 2
+            let availableHeight = proxy.size.height - margin * 2
+
+            let totalSpacing = CGFloat(barCount - 1) * barSpacing
+            let barWidth = max(1, (availableWidth - totalSpacing) / CGFloat(barCount))
+
+            HStack(alignment: .center, spacing: barSpacing) {
+                ForEach(0..<barCount, id: \.self) { index in
+                    Capsule()
+                        .fill(color)
+                        .frame(width: barWidth, height: barHeight(for: index, containerHeight: availableHeight))
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
         }
-        .frame(width: 18, height: 16)
         .onAppear { setPulsing(isPlaying) }
         .onChange(of: isPlaying) {
             setPulsing(isPlaying)
@@ -46,11 +69,15 @@ struct Waveform: View {
         }
     }
 
-    private func barHeight(for index: Int) -> CGFloat {
-        guard pulse else { return 6 }
-        // Slightly offset heights per bar so they don't move in lockstep,
-        // reading as a natural waveform rather than a synced blink.
-        let base: [CGFloat] = [8, 16, 11, 14]
-        return base[index % base.count]
+    /// Six per-bar heights as a FRACTION of the container height, not an
+    /// absolute point value — so this scales correctly whether it's
+    /// rendered at 16pt tall (compact) or 24pt tall (expanded) instead of
+    /// clipping or looking tiny at the other size. Values are offset per
+    /// bar so they don't move in lockstep, reading as a natural waveform
+    /// rather than a synced blink.
+    private func barHeight(for index: Int, containerHeight: CGFloat) -> CGFloat {
+        guard pulse else { return containerHeight * 0.35 }
+        let fractions: [CGFloat] = [0.45, 0.85, 0.65, 1.0, 0.55, 0.75]
+        return containerHeight * fractions[index % fractions.count]
     }
 }

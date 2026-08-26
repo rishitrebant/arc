@@ -44,15 +44,37 @@ struct MusicExpandedView: View {
         static let elapsedOrigin = CGPoint(x: 24, y: 106)
         static let remainingOrigin = CGPoint(x: 313, y: 106)
 
-        static let previousCenter = CGPoint(x: 101, y: 140)
-        static let pauseCenter = CGPoint(x: 178, y: 140)
-        static let nextCenter = CGPoint(x: 249, y: 140)
-        static let airplayCenter = CGPoint(x: 322, y: 140)
+        // Transport row. Horizontal centering confirmed directly by you
+        // ("play pause is in the center"); x-spacing measured (41).
+        // Vertical position (159.9) is now taken from the AirPlay icon's
+        // directly-measured center — since AirPlay sits in the same row as
+        // the transport buttons, its measured Y is a far better anchor
+        // than the old unconfirmed placeholder (140) ever was.
+        static let rowCenterY: CGFloat = 159.9
+        static let pauseCenter = CGPoint(x: canvasWidth / 2, y: rowCenterY)
+        static let previousCenter = CGPoint(
+            x: pauseCenter.x - DesignTokens.MusicMetrics.playbackButtonSpacing,
+            y: rowCenterY
+        )
+        static let nextCenter = CGPoint(
+            x: pauseCenter.x + DesignTokens.MusicMetrics.playbackButtonSpacing,
+            y: rowCenterY
+        )
+
+        // Measured directly (selection: left 324.01, top 148.39, size
+        // 23×22.99) — center computed from that, not inferred from gaps.
+        // This doesn't fully reconcile with the previous/next centers
+        // above via the 43pt forward→AirPlay gap (~35pt short of what
+        // that math implies) — flagged, not silently smoothed over. If the
+        // row looks visually off between the transport buttons and
+        // AirPlay specifically, that gap is the thing to re-measure.
+        static let airplayIconSize: CGFloat = 23
+        static let airplayCenter = CGPoint(x: 335.5, y: 159.9)
     }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            IslandShape.body(
+            IslandShape(
                 topRadius: DesignTokens.Shape.expandedTopRadius,
                 bottomRadius: DesignTokens.Shape.expandedBottomRadius
             )
@@ -180,6 +202,7 @@ struct MusicExpandedView: View {
         Image(systemName: "airplayaudio")
             .font(.system(size: 18))
             .foregroundStyle(DesignTokens.Color.primaryText)
+            .frame(width: DesignTokens.MusicMetrics.airplayIconSize, height: DesignTokens.MusicMetrics.airplayIconSize)
             .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
             .position(Layout.airplayCenter)
     }
