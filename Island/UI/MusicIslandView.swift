@@ -115,7 +115,7 @@ struct MusicIslandView: View {
     )
 
     private let elapsedOrigin = CGPoint(
-        x: 24,
+        x: 30,
         y: 106
     )
 
@@ -353,7 +353,8 @@ struct MusicIslandView: View {
             .system(
                 size: 12,
                 weight: .regular,
-                design: .monospaced
+                design: .default
+            
             )
         )
         .tracking(
