@@ -3,9 +3,11 @@ import SwiftUI
 /// Music's single island presentation — compact and expanded are NOT two
 /// separate views being swapped anymore, just one view's parameters
 /// changing under `isExpanded`.
+
 struct MusicIslandView: View {
 
     @ObservedObject var activity: MusicActivity
+
     var isExpanded: Bool
 
     /// The album art's dominant color, extracted once per artwork change
@@ -39,6 +41,18 @@ struct MusicIslandView: View {
         isExpanded
             ? expandedSize
             : compactSize
+    }
+
+    // IMPORTANT:
+    // The entire MusicIslandView is centered by its parent.
+    // When the island shrinks, its left edge moves to the right.
+    //
+    // Expanded-only content uses fixed expanded coordinates, so we
+    // compensate for that movement while the content fades away.
+    private var expandedContentCollapseOffset: CGFloat {
+        isExpanded
+            ? 0
+            : -(expandedSize.width - compactSize.width) / 2
     }
 
     // MARK: - Shared elements
@@ -203,22 +217,34 @@ struct MusicIslandView: View {
             .position(waveformCenter)
 
             // MARK: Expanded content
+            //
+            // IMPORTANT:
+            // All expanded-only elements remain in their normal
+            // expanded coordinate positions. The entire group gets
+            // compensated horizontally when collapsing so it doesn't
+            // appear to jump to the right as the parent shrinks.
 
-            titleBlock
-            progressBar
-            elapsedLabel
-            remainingLabel
-            previousButton
-            pauseButton
-            nextButton
-            airplayButton
+            ZStack(alignment: .topLeading) {
+                titleBlock
+                progressBar
+                elapsedLabel
+                remainingLabel
+                previousButton
+                pauseButton
+                nextButton
+                airplayButton
+            }
+            .offset(
+                x: expandedContentCollapseOffset
+            )
         }
+
         .frame(
             width: currentSize.width,
             height: currentSize.height
         )
-        .onContinuousHover(coordinateSpace: .local) { phase in
 
+        .onContinuousHover(coordinateSpace: .local) { phase in
             guard isExpanded else {
                 return
             }
@@ -256,6 +282,7 @@ struct MusicIslandView: View {
                 }
             }
         }
+
         .task(
             id: activity.playbackState?.artwork?.tiffRepresentation
         ) {
@@ -273,8 +300,6 @@ struct MusicIslandView: View {
 
     // MARK: - Expanded-only content
 
-    private let entranceOffsetY: CGFloat = 14
-
     // MARK: - Title
 
     private var titleBlock: some View {
@@ -282,6 +307,7 @@ struct MusicIslandView: View {
             alignment: .leading,
             spacing: DesignTokens.Spacing.xxs
         ) {
+
             Text(
                 activity.playbackState?.title ?? ""
             )
@@ -316,17 +342,11 @@ struct MusicIslandView: View {
         .offset(
             x: titleOrigin.x,
             y: titleOrigin.y
-                + (isExpanded ? 0 : entranceOffsetY)
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.02 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.12 : 0,
+            duration: 0.25
         )
         .allowsHitTesting(
             isExpanded
@@ -360,17 +380,11 @@ struct MusicIslandView: View {
         .offset(
             x: progressOrigin.x,
             y: progressOrigin.y
-                + (isExpanded ? 0 : entranceOffsetY)
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.05 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.14 : 0,
+            duration: 0.25
         )
         .allowsHitTesting(
             isExpanded
@@ -402,15 +416,10 @@ struct MusicIslandView: View {
             x: elapsedOrigin.x,
             y: elapsedOrigin.y
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.05 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.14 : 0,
+            duration: 0.25
         )
     }
 
@@ -436,17 +445,11 @@ struct MusicIslandView: View {
         .offset(
             x: remainingOrigin.x,
             y: remainingOrigin.y
-                + (isExpanded ? 0 : entranceOffsetY)
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.05 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.14 : 0,
+            duration: 0.25
         )
     }
 
@@ -462,17 +465,11 @@ struct MusicIslandView: View {
         .position(
             x: previousCenter.x,
             y: previousCenter.y
-                + (isExpanded ? 0 : entranceOffsetY)
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.08 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.16 : 0,
+            duration: 0.25
         )
         .allowsHitTesting(
             isExpanded
@@ -500,17 +497,11 @@ struct MusicIslandView: View {
         .position(
             x: pauseCenter.x,
             y: pauseCenter.y
-                + (isExpanded ? 0 : entranceOffsetY)
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.08 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.16 : 0,
+            duration: 0.25
         )
         .allowsHitTesting(
             isExpanded
@@ -529,17 +520,11 @@ struct MusicIslandView: View {
         .position(
             x: nextCenter.x,
             y: nextCenter.y
-                + (isExpanded ? 0 : entranceOffsetY)
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.08 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.16 : 0,
+            duration: 0.25
         )
         .allowsHitTesting(
             isExpanded
@@ -565,17 +550,11 @@ struct MusicIslandView: View {
         .position(
             x: airplayCenter.x,
             y: airplayCenter.y
-                + (isExpanded ? 0 : entranceOffsetY)
         )
-        .opacity(
-            isExpanded ? 1 : 0
-        )
-        .animation(
-            AnimationTokens.shapeSpring
-                .delay(
-                    isExpanded ? 0.08 : 0
-                ),
-            value: isExpanded
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.16 : 0,
+            duration: 0.25
         )
         .allowsHitTesting(
             isExpanded
@@ -612,6 +591,7 @@ struct MusicIslandView: View {
     private func formatted(
         _ interval: TimeInterval
     ) -> String {
+
         let total = max(
             Int(interval),
             0
@@ -622,5 +602,58 @@ struct MusicIslandView: View {
             total / 60,
             total % 60
         )
+    }
+}
+
+// MARK: - Fade-only animation
+
+private extension View {
+
+    func fadeOnly(
+        isVisible: Bool,
+        delay: Double,
+        duration: Double
+    ) -> some View {
+
+        self
+            .transaction { transaction in
+                transaction.animation = nil
+            }
+            .modifier(
+                FadeOnlyModifier(
+                    isVisible: isVisible,
+                    delay: delay,
+                    duration: duration
+                )
+            )
+    }
+}
+
+private struct FadeOnlyModifier: ViewModifier {
+
+    let isVisible: Bool
+    let delay: Double
+    let duration: Double
+
+    @State private var opacity: Double = 0
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(opacity)
+            .onAppear {
+                opacity = isVisible ? 1 : 0
+            }
+            .onChange(of: isVisible) { _, newValue in
+                withAnimation(
+                    .easeOut(
+                        duration: newValue ? duration : 0.10
+                    )
+                    .delay(
+                        newValue ? delay : 0
+                    )
+                ) {
+                    opacity = newValue ? 1 : 0
+                }
+            }
     }
 }

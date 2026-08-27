@@ -40,7 +40,6 @@ enum AnimationTokens {
     static func contentTransition(insertDelay: Double, removeDelay: Double) -> AnyTransition {
         .asymmetric(
             insertion: .opacity
-                .combined(with: .offset(y: -3))
                 .animation(shapeSpring.delay(insertDelay)),
             removal: .opacity
                 .animation(.easeOut(duration: 0.12).delay(removeDelay))
