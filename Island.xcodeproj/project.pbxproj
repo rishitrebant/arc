@@ -32,7 +32,6 @@
 		00000000000000000010003D /* IslandRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003C /* IslandRootView.swift */; };
 		00000000000000000010003F /* IslandNamespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003E /* IslandNamespace.swift */; };
 		A5326961303ED0D800EDDE1E /* MusicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5326960303ED0D800EDDE1E /* MusicIslandView.swift */; };
-		A5C10834303CCE090029D5D2 /* SpringAnimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C10833303CCE090029D5D2 /* SpringAnimator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,7 +61,6 @@
 		00000000000000000010003C /* IslandRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandRootView.swift; sourceTree = "<group>"; };
 		00000000000000000010003E /* IslandNamespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandNamespace.swift; sourceTree = "<group>"; };
 		A5326960303ED0D800EDDE1E /* MusicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicIslandView.swift; sourceTree = "<group>"; };
-		A5C10833303CCE090029D5D2 /* SpringAnimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpringAnimator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -178,7 +176,6 @@
 			children = (
 				000000000000000000100022 /* IslandWindow.swift */,
 				000000000000000000100024 /* WindowManager.swift */,
-				A5C10833303CCE090029D5D2 /* SpringAnimator.swift */,
 			);
 			path = WindowManager;
 			sourceTree = "<group>";
@@ -287,7 +284,6 @@
 				000000000000000000100017 /* DesignTokens.swift in Sources */,
 				000000000000000000100019 /* AnimationTokens.swift in Sources */,
 				00000000000000000010001B /* ActivityKind.swift in Sources */,
-				A5C10834303CCE090029D5D2 /* SpringAnimator.swift in Sources */,
 				00000000000000000010001D /* Activity.swift in Sources */,
 				00000000000000000010001F /* AnyActivity.swift in Sources */,
 				000000000000000000100021 /* ActivityManager.swift in Sources */,

@@ -22,7 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         musicActivity = MusicActivity()
         activityManager.register(musicActivity)
 
-        let root = IslandRootView(activityManager: activityManager)
+        let root = IslandRootView(
+            activityManager: activityManager,
+            onHoverRegionChange: { [weak windowManager] active in
+                windowManager?.setHoverActive(active)
+            }
+        )
         windowManager.present(root)
     }
 }

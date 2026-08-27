@@ -18,6 +18,11 @@ import SwiftUI
 struct IslandRootView: View {
     @ObservedObject var activityManager: ActivityManager
 
+    /// Widens/narrows the window's actual clickable region — see
+    /// `WindowManager.setHoverActive`. Fired on the same undelayed signal
+    /// as the resting shadow (`isPrimed`), not the delayed `isExpanded`.
+    var onHoverRegionChange: (Bool) -> Void = { _ in }
+
     /// No longer used by Music (`MusicIslandView` is a single persistent
     /// view now, not two views needing to be bridged — see its doc
     /// comment). Kept in the environment for a future activity that
@@ -80,7 +85,11 @@ struct IslandRootView: View {
 
         // Fires immediately, no delay — this is the whole point. The
         // shadow has to lead the expand, not share its timing with it.
+        // The window's clickable region widens on this exact same signal
+        // (see WindowManager.setHoverActive) so it's never left too small
+        // right after the cursor triggers a hover.
         isPrimed = hovering
+        onHoverRegionChange(hovering)
 
         let delay = hovering ? AnimationTokens.hoverActivationDelay : AnimationTokens.hoverDeactivationDelay
         let workItem = DispatchWorkItem {

@@ -21,7 +21,13 @@ final class IslandWindow: NSPanel {
         level = .statusBar + 1          // stays above the menu bar / notch UI
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         isMovable = false
-        ignoresMouseEvents = false      // must remain false so hover/click work
+        // Starting state doesn't matter much — `WindowManager` corrects it
+        // immediately after creating this window (see `updateClickThrough`)
+        // and keeps it continuously in sync with live cursor position from
+        // then on. Starting `true` (click-through) just matches the more
+        // common resting case, where most of this window's bounds aren't
+        // over the visible pill.
+        ignoresMouseEvents = true
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
     }
