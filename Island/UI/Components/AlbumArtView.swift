@@ -23,10 +23,10 @@ struct AlbumArtView: View {
                     cornerRadius: cornerRadius,
                     style: .continuous
                 )
-                .fill(glowColor.opacity(0.26))
+                .fill(glowColor.opacity(0.50))
                 .frame(
-                    width: size + 8,
-                    height: size + 8
+                    width: size + 12,
+                    height: size + 12
                 )
                 .blur(radius: 9)
             }
