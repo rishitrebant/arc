@@ -37,15 +37,32 @@ final class MediaRemoteMusicService:
 
     // MARK: - Development Paths
 
-    // For now we are using the copy on your Desktop.
-    // Later, when the backend is fully working, these will be changed
-    // to Bundle.main paths for distribution.
-
     private let adapterScriptPath =
         "/Users/rishitrebant/Desktop/mediaremote-adapter/bin/mediaremote-adapter.pl"
 
     private let frameworkPath =
         "/Users/rishitrebant/Desktop/mediaremote-adapter/build/MediaRemoteAdapter.framework"
+
+    // MARK: - Live Playback Tracking
+
+    private var currentState:
+        MusicPlaybackState?
+
+    /// Position reported by the adapter at the last sync.
+    private var baseElapsed:
+        TimeInterval = 0
+
+    /// Wall-clock moment corresponding to `baseElapsed`.
+    private var baseTimestamp:
+        Date = .now
+
+    /// Playback speed reported by the adapter.
+    private var playbackRate:
+        Double = 0
+
+    /// Drives the visible progress locally between adapter updates.
+    private var progressTimer:
+        Timer?
 
     // MARK: - Start
 
@@ -58,6 +75,21 @@ final class MediaRemoteMusicService:
         isRunning = true
 
         startAdapter()
+
+        // Local progress ticker.
+        //
+        // This does NOT query MediaRemote.
+        // It simply advances the already-known position smoothly.
+        progressTimer =
+            Timer.scheduledTimer(
+                withTimeInterval:
+                    0.1,
+                repeats:
+                    true
+            ) { [weak self] _ in
+
+                self?.advanceProgress()
+            }
     }
 
     // MARK: - Stop
@@ -66,10 +98,19 @@ final class MediaRemoteMusicService:
 
         isRunning = false
 
+        progressTimer?.invalidate()
+        progressTimer = nil
+
         process?.terminate()
         process = nil
 
         outputPipe = nil
+
+        currentState = nil
+
+        baseElapsed = 0
+        baseTimestamp = .now
+        playbackRate = 0
 
         stateSubject.send(nil)
     }
@@ -127,8 +168,6 @@ final class MediaRemoteMusicService:
                     "/usr/bin/perl"
             )
 
-        // `stream` gives us continuous updates.
-        // `--no-diff` makes every payload contain the complete state.
         process.arguments = [
             adapterScriptPath,
             frameworkPath,
@@ -181,22 +220,20 @@ final class MediaRemoteMusicService:
         )
     }
 
-    // MARK: - Read Adapter Output
+    // MARK: - Read Stream
 
     private func readAdapterOutput(
         from pipe:
             Pipe
     ) {
 
-        let queue =
-            DispatchQueue(
-                label:
-                    "com.island.mediaremote.adapter.reader",
-                qos:
-                    .userInitiated
-            )
-
-        queue.async { [weak self] in
+        DispatchQueue(
+            label:
+                "com.island.mediaremote.adapter.reader",
+            qos:
+                .userInitiated
+        )
+        .async { [weak self] in
 
             guard let self else {
                 return
@@ -270,31 +307,6 @@ final class MediaRemoteMusicService:
                     }
                 }
             }
-
-            // Handle a final line without a trailing newline.
-            if
-                !buffer.isEmpty,
-                let finalLine =
-                    String(
-                        data:
-                            buffer,
-                        encoding:
-                            .utf8
-                    )?
-                    .trimmingCharacters(
-                        in:
-                            .whitespacesAndNewlines
-                    ),
-                !finalLine.isEmpty
-            {
-
-                DispatchQueue.main.async { [weak self] in
-
-                    self?.handleAdapterLine(
-                        finalLine
-                    )
-                }
-            }
         }
     }
 
@@ -325,8 +337,21 @@ final class MediaRemoteMusicService:
                             data
                     )
 
-            handleMessage(
-                message
+            guard
+                message.type == "data"
+            else {
+                return
+            }
+
+            guard
+                let payload =
+                    message.payload
+            else {
+                return
+            }
+
+            handlePayload(
+                payload
             )
 
         } catch {
@@ -340,7 +365,7 @@ final class MediaRemoteMusicService:
             )
 
             print(
-                "RAW LINE:"
+                "RAW:"
             )
 
             print(
@@ -349,28 +374,15 @@ final class MediaRemoteMusicService:
         }
     }
 
-    // MARK: - Handle Message
+    // MARK: - Handle Payload
 
-    private func handleMessage(
-        _ message:
-            AdapterMessage
+    private func handlePayload(
+        _ payload:
+            AdapterPayload
     ) {
 
-        guard
-            message.type == "data"
-        else {
-            return
-        }
-
-        guard
-            let payload =
-                message.payload
-        else {
-            return
-        }
-
         // -------------------------------------------------------------
-        // No active media
+        // No active media.
         // -------------------------------------------------------------
 
         guard
@@ -379,78 +391,50 @@ final class MediaRemoteMusicService:
             !title.isEmpty
         else {
 
+            currentState = nil
+
+            baseElapsed = 0
+            playbackRate = 0
+
             stateSubject.send(nil)
 
             return
         }
 
         // -------------------------------------------------------------
-        // Supported application
+        // Supported app.
         // -------------------------------------------------------------
 
         guard
             let bundleIdentifier =
                 payload.bundleIdentifier,
 
-            let musicApp =
+            let app =
                 MusicApp(
                     bundleIdentifier:
                         bundleIdentifier
                 )
         else {
 
-            stateSubject.send(nil)
-
             return
         }
 
         // -------------------------------------------------------------
-        // Duration
+        // Duration.
         // -------------------------------------------------------------
 
-        let duration:
-            TimeInterval =
-                max(
-                    payload.duration ?? 0,
-                    0
-                )
+        let duration =
+            max(
+                payload.duration ?? 0,
+                0
+            )
 
         // -------------------------------------------------------------
-        // Elapsed
-        //
-        // Prefer elapsedTimeNow.
-        // If it isn't supplied, use elapsedTime.
+        // Playback rate.
         // -------------------------------------------------------------
 
-        let elapsed:
-            TimeInterval =
-                max(
-                    payload.elapsedTimeNow
-                        ?? payload.elapsedTime
-                        ?? 0,
-                    0
-                )
-
-        let safeElapsed:
-            TimeInterval
-
-        if duration > 0 {
-
-            safeElapsed =
-                min(
-                    elapsed,
-                    duration
-                )
-
-        } else {
-
-            safeElapsed =
-                elapsed
-        }
-
-        // -------------------------------------------------------------
-        // Playing state
-        // -------------------------------------------------------------
+        let rate =
+            payload.playbackRate ?? 0
 
         let isPlaying:
             Bool
@@ -463,18 +447,54 @@ final class MediaRemoteMusicService:
 
         } else {
 
-            let rate =
-                payload.playbackRate ?? 0
-
             isPlaying =
                 rate > 0.01
         }
 
         // -------------------------------------------------------------
-        // Artwork
+        // Adapter's latest known elapsed position.
+        // -------------------------------------------------------------
+
+        let reportedElapsed =
+            max(
+                payload.elapsedTimeNow
+                    ?? payload.elapsedTime
+                    ?? 0,
+                0
+            )
+
+        // -------------------------------------------------------------
+        // Sync local progress to the newest adapter position.
         //
-        // The adapter already gives artworkData as base64.
-        // Your terminal test proved this exists.
+        // Whenever MediaRemote gives us a new position, this resets
+        // our local clock. Between updates, advanceProgress() takes
+        // over so the visible time does not sit frozen.
+        // -------------------------------------------------------------
+
+        baseElapsed =
+            reportedElapsed
+
+        baseTimestamp =
+            .now
+
+        playbackRate =
+            rate
+
+        // -------------------------------------------------------------
+        // Clamp.
+        // -------------------------------------------------------------
+
+        let safeElapsed =
+            clampElapsed(
+                reportedElapsed,
+                duration:
+                    duration
+            )
+
+        // -------------------------------------------------------------
+        // Artwork.
+        //
+        // This remains exactly the same working adapter path.
         // -------------------------------------------------------------
 
         var artwork:
@@ -483,8 +503,6 @@ final class MediaRemoteMusicService:
         if
             let artworkBase64 =
                 payload.artworkData,
-
-            !artworkBase64.isEmpty,
 
             let artworkData =
                 Data(
@@ -501,48 +519,14 @@ final class MediaRemoteMusicService:
         }
 
         // -------------------------------------------------------------
-        // Debug
+        // Build state.
         // -------------------------------------------------------------
 
-        print(
-            "🎵 \(title)"
-        )
-
-        print(
-            "Artist:",
-            payload.artist ?? ""
-        )
-
-        print(
-            "Playing:",
-            isPlaying
-        )
-
-        print(
-            "Elapsed:",
-            safeElapsed
-        )
-
-        print(
-            "Duration:",
-            duration
-        )
-
-        print(
-            "Artwork:",
-            artwork != nil
-        )
-
-        // -------------------------------------------------------------
-        // Publish
-        // -------------------------------------------------------------
-
-        stateSubject.send(
-
+        let state =
             MusicPlaybackState(
 
                 app:
-                    musicApp,
+                    app,
 
                 title:
                     title,
@@ -562,6 +546,115 @@ final class MediaRemoteMusicService:
                 duration:
                     duration
             )
+
+        currentState =
+            state
+
+        stateSubject.send(
+            state
+        )
+
+        print(
+            "🎵 \(title)"
+            + " | playing: \(isPlaying)"
+            + " | elapsed: \(safeElapsed)"
+            + " | duration: \(duration)"
+        )
+    }
+
+    // MARK: - Local Progress
+
+    private func advanceProgress() {
+
+        guard
+            isRunning,
+            var state =
+                currentState,
+            state.isPlaying
+        else {
+            return
+        }
+
+        // Time since the adapter last gave us a position.
+        let delta =
+            Date()
+                .timeIntervalSince(
+                    baseTimestamp
+                )
+
+        let newElapsed =
+            baseElapsed
+            + (
+                max(
+                    delta,
+                    0
+                )
+                *
+                max(
+                    playbackRate,
+                    0
+                )
+            )
+
+        let finalElapsed =
+            clampElapsed(
+                newElapsed,
+                duration:
+                    state.duration
+            )
+
+        state.elapsed =
+            finalElapsed
+
+        currentState =
+            state
+
+        stateSubject.send(
+            state
+
+        )
+
+        // If we reach the end locally, don't let the timer
+        // continue pushing past the duration.
+        if
+            state.duration > 0,
+            finalElapsed >= state.duration
+        {
+
+            state.isPlaying =
+                false
+
+            currentState =
+                state
+
+            stateSubject.send(
+                state
+            )
+        }
+    }
+
+    // MARK: - Clamp
+
+    private func clampElapsed(
+        _ value:
+            TimeInterval,
+        duration:
+            TimeInterval
+    ) -> TimeInterval {
+
+        let safe =
+            max(
+                value,
+                0
+            )
+
+        guard duration > 0 else {
+            return safe
+        }
+
+        return min(
+            safe,
+            duration
         )
     }
 
@@ -619,15 +712,10 @@ final class MediaRemoteMusicService:
 
             try commandProcess.run()
 
-            print(
-                "✅ Sent adapter command:",
-                command
-            )
-
         } catch {
 
             print(
-                "❌ Failed to send adapter command:"
+                "❌ Failed to send command:"
             )
 
             print(
@@ -683,6 +771,9 @@ final class MediaRemoteMusicService:
 
         let elapsedTimeNow:
             TimeInterval?
+
+        let timestamp:
+            String?
 
         let artworkMimeType:
             String?
