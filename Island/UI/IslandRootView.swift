@@ -11,25 +11,12 @@ import SwiftUI
 /// behavior — duplicating it per-activity would violate the "no duplicated
 /// business logic" rule in the Engineering Constitution.
 ///
-/// NOTE on `onSizeChange`: this now reports a KNOWN target size (compact or
-/// expanded), not a measured one. It used to report the content's actual
-/// rendered size via GeometryReader/PreferenceKey, but that measurement
-/// jumps discretely the instant SwiftUI swaps to the other view — it can't
-/// reflect the smooth in-between sizes of an ongoing spring animation. That
-/// jump was the root cause of the window appearing to grow from one edge
-/// instead of from a fixed center. Since both target sizes are fixed
-/// constants, there's nothing to measure — we just tell WindowManager
-/// exactly what to animate to and when. The Music-specific size constants
-/// here are a known, called-out compromise: a future activity with
-/// different compact/expanded sizes would need this generalized (e.g. via
-/// the `Activity` protocol exposing its own sizes) rather than hardcoded.
+/// The window itself is static (see `WindowManager`'s doc comment) — this
+/// view no longer reports target sizes to anything. `isExpanded` is the
+/// only signal; `MusicIslandView` (and any future activity's view) reads
+/// it directly and animates its own frame/content accordingly.
 struct IslandRootView: View {
     @ObservedObject var activityManager: ActivityManager
-
-    /// Reports the target size to animate to, and how long to delay before
-    /// starting (kept in sync with `AnimationTokens.shapeMorph`'s own
-    /// delay so the window and the SwiftUI content move in lockstep).
-    var onSizeChange: (CGSize, TimeInterval) -> Void = { _, _ in }
 
     /// No longer used by Music (`MusicIslandView` is a single persistent
     /// view now, not two views needing to be bridged — see its doc
@@ -72,16 +59,14 @@ struct IslandRootView: View {
         }
         .environment(\.islandNamespace, morphNamespace)
         .animation(AnimationTokens.ownershipChange, value: activityManager.ownedActivity?.id)
-        // The instant "noticed you" affordance — animates on its own the
-        // moment `isPrimed` changes, completely independent of the
-        // expand/collapse spring below. Color/radius/y are collapsed to
-        // zero at rest so there's nothing to see (and nothing to
-        // mis-render) until a hover actually begins.
+        // Always-on subtle resting shadow, strengthening the instant a
+        // hover begins (isPrimed) — one continuous shadow at two
+        // magnitudes, not "nothing, then a shadow."
         .shadow(
-            color: isPrimed ? DesignTokens.Shadow.hoverColor : .clear,
-            radius: isPrimed ? DesignTokens.Shadow.hoverRadius : 0,
+            color: isPrimed ? DesignTokens.Shadow.hoverColor : DesignTokens.Shadow.restColor,
+            radius: isPrimed ? DesignTokens.Shadow.hoverRadius : DesignTokens.Shadow.restRadius,
             x: 0,
-            y: isPrimed ? DesignTokens.Shadow.hoverYOffset : 0
+            y: isPrimed ? DesignTokens.Shadow.hoverYOffset : DesignTokens.Shadow.restYOffset
         )
         .animation(AnimationTokens.hoverPrimeTransition, value: isPrimed)
         .onHover { hovering in
@@ -107,19 +92,14 @@ struct IslandRootView: View {
             // One transaction, one persisting view (`MusicIslandView`) —
             // every modifier driven by `isExpanded` (frame size, element
             // positions, opacities, the shape's corner radii) animates
-            // together automatically, with nothing left to fall out of
-            // sync.
+            // together automatically. The AppKit window itself no longer
+            // moves at all (see `WindowManager`'s doc comment) — this
+            // SwiftUI transaction is now the ONLY animation system driving
+            // the visible size, which is what guarantees everything stays
+            // in lockstep.
             withAnimation(AnimationTokens.shapeMorph(isExpanding: hovering)) {
                 isExpanded = hovering
             }
-
-            // Fired at the exact same moment as the SwiftUI animation above,
-            // with the exact same delay-on-collapse, so the window frame
-            // and the visible content move in lockstep instead of the
-            // window jumping ahead.
-            let targetSize = hovering ? expandedSize : compactSize
-            let sizeDelay = hovering ? 0 : AnimationTokens.collapseShapeDelay
-            onSizeChange(targetSize, sizeDelay)
         }
         hoverWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)

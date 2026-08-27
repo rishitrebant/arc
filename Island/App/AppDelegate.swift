@@ -22,12 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         musicActivity = MusicActivity()
         activityManager.register(musicActivity)
 
-        let root = IslandRootView(
-            activityManager: activityManager,
-            onSizeChange: { [weak windowManager] size, delay in
-                windowManager?.animateToSize(size, delay: delay)
-            }
-        )
+        let root = IslandRootView(activityManager: activityManager)
         windowManager.present(root)
     }
 }

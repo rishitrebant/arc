@@ -32,6 +32,17 @@ import SwiftUI
 /// there is no second, independent mechanism (an AnyView swap plus an MGE
 /// proxy) left to fall out of sync with the AppKit window's spring in the
 /// first place. `matchedGeometryEffect` is no longer used here at all.
+///
+/// SECOND ROOT CAUSE (found later, same symptom family): even after the
+/// above fix, small-travel elements (album art, ~35pt of motion) still
+/// visibly desynced from large-travel ones (the waveform, ~110pt) during
+/// the animation. That was `WindowManager` independently animating the
+/// actual AppKit window frame with its own hand-rolled physics loop,
+/// timed to match this view's spring but never literally the same
+/// simulation — any tiny drift between the two was proportionally much
+/// louder on a small move than a large one. `WindowManager` no longer
+/// resizes the window at all; this view's own `.frame()`/`.clipped()`
+/// below is now the ONLY thing driving the visible size.
 struct MusicIslandView: View {
     @ObservedObject var activity: MusicActivity
     var isExpanded: Bool
@@ -89,7 +100,7 @@ struct MusicIslandView: View {
     private let progressSize = CGSize(width: 242, height: 7)
 
     private let elapsedOrigin = CGPoint(x: 24, y: 106)
-    private let remainingOrigin = CGPoint(x: 333, y: 106)
+    private let remainingOrigin = CGPoint(x: 313, y: 106)
 
     private let rowCenterY: CGFloat = 159.9
     private var pauseCenter: CGPoint { CGPoint(x: expandedSize.width / 2, y: rowCenterY) }
@@ -108,17 +119,11 @@ struct MusicIslandView: View {
                 bottomRadius: isExpanded ? ShapeTokens.expandedBottomRadius : ShapeTokens.compactBottomRadius
             )
             .fill(DesignTokens.Color.islandBackground)
-            .shadow(
-                color: .black.opacity(0.36),
-                radius: 4,
-                x: 0,
-                y: 4
-            )
+
             AlbumArtView(
                 image: activity.playbackState?.artwork,
                 size: artSize,
-                cornerRadius: artCornerRadius,
-                showGlow: isExpanded
+                cornerRadius: artCornerRadius
             )
             .position(artCenter)
 
@@ -138,13 +143,31 @@ struct MusicIslandView: View {
         .frame(width: currentSize.width, height: currentSize.height)
         // Clips to the CURRENT animated frame every frame, in lockstep
         // with the same `.frame` modifier above — not a separate clip
-        // mask that could itself fall out of sync. This is what prevents
-        // expanded-only content from being visible/interactive beyond the
-        // compact bounds mid-transition.
-       
+        // mask that could itself fall out of sync. This is MORE important
+        // now that the window itself is static (see `WindowManager`) and
+        // no longer does this clipping for free at the AppKit level —
+        // without this, expanded-only content would visibly bleed outside
+        // the compact pill's bounds during the compact state and
+        // mid-transition instead of being contained by it.
+        
     }
 
     // MARK: - Expanded-only content
+    //
+    // Each of these gets an EXPLICIT slide-up-and-fade: starts offset below
+    // its final position with zero opacity, animates up to its resting
+    // spot. This is deliberate, not decorative — previously these had NO
+    // motion of their own; they sat at their final absolute position the
+    // entire time, with only opacity animating, and the ONLY reason they
+    // appeared to "enter" at all was that `.clipped()`'s growing bounds
+    // happened to reveal them as the frame grew. Since the frame grows
+    // from top-leading, elements positioned toward the bottom-right of the
+    // canvas (buttons, AirPlay, progress bar) were the last to be
+    // uncovered — which is exactly the "pops in from the bottom-right"
+    // artifact. Giving each element its own real offset animation means it
+    // now enters on its own terms regardless of when the clip mask catches
+    // up to it.
+    private let entranceOffsetY: CGFloat = 14
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.xxs) {
@@ -162,9 +185,8 @@ struct MusicIslandView: View {
                 .truncationMode(.tail)
         }
         .frame(width: titleWidth, alignment: .leading)
-        .offset(x: titleOrigin.x, y: titleOrigin.y)
+        .offset(x: titleOrigin.x, y: titleOrigin.y + (isExpanded ? 0 : entranceOffsetY))
         .opacity(isExpanded ? 1 : 0)
-        .offset(y: isExpanded ? 0 : -3)
         .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.02 : 0), value: isExpanded)
         .allowsHitTesting(isExpanded)
     }
@@ -177,7 +199,7 @@ struct MusicIslandView: View {
                 .frame(width: progressSize.width * progressFraction)
         }
         .frame(width: progressSize.width, height: progressSize.height)
-        .offset(x: progressOrigin.x, y: progressOrigin.y)
+        .offset(x: progressOrigin.x, y: progressOrigin.y + (isExpanded ? 0 : entranceOffsetY))
         .opacity(isExpanded ? 1 : 0)
         .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.05 : 0), value: isExpanded)
         .allowsHitTesting(isExpanded)
@@ -188,7 +210,7 @@ struct MusicIslandView: View {
             .font(.system(size: 12, weight: .regular, design: .monospaced))
             .tracking(DesignTokens.Typography.letterSpacingTight)
             .foregroundStyle(DesignTokens.Color.secondaryText)
-            .offset(x: elapsedOrigin.x, y: elapsedOrigin.y)
+            .offset(x: elapsedOrigin.x, y: elapsedOrigin.y + (isExpanded ? 0 : entranceOffsetY))
             .opacity(isExpanded ? 1 : 0)
             .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.05 : 0), value: isExpanded)
     }
@@ -198,15 +220,15 @@ struct MusicIslandView: View {
             .font(DesignTokens.Typography.timestamp.monospacedDigit())
             .tracking(DesignTokens.Typography.letterSpacingTight)
             .foregroundStyle(DesignTokens.Color.secondaryText)
-            .offset(x: remainingOrigin.x, y: remainingOrigin.y)
+            .offset(x: remainingOrigin.x, y: remainingOrigin.y + (isExpanded ? 0 : entranceOffsetY))
             .opacity(isExpanded ? 1 : 0)
             .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.05 : 0), value: isExpanded)
     }
 
     private var previousButton: some View {
-        PlaybackButton(systemName: "backward.fill", action: activity.skipBackward, size: 20)
+        PlaybackButton(systemName: "backward.fill", action: activity.skipBackward, size: 16)
             .opacity(0.7)
-            .position(previousCenter)
+            .position(x: previousCenter.x, y: previousCenter.y + (isExpanded ? 0 : entranceOffsetY))
             .opacity(isExpanded ? 1 : 0)
             .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.08 : 0), value: isExpanded)
             .allowsHitTesting(isExpanded)
@@ -216,19 +238,20 @@ struct MusicIslandView: View {
         PlaybackButton(
             systemName: (activity.playbackState?.isPlaying ?? false) ? "pause.fill" : "play.fill",
             action: activity.togglePlayPause,
-            size: 34
+            size: 20
         )
-
-        .position(pauseCenter)
+        .frame(width: 34, height: 34)
+        .background(Circle().fill(Color.white.opacity(0.14)))
+        .position(x: pauseCenter.x, y: pauseCenter.y + (isExpanded ? 0 : entranceOffsetY))
         .opacity(isExpanded ? 1 : 0)
         .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.08 : 0), value: isExpanded)
         .allowsHitTesting(isExpanded)
     }
 
     private var nextButton: some View {
-        PlaybackButton(systemName: "forward.fill", action: activity.skipForward, size: 20)
+        PlaybackButton(systemName: "forward.fill", action: activity.skipForward, size: 16)
             .opacity(0.7)
-            .position(nextCenter)
+            .position(x: nextCenter.x, y: nextCenter.y + (isExpanded ? 0 : entranceOffsetY))
             .opacity(isExpanded ? 1 : 0)
             .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.08 : 0), value: isExpanded)
             .allowsHitTesting(isExpanded)
@@ -239,7 +262,7 @@ struct MusicIslandView: View {
             .font(.system(size: 18))
             .foregroundStyle(DesignTokens.Color.primaryText)
             .frame(width: Metrics.airplayIconSize, height: Metrics.airplayIconSize)
-            .position(airplayCenter)
+            .position(x: airplayCenter.x, y: airplayCenter.y + (isExpanded ? 0 : entranceOffsetY))
             .opacity(isExpanded ? 1 : 0)
             .animation(AnimationTokens.shapeSpring.delay(isExpanded ? 0.08 : 0), value: isExpanded)
             .allowsHitTesting(isExpanded)

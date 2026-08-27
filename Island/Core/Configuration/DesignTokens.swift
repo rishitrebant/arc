@@ -48,8 +48,8 @@ enum DesignTokens {
         static let compactTopRadius: CGFloat = 0
         static let compactBottomRadius: CGFloat = 12
 
-        static let expandedTopRadius: CGFloat = 0
-        static let expandedBottomRadius: CGFloat = 32
+        static let expandedTopRadius: CGFloat = 18
+        static let expandedBottomRadius: CGFloat = 18
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
@@ -90,7 +90,7 @@ enum DesignTokens {
         /// (prev↔pause, pause↔next) — measured, not guessed. Replaces the
         /// old 34, which produced 77/71pt gaps that never matched any
         /// real reference.
-        static let playbackButtonSpacing: CGFloat = 81
+        static let playbackButtonSpacing: CGFloat = 41
 
         /// Gap from the forward button's right edge to the AirPlay icon's
         /// left edge — measured, but NOT what actually positions AirPlay
@@ -130,9 +130,19 @@ enum DesignTokens {
     // are derived to read as a soft elevation lift, not a hard drop shadow.
 
     enum Shadow {
-        static let hoverColor = SwiftUI.Color.black.opacity(0.24)
-        static let hoverRadius: CGFloat = 12
-        static let hoverYOffset: CGFloat = 6
+        /// Always present, subtle — real macOS UI elements (menu bar
+        /// items, widgets) generally carry a soft resting shadow, not just
+        /// an on-hover one. This is that baseline.
+        static let restColor = SwiftUI.Color.black.opacity(0.28)
+        static let restRadius: CGFloat = 6
+        static let restYOffset: CGFloat = 3
+
+        /// The stronger "noticed you" shadow layered on top the instant a
+        /// hover begins — same shadow, more pronounced, not a different
+        /// effect.
+        static let hoverColor = SwiftUI.Color.black.opacity(0.45)
+        static let hoverRadius: CGFloat = 16
+        static let hoverYOffset: CGFloat = 8
 
         /// Extra transparent room carved around the visible pill so the
         /// shadow above has somewhere to render into. AppKit clips all
