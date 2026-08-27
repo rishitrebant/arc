@@ -1,33 +1,67 @@
 import AppKit
 import SwiftUI
 
-/// Application lifecycle + composition root.
-///
-/// Requires `LSUIElement = YES` in Info.plist (Target > Info > "Application
-/// is agent (UIElement)") so the app runs with no Dock icon and no menu
-/// bar — per Window Behaviour: "This should never look or feel like a
-/// normal Mac app."
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let activityManager = ActivityManager()
-    private let windowManager = WindowManager()
+final class AppDelegate:
+    NSObject,
+    NSApplicationDelegate {
 
-    // Retained here since ActivityManager only stores type-erased boxes —
-    // the concrete activity needs a strong owner somewhere in the app.
-    private var musicActivity: MusicActivity!
+    private let activityManager =
+        ActivityManager()
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory) // belt-and-suspenders alongside LSUIElement
+    private let windowManager =
+        WindowManager()
 
-        musicActivity = MusicActivity()
-        activityManager.register(musicActivity)
+    private var musicActivity:
+        MusicActivity!
 
-        let root = IslandRootView(
-            activityManager: activityManager,
-            onHoverRegionChange: { [weak windowManager] active in
-                windowManager?.setHoverActive(active)
-            }
+    func applicationDidFinishLaunching(
+        _ notification: Notification
+    ) {
+
+        NSApp.setActivationPolicy(
+            .accessory
         )
-        windowManager.present(root)
+
+        musicActivity =
+            MusicActivity()
+
+        activityManager.register(
+            musicActivity
+        )
+
+        createIslandsForAllScreens()
+    }
+
+    private func createIslandsForAllScreens() {
+
+        for screen in NSScreen.screens {
+
+            let screenID =
+                ObjectIdentifier(screen)
+
+            let root =
+                IslandRootView(
+                    activityManager:
+                        activityManager,
+
+                    screenID:
+                        screenID,
+
+                    onHoverRegionChange:
+                        { [weak windowManager] active, screenID in
+
+                            windowManager?.setHoverActive(
+                                active,
+                                for: screenID
+                            )
+                        }
+                )
+
+            windowManager.present(
+                root,
+                for: screen
+            )
+        }
     }
 }
