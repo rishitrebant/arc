@@ -45,7 +45,15 @@ import SwiftUI
 /// below is now the ONLY thing driving the visible size.
 struct MusicIslandView: View {
     @ObservedObject var activity: MusicActivity
+    
     var isExpanded: Bool
+
+    /// The album art's dominant color, extracted once per artwork change
+    /// (see `ArtworkColorExtractor`) and shared by both the glow AND the
+    /// waveform below — one computed value, two consumers, rather than
+    /// each independently computing (and potentially drifting from) their
+    /// own version of "the artwork's color."
+    @State private var artworkColor: Color = DesignTokens.Color.musicAccent
 
     private typealias Metrics = DesignTokens.MusicMetrics
     private typealias ShapeTokens = DesignTokens.Shape
@@ -124,11 +132,12 @@ struct MusicIslandView: View {
                 image: activity.playbackState?.artwork,
                 size: artSize,
                 cornerRadius: artCornerRadius,
-                showGlow: isExpanded
+                showGlow: isExpanded,
+                glowColor: artworkColor
             )
             .position(artCenter)
 
-            Waveform(isPlaying: activity.playbackState?.isPlaying ?? false)
+            Waveform(isPlaying: activity.playbackState?.isPlaying ?? false, color: artworkColor)
                 .frame(width: waveformSize.width, height: waveformSize.height)
                 .position(waveformCenter)
 
@@ -150,7 +159,16 @@ struct MusicIslandView: View {
         // without this, expanded-only content would visibly bleed outside
         // the compact pill's bounds during the compact state and
         // mid-transition instead of being contained by it.
-        
+        .task(id: activity.playbackState?.artwork?.tiffRepresentation) {
+            let artwork =
+                activity.playbackState?.artwork
+                ?? NSImage(named: "Currents")
+
+            artworkColor = ArtworkColorExtractor.dominantColor(
+                from: artwork,
+                fallback: DesignTokens.Color.musicAccent
+            )
+        }
     }
 
     // MARK: - Expanded-only content
