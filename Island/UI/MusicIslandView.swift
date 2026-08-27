@@ -13,6 +13,9 @@ struct MusicIslandView: View {
     @State private var artworkColor: Color =
         DesignTokens.Color.musicAccent
 
+    /// Mouse-driven glow offset.
+    @State private var glowOffset: CGSize = .zero
+
     private typealias Metrics = DesignTokens.MusicMetrics
     private typealias ShapeTokens = DesignTokens.Shape
 
@@ -115,7 +118,7 @@ struct MusicIslandView: View {
     )
 
     private let elapsedOrigin = CGPoint(
-        x: 30,
+        x: 24,
         y: 106
     )
 
@@ -126,11 +129,7 @@ struct MusicIslandView: View {
 
     private let rowCenterY: CGFloat = 159.9
 
-    // MARK: - Playback spacing
-    //
-    // Both previous and next use this exact same value,
-    // so they remain perfectly symmetrical around pause/play.
-
+    // Equal spacing on both sides of pause/play.
     private let playbackButtonSpacing: CGFloat = 70
 
     private var pauseCenter: CGPoint {
@@ -142,14 +141,16 @@ struct MusicIslandView: View {
 
     private var previousCenter: CGPoint {
         CGPoint(
-            x: pauseCenter.x - playbackButtonSpacing,
+            x: pauseCenter.x
+                - playbackButtonSpacing,
             y: rowCenterY
         )
     }
 
     private var nextCenter: CGPoint {
         CGPoint(
-            x: pauseCenter.x + playbackButtonSpacing,
+            x: pauseCenter.x
+                + playbackButtonSpacing,
             y: rowCenterY
         )
     }
@@ -163,8 +164,6 @@ struct MusicIslandView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-
-            // MARK: Island
 
             IslandShape(
                 topRadius: isExpanded
@@ -185,7 +184,8 @@ struct MusicIslandView: View {
                 size: artSize,
                 cornerRadius: artCornerRadius,
                 showGlow: isExpanded,
-                glowColor: artworkColor
+                glowColor: artworkColor,
+                glowOffset: glowOffset
             )
             .position(artCenter)
 
@@ -202,7 +202,7 @@ struct MusicIslandView: View {
             )
             .position(waveformCenter)
 
-            // MARK: Expanded-only content
+            // MARK: Expanded content
 
             titleBlock
             progressBar
@@ -217,9 +217,45 @@ struct MusicIslandView: View {
             width: currentSize.width,
             height: currentSize.height
         )
+        .onContinuousHover(coordinateSpace: .local) { phase in
 
-        // MARK: Artwork colour extraction
+            guard isExpanded else {
+                return
+            }
 
+            switch phase {
+
+            case .active(let location):
+
+                let centerX = currentSize.width / 2
+                let centerY = currentSize.height / 2
+
+                let normalizedX =
+                    (location.x - centerX) / centerX
+
+                let normalizedY =
+                    (location.y - centerY) / centerY
+
+                let maxTravel: CGFloat = 8
+
+                withAnimation(
+                    .easeOut(duration: 0.12)
+                ) {
+                    glowOffset = CGSize(
+                        width: normalizedX * maxTravel,
+                        height: normalizedY * maxTravel
+                    )
+                }
+
+            case .ended:
+
+                withAnimation(
+                    .easeOut(duration: 0.18)
+                ) {
+                    glowOffset = .zero
+                }
+            }
+        }
         .task(
             id: activity.playbackState?.artwork?.tiffRepresentation
         ) {
@@ -354,7 +390,6 @@ struct MusicIslandView: View {
                 size: 12,
                 weight: .regular,
                 design: .default
-            
             )
         )
         .tracking(
@@ -386,8 +421,11 @@ struct MusicIslandView: View {
             "-" + formatted(remaining)
         )
         .font(
-            DesignTokens.Typography.timestamp
-                .monospacedDigit()
+            .system(
+                size: 12,
+                weight: .regular,
+                design: .default
+            )
         )
         .tracking(
             DesignTokens.Typography.letterSpacingTight
@@ -548,15 +586,8 @@ struct MusicIslandView: View {
 
     private var remaining: TimeInterval {
         max(
-            (
-                activity.playbackState?.duration
-                ?? 0
-            )
-            -
-            (
-                activity.playbackState?.elapsed
-                ?? 0
-            ),
+            (activity.playbackState?.duration ?? 0)
+                - (activity.playbackState?.elapsed ?? 0),
             0
         )
     }

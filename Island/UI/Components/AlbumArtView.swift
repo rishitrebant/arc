@@ -2,55 +2,92 @@ import SwiftUI
 import AppKit
 
 struct AlbumArtView: View {
+
     var image: NSImage?
     var size: CGFloat
     var cornerRadius: CGFloat
     var showGlow: Bool = false
-    /// The glow's color — now supplied by the caller (see
-    /// `MusicIslandView`) instead of computed internally, so the exact
-    /// same extracted color can also be handed to the waveform. The
-    /// extraction algorithm itself didn't change or move away from being
-    /// "this view's color" conceptually — it just now lives in
-    /// `ArtworkColorExtractor` so it's not duplicated per-consumer.
-    var glowColor: Color = DesignTokens.Color.musicAccent
+
+    /// Glow colour supplied by MusicIslandView.
+    var glowColor: Color =
+        DesignTokens.Color.musicAccent
+
+    /// Mouse-driven offset supplied by MusicIslandView.
+    var glowOffset: CGSize = .zero
 
     var body: some View {
         ZStack {
 
-            // MARK: - Subtle artwork glow
+            // MARK: - Album glow
+
             if showGlow {
+
+                // Wide, soft outer glow
                 RoundedRectangle(
                     cornerRadius: cornerRadius,
                     style: .continuous
                 )
-                .fill(glowColor.opacity(0.50))
+                .fill(
+                    glowColor.opacity(0.18)
+                )
                 .frame(
-                    width: size + 12,
-                    height: size + 12
+                    width: size + 30,
+                    height: size + 30
                 )
-                .blur(radius: 9)
-            }
-            // MARK: - Album artwork
-            ZStack {
+                .blur(radius: 12)
+                .offset(glowOffset)
+
+                // Tighter inner glow
                 RoundedRectangle(
                     cornerRadius: cornerRadius,
                     style: .continuous
                 )
-                .fill(Color.white.opacity(0.06))
+                .fill(
+                    glowColor.opacity(0.24)
+                )
+                .frame(
+                    width: size + 10,
+                    height: size + 10
+                )
+                .blur(radius: 7)
+                .offset(glowOffset)
+            }
+
+            // MARK: - Album artwork
+
+            ZStack {
+
+                RoundedRectangle(
+                    cornerRadius: cornerRadius,
+                    style: .continuous
+                )
+                .fill(
+                    Color.white.opacity(0.06)
+                )
 
                 if let image {
+
                     Image(nsImage: image)
                         .resizable()
                         .interpolation(.high)
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(
+                            contentMode: .fill
+                        )
+
                 } else {
+
                     Image("Currents")
                         .resizable()
                         .interpolation(.high)
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(
+                            contentMode: .fill
+                        )
                 }
             }
-            .frame(width: size, height: size)
+            .frame(
+                width: size,
+                height: size
+            )
             .clipShape(
                 RoundedRectangle(
                     cornerRadius: cornerRadius,
@@ -64,10 +101,11 @@ struct AlbumArtView: View {
                 y: 2
             )
         }
-        // Extra room so the glow can actually exist outside the album.
+
+        // Extra room for the outer glow.
         .frame(
-            width: size + 12,
-            height: size + 12
+            width: size + 24,
+            height: size + 24
         )
     }
 }
