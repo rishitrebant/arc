@@ -22,8 +22,8 @@ final class HardcodedMusicService: MusicService {
         stateSubject = CurrentValueSubject(
             MusicPlaybackState(
                 app: .appleMusic,
-                title: "Pepas",
-                artist: "Farruko",
+                title: "Let it Happen",
+                artist: "Tame Impala",
                 artwork: nil,
                 isPlaying: true,
                 elapsed: 130,   // 2:10, matches the measured Figma label
