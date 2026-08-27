@@ -49,7 +49,7 @@ enum DesignTokens {
         static let compactBottomRadius: CGFloat = 12
 
         static let expandedTopRadius: CGFloat = 18
-        static let expandedBottomRadius: CGFloat = 18
+        static let expandedBottomRadius: CGFloat = 24
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
