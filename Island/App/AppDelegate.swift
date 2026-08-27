@@ -30,38 +30,57 @@ final class AppDelegate:
             musicActivity
         )
 
-        createIslandsForAllScreens()
+        createIslandOnMacBookScreen()
     }
 
-    private func createIslandsForAllScreens() {
+    private func createIslandOnMacBookScreen() {
 
-        for screen in NSScreen.screens {
+        guard let macBookScreen = NSScreen.screens.first(
+            where: { screen in
 
-            let screenID =
-                ObjectIdentifier(screen)
+                guard let screenNumber =
+                    screen.deviceDescription[
+                        NSDeviceDescriptionKey(
+                            "NSScreenNumber"
+                        )
+                    ] as? CGDirectDisplayID
 
-            let root =
-                IslandRootView(
-                    activityManager:
-                        activityManager,
+                else {
+                    return false
+                }
 
-                    screenID:
-                        screenID,
-
-                    onHoverRegionChange:
-                        { [weak windowManager] active, screenID in
-
-                            windowManager?.setHoverActive(
-                                active,
-                                for: screenID
-                            )
-                        }
-                )
-
-            windowManager.present(
-                root,
-                for: screen
-            )
+                return CGDisplayIsBuiltin(
+                    screenNumber
+                ) != 0
+            }
+        ) else {
+            return
         }
+
+        let screenID =
+            ObjectIdentifier(macBookScreen)
+
+        let root =
+            IslandRootView(
+                activityManager:
+                    activityManager,
+
+                screenID:
+                    screenID,
+
+                onHoverRegionChange:
+                    { [weak windowManager] active, screenID in
+
+                        windowManager?.setHoverActive(
+                            active,
+                            for: screenID
+                        )
+                    }
+            )
+
+        windowManager.present(
+            root,
+            for: macBookScreen
+        )
     }
 }
