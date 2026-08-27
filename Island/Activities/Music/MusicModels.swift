@@ -18,6 +18,20 @@ enum MusicApp: String {
         case .spotify: "com.spotify.client"
         }
     }
+
+    /// Reverse lookup used by `MediaRemoteMusicService` to check whether the
+    /// system-reported "now playing" app is actually one of the two
+    /// supported sources, before ever handing state to the rest of the app.
+    /// Anything else (Safari/Reels, QuickTime, Voice Memos, random other
+    /// process implementing the now-playing protocol) resolves to `nil`
+    /// here and is treated identically to "nothing is playing."
+    init?(bundleIdentifier: String) {
+        switch bundleIdentifier {
+        case MusicApp.appleMusic.bundleIdentifier: self = .appleMusic
+        case MusicApp.spotify.bundleIdentifier: self = .spotify
+        default: return nil
+        }
+    }
 }
 
 /// A single, immutable snapshot of now-playing state.

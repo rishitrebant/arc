@@ -5,10 +5,11 @@ import Combine
 /// and exposes Rendering (compact/expanded views) and Actions (playback
 /// controls) — per Engineering Constitution's per-activity structure.
 ///
-/// Sprint 1: backed by `HardcodedMusicService` (no MediaRemote, no Spotify
-/// integration yet). This class only knows the `MusicService` protocol, so
-/// swapping in a real detection backend later is a one-line change to the
-/// default argument below — nothing else in the app changes.
+/// Sprint 2: backed by `MediaRemoteMusicService`, reading real system
+/// now-playing state restricted to Apple Music / Spotify. This class only
+/// knows the `MusicService` protocol, so `HardcodedMusicService` remains
+/// available as a drop-in swap for previewing UI/animation work without a
+/// real track playing — just change the default argument below.
 @MainActor
 final class MusicActivity: ObservableObject {
     static let kind: ActivityKind = .music
@@ -30,7 +31,7 @@ final class MusicActivity: ObservableObject {
     /// unnecessarily."
     private var wasOwningIslandBeforeInterruption = false
 
-    init(service: MusicService = HardcodedMusicService()) {
+    init(service: MusicService = MediaRemoteMusicService()) {
         self.service = service
 
         service.playbackStatePublisher

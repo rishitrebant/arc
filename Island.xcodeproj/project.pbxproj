@@ -32,6 +32,7 @@
 		00000000000000000010003D /* IslandRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003C /* IslandRootView.swift */; };
 		00000000000000000010003F /* IslandNamespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003E /* IslandNamespace.swift */; };
 		A5326961303ED0D800EDDE1E /* MusicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5326960303ED0D800EDDE1E /* MusicIslandView.swift */; };
+		A532696A3040B21200EDDE1E /* MediaRemoteMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53269693040B21200EDDE1E /* MediaRemoteMusicService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,10 +62,22 @@
 		00000000000000000010003C /* IslandRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandRootView.swift; sourceTree = "<group>"; };
 		00000000000000000010003E /* IslandNamespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandNamespace.swift; sourceTree = "<group>"; };
 		A5326960303ED0D800EDDE1E /* MusicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicIslandView.swift; sourceTree = "<group>"; };
+		A53269693040B21200EDDE1E /* MediaRemoteMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteMusicService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A53269733040BCBC00EDDE1E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				MediaRemoteAdapter.framework,
+			);
+			target = 000000000000000000100006 /* Island */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A53269663040165E00EDDE1E /* Utilities */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Utilities; sourceTree = "<group>"; };
+		A532696B3040B9F700EDDE1E /* Vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A53269733040BCBC00EDDE1E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Vendor; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +102,7 @@
 		000000000000000000100003 /* Island */ = {
 			isa = PBXGroup;
 			children = (
+				A532696B3040B9F700EDDE1E /* Vendor */,
 				000000000000000000100043 /* Activities */,
 				000000000000000000100041 /* App */,
 				000000000000000000100042 /* Core */,
@@ -197,6 +211,7 @@
 			isa = PBXGroup;
 			children = (
 				00000000000000000010002A /* HardcodedMusicService.swift */,
+				A53269693040B21200EDDE1E /* MediaRemoteMusicService.swift */,
 				00000000000000000010002C /* MusicActivity.swift */,
 				000000000000000000100026 /* MusicModels.swift */,
 				000000000000000000100028 /* MusicService.swift */,
@@ -232,6 +247,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				A53269663040165E00EDDE1E /* Utilities */,
+				A532696B3040B9F700EDDE1E /* Vendor */,
 			);
 			name = Island;
 			productName = Island;
@@ -308,6 +324,7 @@
 				000000000000000000100035 /* ProgressBar.swift in Sources */,
 				000000000000000000100037 /* IslandShape.swift in Sources */,
 				000000000000000000100039 /* MusicCompactView.swift in Sources */,
+				A532696A3040B21200EDDE1E /* MediaRemoteMusicService.swift in Sources */,
 				00000000000000000010003B /* MusicExpandedView.swift in Sources */,
 				00000000000000000010003D /* IslandRootView.swift in Sources */,
 				00000000000000000010003F /* IslandNamespace.swift in Sources */,
@@ -325,6 +342,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Island/Vendor",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -352,6 +373,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Island/Vendor",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
