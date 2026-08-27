@@ -41,14 +41,10 @@ struct AlbumArtView: View {
                         .interpolation(.high)
                         .aspectRatio(contentMode: .fill)
                 } else {
-                    Image(systemName: "music.note")
-                        .font(
-                            .system(
-                                size: size * 0.32,
-                                weight: .semibold
-                            )
-                        )
-                        .foregroundStyle(accent)
+                    Image("Currents")
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fill)
                 }
             }
             .frame(width: size, height: size)
