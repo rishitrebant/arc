@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 73;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -75,9 +75,19 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		A53269753041639F00EDDE1E /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 00000000000000000010000E /* Resources */;
+			membershipExceptions = (
+				MediaRemoteAdapter.framework,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A53269663040165E00EDDE1E /* Utilities */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Utilities; sourceTree = "<group>"; };
-		A532696B3040B9F700EDDE1E /* Vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A53269733040BCBC00EDDE1E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Vendor; sourceTree = "<group>"; };
+		A532696B3040B9F700EDDE1E /* Vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A53269733040BCBC00EDDE1E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, A53269753041639F00EDDE1E /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Vendor; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -270,7 +280,6 @@
 				};
 			};
 			buildConfigurationList = 00000000000000000010000A /* Build configuration list for PBXProject "Island" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -278,6 +287,7 @@
 				Base,
 			);
 			mainGroup = 000000000000000000100002;
+			preferredProjectObjectVersion = 56;
 			productRefGroup = 000000000000000000100004 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";

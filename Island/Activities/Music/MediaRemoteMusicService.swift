@@ -37,12 +37,37 @@ final class MediaRemoteMusicService:
 
     // MARK: - Development Paths
 
-    private let adapterScriptPath =
-        "/Users/rishitrebant/Desktop/mediaremote-adapter/bin/mediaremote-adapter.pl"
+    private var adapterScriptPath: String {
 
-    private let frameworkPath =
-        "/Users/rishitrebant/Desktop/mediaremote-adapter/build/MediaRemoteAdapter.framework"
+        guard let path =
+            Bundle.main.path(
+                forResource: "mediaremote-adapter",
+                ofType: "pl"
+            )
+        else {
+            fatalError(
+                "mediaremote-adapter.pl was not found in the app bundle."
+            )
+        }
 
+        return path
+    }
+
+    private var frameworkPath: String {
+
+        guard let path =
+            Bundle.main.path(
+                forResource: "MediaRemoteAdapter",
+                ofType: "framework"
+            )
+        else {
+            fatalError(
+                "MediaRemoteAdapter.framework was not found in the app bundle."
+            )
+        }
+
+        return path
+    }
     // MARK: - Live Playback Tracking
 
     private var currentState:
