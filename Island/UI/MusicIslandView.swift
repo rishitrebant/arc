@@ -10,25 +10,44 @@ struct MusicIslandView: View {
 
     var isExpanded: Bool
 
-    /// The album art's dominant color, extracted once per artwork change
-    /// and shared by both the glow AND the waveform.
+    // MARK: - Artwork / Glow
+
     @State private var artworkColor: Color =
         DesignTokens.Color.musicAccent
 
-    /// Mouse-driven glow offset.
     @State private var glowOffset: CGSize = .zero
 
-    // MARK: - Compact album flip
+    // MARK: - Album Flip
 
-    @State private var compactFlipAngle: Double = 0
+    /// The artwork currently shown on the front.
+    @State private var displayedArtwork: NSImage?
 
-    @State private var flipOldArtwork: NSImage?
+    /// The real incoming artwork shown on the back.
+    @State private var incomingArtwork: NSImage?
 
-    @State private var flipNewArtwork: NSImage?
+    /// Current rotation of the physical album card.
+    @State private var albumFlipAngle: Double = 0
 
-    @State private var isFlippingCompactArtwork = false
+    /// True while the physical card is rotating.
+    @State private var isFlippingAlbum = false
 
+    /// Last track that we have seen.
     @State private var lastTrackKey = ""
+
+    /// Track that is waiting for its real artwork.
+    @State private var pendingTrackKey: String?
+
+    /// Direction that belongs to the pending track change.
+    ///
+    /// +1 = next / forward
+    /// -1 = previous / backward
+    @State private var pendingFlipDirection: Double = 1
+
+    /// Prevents duplicate flips for the same track.
+    @State private var lastStartedFlipTrackKey: String?
+
+    /// Last artwork fingerprint that we accepted.
+    @State private var lastArtworkFingerprint: Data?
 
     private typealias Metrics = DesignTokens.MusicMetrics
     private typealias ShapeTokens = DesignTokens.Shape
@@ -36,7 +55,6 @@ struct MusicIslandView: View {
     // MARK: - Sizes
 
     private var compactSize: CGSize {
-
         CGSize(
             width: Metrics.compactWidth,
             height: Metrics.compactHeight
@@ -44,7 +62,6 @@ struct MusicIslandView: View {
     }
 
     private var expandedSize: CGSize {
-
         CGSize(
             width: Metrics.expandedWidth,
             height: Metrics.expandedHeight
@@ -52,33 +69,45 @@ struct MusicIslandView: View {
     }
 
     private var currentSize: CGSize {
-
         isExpanded
             ? expandedSize
             : compactSize
     }
 
-    private var currentArtwork: NSImage? {
+    // MARK: - Artwork
 
+    /// IMPORTANT:
+    /// Only REAL backend artwork.
+    ///
+    /// There is intentionally no Currents fallback here because
+    /// Currents must never become the incoming/back face of a flip.
+    private var realArtwork: NSImage? {
         activity.playbackState?.artwork
-            ?? NSImage(named: "Currents")
     }
 
-    private var trackKey: String {
+    /// Currents is only used when absolutely no artwork exists.
+    /// It can never be used by `incomingArtwork`.
+    private var normalArtwork: NSImage {
+        displayedArtwork
+            ?? NSImage(named: "Currents")
+            ?? NSImage()
+    }
 
+    // MARK: - Track
+
+    private var trackKey: String {
         "\(activity.playbackState?.title ?? "")|\(activity.playbackState?.artist ?? "")"
     }
 
-    // IMPORTANT:
-    //
-    // The entire MusicIslandView is centered by its parent.
-    // When the island shrinks, its left edge moves to the right.
-    //
-    // Expanded-only content uses fixed expanded coordinates, so we
-    // compensate for that movement while the content fades away.
+    // MARK: - Artwork Fingerprint
+
+    private var currentArtworkFingerprint: Data? {
+        realArtwork?.tiffRepresentation
+    }
+
+    // MARK: - Collapse compensation
 
     private var expandedContentCollapseOffset: CGFloat {
-
         isExpanded
             ? 0
             : -(expandedSize.width - compactSize.width) / 2
@@ -87,21 +116,18 @@ struct MusicIslandView: View {
     // MARK: - Shared elements
 
     private var artSize: CGFloat {
-
         isExpanded
             ? 65
             : Metrics.compactIconSize
     }
 
     private var artCornerRadius: CGFloat {
-
         isExpanded
             ? Metrics.albumArtCornerRadius
             : Metrics.compactIconCornerRadius
     }
 
     private var artCenter: CGPoint {
-
         isExpanded
             ? CGPoint(
                 x: 24 + 65 / 2,
@@ -111,6 +137,7 @@ struct MusicIslandView: View {
                 x:
                     Metrics.compactEdgePadding
                     + Metrics.compactIconSize / 2,
+
                 y:
                     DesignTokens.MusicMetrics
                     .compactContentCenterY
@@ -118,7 +145,6 @@ struct MusicIslandView: View {
     }
 
     private var waveformSize: CGSize {
-
         isExpanded
             ? CGSize(
                 width: 25.57,
@@ -131,17 +157,22 @@ struct MusicIslandView: View {
     }
 
     private var waveformCenter: CGPoint {
-
         isExpanded
             ? CGPoint(
-                x: 338.85 + 25.57 / 2,
-                y: 24 + 24 / 2
+                x:
+                    338.85
+                    + 25.57 / 2,
+
+                y:
+                    24
+                    + 24 / 2
             )
             : CGPoint(
                 x:
                     compactSize.width
                     - Metrics.compactEdgePadding
                     - Metrics.compactIconSize / 2,
+
                 y:
                     DesignTokens.MusicMetrics
                     .compactContentCenterY
@@ -156,8 +187,9 @@ struct MusicIslandView: View {
     )
 
     private var titleWidth: CGFloat {
-
-        338.85 - titleOrigin.x - 16
+        338.85
+        - titleOrigin.x
+        - 16
     }
 
     private let progressOrigin = CGPoint(
@@ -182,11 +214,9 @@ struct MusicIslandView: View {
 
     private let rowCenterY: CGFloat = 159.9
 
-    // Equal spacing on both sides of pause/play.
     private let playbackButtonSpacing: CGFloat = 70
 
     private var pauseCenter: CGPoint {
-
         CGPoint(
             x: expandedSize.width / 2,
             y: rowCenterY
@@ -194,18 +224,24 @@ struct MusicIslandView: View {
     }
 
     private var previousCenter: CGPoint {
-
         CGPoint(
-            x: pauseCenter.x - playbackButtonSpacing,
-            y: rowCenterY
+            x:
+                pauseCenter.x
+                - playbackButtonSpacing,
+
+            y:
+                rowCenterY
         )
     }
 
     private var nextCenter: CGPoint {
-
         CGPoint(
-            x: pauseCenter.x + playbackButtonSpacing,
-            y: rowCenterY
+            x:
+                pauseCenter.x
+                + playbackButtonSpacing,
+
+            y:
+                rowCenterY
         )
     }
 
@@ -218,7 +254,11 @@ struct MusicIslandView: View {
 
     var body: some View {
 
-        ZStack(alignment: .topLeading) {
+        ZStack(
+            alignment: .topLeading
+        ) {
+
+            // MARK: Island background
 
             IslandShape(
                 topRadius:
@@ -237,61 +277,40 @@ struct MusicIslandView: View {
 
             // MARK: Album
 
-            if isExpanded {
-
-                AlbumArtView(
-                    image:
-                        activity.playbackState?.artwork,
-                    size:
-                        artSize,
-                    cornerRadius:
-                        artCornerRadius,
-                    showGlow:
-                        true,
-                    glowColor:
-                        artworkColor,
-                    glowOffset:
-                        glowOffset
+            albumArtView
+                .position(
+                    artCenter
                 )
-                .position(artCenter)
-
-            } else {
-
-                compactAlbumArt
-                    .frame(
-                        width: artSize,
-                        height: artSize
-                    )
-                    .position(artCenter)
-            }
 
             // MARK: Waveform
 
             Waveform(
                 isPlaying:
-                    activity.playbackState?.isPlaying
+                    activity
+                        .playbackState?
+                        .isPlaying
                     ?? false,
 
                 color:
                     artworkColor
             )
             .frame(
-                width: waveformSize.width,
-                height: waveformSize.height
+                width:
+                    waveformSize.width,
+
+                height:
+                    waveformSize.height
             )
-            .position(waveformCenter)
+            .position(
+                waveformCenter
+            )
 
             // MARK: Expanded content
 
-            //
-            // IMPORTANT:
-            //
-            // All expanded-only elements remain in their normal
-            // expanded coordinate positions. The entire group gets
-            // compensated horizontally when collapsing so it doesn't
-            // appear to jump to the right as the parent shrinks.
-
-            ZStack(alignment: .topLeading) {
+            ZStack(
+                alignment:
+                    .topLeading
+            ) {
 
                 titleBlock
 
@@ -316,21 +335,31 @@ struct MusicIslandView: View {
         }
 
         .frame(
-            width: currentSize.width,
-            height: currentSize.height
+            width:
+                currentSize.width,
+
+            height:
+                currentSize.height
         )
 
+        // MARK: Hover glow
+
         .onContinuousHover(
-            coordinateSpace: .local
+            coordinateSpace:
+                .local
         ) { phase in
 
-            guard isExpanded else {
+            guard
+                isExpanded
+            else {
                 return
             }
 
             switch phase {
 
-            case .active(let location):
+            case .active(
+                let location
+            ):
 
                 let centerX =
                     currentSize.width / 2
@@ -339,33 +368,52 @@ struct MusicIslandView: View {
                     currentSize.height / 2
 
                 let normalizedX =
-                    (location.x - centerX) / centerX
+                    (
+                        location.x
+                        - centerX
+                    )
+                    / centerX
 
                 let normalizedY =
-                    (location.y - centerY) / centerY
+                    (
+                        location.y
+                        - centerY
+                    )
+                    / centerY
 
-                let maxTravel: CGFloat = 8
+                let maxTravel:
+                    CGFloat = 8
 
                 withAnimation(
-                    .easeOut(duration: 0.12)
+                    .easeOut(
+                        duration:
+                            0.12
+                    )
                 ) {
 
-                    glowOffset = CGSize(
-                        width:
-                            normalizedX * maxTravel,
+                    glowOffset =
+                        CGSize(
+                            width:
+                                normalizedX
+                                * maxTravel,
 
-                        height:
-                            normalizedY * maxTravel
-                    )
+                            height:
+                                normalizedY
+                                * maxTravel
+                        )
                 }
 
             case .ended:
 
                 withAnimation(
-                    .easeOut(duration: 0.18)
+                    .easeOut(
+                        duration:
+                            0.18
+                    )
                 ) {
 
-                    glowOffset = .zero
+                    glowOffset =
+                        .zero
                 }
             }
         }
@@ -374,267 +422,533 @@ struct MusicIslandView: View {
 
         .task(
             id:
-                activity
-                .playbackState?
-                .artwork?
-                .tiffRepresentation
+                currentArtworkFingerprint
         ) {
 
-            let artwork =
-                activity.playbackState?.artwork
-                ?? NSImage(named: "Currents")
+            let colorArtwork =
+                realArtwork
+                ?? NSImage(
+                    named:
+                        "Currents"
+                )
+                ?? NSImage()
 
             artworkColor =
                 ArtworkColorExtractor.dominantColor(
                     from:
-                        artwork,
+                        colorArtwork,
+
                     fallback:
                         DesignTokens.Color.musicAccent
                 )
+        }
 
-            if !isFlippingCompactArtwork {
+        // MARK: REAL artwork arrival
 
-                flipNewArtwork =
-                    artwork
+        //
+        // This is the important part.
+        //
+        // The flip is triggered when the ARTWORK actually changes,
+        // instead of relying on the timing of `.task` versus the
+        // metadata update.
+        //
+        .onChange(
+            of:
+                currentArtworkFingerprint
+        ) { _, newFingerprint in
+
+            guard
+                let newFingerprint,
+
+                let newArtwork =
+                    realArtwork
+            else {
+                return
+            }
+
+            // Ignore the exact same artwork.
+            if
+                lastArtworkFingerprint
+                    == newFingerprint
+            {
+                return
+            }
+
+            lastArtworkFingerprint =
+                newFingerprint
+
+            // ---------------------------------------------------------
+            // FIRST ARTWORK
+            // ---------------------------------------------------------
+
+            if displayedArtwork == nil {
+
+                displayedArtwork =
+                    newArtwork
+
+                incomingArtwork =
+                    nil
+
+                return
+            }
+
+            // ---------------------------------------------------------
+            // A NEW TRACK IS WAITING
+            // ---------------------------------------------------------
+
+            if
+                let pendingTrackKey,
+
+                pendingTrackKey
+                    == trackKey,
+
+                pendingTrackKey
+                    != lastStartedFlipTrackKey
+            {
+
+                startAlbumFlip(
+                    to:
+                        newArtwork,
+
+                    artworkFingerprint:
+                        newFingerprint,
+
+                    trackKey:
+                        pendingTrackKey
+                )
+
+                return
+            }
+
+            // ---------------------------------------------------------
+            // NORMAL ARTWORK UPDATE
+            //
+            // If the image changes without a recognised pending
+            // track transition, simply update the displayed artwork.
+            // ---------------------------------------------------------
+
+            if !isFlippingAlbum {
+
+                displayedArtwork =
+                    newArtwork
+
+                incomingArtwork =
+                    nil
             }
         }
 
         // MARK: Track change
 
-        .onChange(of: trackKey) { _, newKey in
+        .onChange(
+            of:
+                trackKey
+        ) { _, newKey in
 
-            guard !newKey.isEmpty else {
+            guard
+                !newKey.isEmpty
+            else {
                 return
             }
 
-            // First song.
+            // ---------------------------------------------------------
+            // First track.
+            // ---------------------------------------------------------
+
             if lastTrackKey.isEmpty {
 
                 lastTrackKey =
                     newKey
 
-                flipNewArtwork =
-                    currentArtwork
+                pendingTrackKey =
+                    nil
+
+                if let artwork =
+                    realArtwork
+                {
+
+                    displayedArtwork =
+                        artwork
+
+                    lastArtworkFingerprint =
+                        artwork
+                        .tiffRepresentation
+                }
 
                 return
             }
 
-            // Same song.
-            guard newKey != lastTrackKey else {
+            // Same track.
+            guard
+                newKey != lastTrackKey
+            else {
                 return
             }
 
             lastTrackKey =
                 newKey
 
-            let oldArtwork =
-                flipNewArtwork
-                ?? NSImage(named: "Currents")
-
-            let newArtwork =
-                currentArtwork
-                ?? NSImage(named: "Currents")
-
-            // If the track changes while expanded,
-            // just update the stored artwork.
+            // ---------------------------------------------------------
+            // DO NOT flip yet.
             //
-            // The flip is ONLY a compact-view animation.
-            guard !isExpanded else {
+            // The metadata can arrive before the new artwork.
+            // Keep the direction alive until the real artwork arrives.
+            // ---------------------------------------------------------
 
-                flipNewArtwork =
-                    newArtwork
+            pendingTrackKey =
+                newKey
 
-                return
-            }
-
-            flipOldArtwork =
-                oldArtwork
-
-            flipNewArtwork =
-                newArtwork
-
-            isFlippingCompactArtwork =
-                true
-
-            compactFlipAngle =
-                0
-
-            withAnimation(
-                .easeInOut(
-                    duration: 0.42
-                )
-            ) {
-
-                compactFlipAngle =
-                    180
-            }
-
-            DispatchQueue.main.asyncAfter(
-                deadline:
-                    .now() + 0.42
-            ) {
-
-                guard
-                    isFlippingCompactArtwork
-                else {
-                    return
-                }
-
-                flipNewArtwork =
-                    newArtwork
-
-                flipOldArtwork =
-                    nil
-
-                isFlippingCompactArtwork =
-                    false
-
-                compactFlipAngle =
-                    0
-            }
+            // If the artwork has already changed by the time the
+            // track metadata reaches us, the artwork observer above
+            // will handle the flip.
         }
     }
 
-    // MARK: - Compact Album
+    // MARK: - Album Art
 
-    private var compactAlbumArt: some View {
+    private var albumArtView: some View {
 
         ZStack {
 
-            if isFlippingCompactArtwork {
+            if isFlippingAlbum {
 
-                // OLD COVER
+                // =====================================================
+                // FRONT
+                // =====================================================
+
                 AlbumArtView(
                     image:
-                        flipOldArtwork,
+                        displayedArtwork,
+
                     size:
                         artSize,
+
                     cornerRadius:
                         artCornerRadius,
+
                     showGlow:
-                        false,
+                        isExpanded,
+
                     glowColor:
                         artworkColor,
+
                     glowOffset:
-                        .zero
+                        isExpanded
+                        ? glowOffset
+                        : .zero
                 )
                 .frame(
-                    width: artSize,
-                    height: artSize
+                    width:
+                        artSize,
+
+                    height:
+                        artSize
                 )
                 .rotation3DEffect(
                     .degrees(
-                        compactFlipAngle
+                        albumFlipAngle
                     ),
-                    axis: (
-                        x: 0,
-                        y: 1,
-                        z: 0
-                    ),
+
+                    axis:
+                        (
+                            x: 0,
+                            y: 1,
+                            z: 0
+                        ),
+
                     anchor:
                         .center,
+
                     anchorZ:
                         0,
+
                     perspective:
                         0.55
                 )
                 .opacity(
-                    compactFlipAngle < 90
-                        ? 1
-                        : 0
+                    abs(
+                        albumFlipAngle
+                    ) < 90
+                    ? 1
+                    : 0
                 )
 
-                // NEW COVER
+                // =====================================================
+                // BACK
+                // =====================================================
+
+                //
+                // This is a REAL new album cover.
+                //
+                // It is placed physically on the back side of the
+                // current album before the rotation starts.
+                //
+
                 AlbumArtView(
                     image:
-                        flipNewArtwork,
+                        incomingArtwork,
+
                     size:
                         artSize,
+
                     cornerRadius:
                         artCornerRadius,
+
                     showGlow:
-                        false,
+                        isExpanded,
+
                     glowColor:
                         artworkColor,
+
                     glowOffset:
-                        .zero
+                        isExpanded
+                        ? glowOffset
+                        : .zero
                 )
                 .frame(
-                    width: artSize,
-                    height: artSize
+                    width:
+                        artSize,
+
+                    height:
+                        artSize
                 )
                 .rotation3DEffect(
                     .degrees(
-                        compactFlipAngle - 180
+                        180
+                        + albumFlipAngle
                     ),
-                    axis: (
-                        x: 0,
-                        y: 1,
-                        z: 0
-                    ),
+
+                    axis:
+                        (
+                            x: 0,
+                            y: 1,
+                            z: 0
+                        ),
+
                     anchor:
                         .center,
+
                     anchorZ:
                         0,
+
                     perspective:
                         0.55
                 )
                 .opacity(
-                    compactFlipAngle >= 90
-                        ? 1
-                        : 0
+                    abs(
+                        albumFlipAngle
+                    ) >= 90
+                    ? 1
+                    : 0
                 )
 
             } else {
 
+                // =====================================================
+                // NORMAL
+                // =====================================================
+
                 AlbumArtView(
                     image:
-                        currentArtwork,
+                        normalArtwork,
+
                     size:
                         artSize,
+
                     cornerRadius:
                         artCornerRadius,
+
                     showGlow:
-                        false,
+                        isExpanded,
+
                     glowColor:
                         artworkColor,
+
                     glowOffset:
-                        .zero
+                        isExpanded
+                        ? glowOffset
+                        : .zero
                 )
                 .frame(
-                    width: artSize,
-                    height: artSize
+                    width:
+                        artSize,
+
+                    height:
+                        artSize
                 )
             }
         }
 
-        // CRITICAL:
+        // IMPORTANT:
         //
-        // The flip container has the exact same size as the compact
-        // artwork. Nothing inside this animation participates in the
-        // island's layout.
+        // The album card itself stays exactly the same size.
+        //
+        // NO `.clipped()` here.
+        //
+        // This lets the expanded glow extend naturally.
         .frame(
-            width: artSize,
-            height: artSize
-        )
+            width:
+                artSize,
 
-        .clipped()
+            height:
+                artSize
+        )
     }
 
-    // MARK: - Expanded-only content
+    // MARK: - Start Album Flip
+
+    private func startAlbumFlip(
+        to newArtwork:
+            NSImage,
+
+        artworkFingerprint:
+            Data,
+
+        trackKey:
+            String
+    ) {
+
+        // Don't interrupt an existing flip.
+        guard
+            !isFlippingAlbum
+        else {
+            return
+        }
+
+        // We need a real current front.
+        //
+        // If we don't have one yet, simply establish the artwork.
+        guard
+            displayedArtwork != nil
+        else {
+
+            displayedArtwork =
+                newArtwork
+
+            incomingArtwork =
+                nil
+
+            pendingTrackKey =
+                nil
+
+            lastStartedFlipTrackKey =
+                trackKey
+
+            lastArtworkFingerprint =
+                artworkFingerprint
+
+            return
+        }
+
+        // -------------------------------------------------------------
+        // REAL NEW ARTWORK GOES ON THE BACK.
+        //
+        // Currents is never allowed here.
+        // -------------------------------------------------------------
+
+        incomingArtwork =
+            newArtwork
+
+        pendingTrackKey =
+            nil
+
+        lastStartedFlipTrackKey =
+            trackKey
+
+        isFlippingAlbum =
+            true
+
+        // Always start from zero.
+        albumFlipAngle =
+            0
+
+        // -------------------------------------------------------------
+        // PHYSICAL CARD ROTATION
+        //
+        // Next:
+        //      0° → +180°
+        //
+        // Previous:
+        //      0° → -180°
+        // -------------------------------------------------------------
+
+        withAnimation(
+            .easeInOut(
+                duration:
+                    0.42
+            )
+        ) {
+
+            albumFlipAngle =
+                180
+                * pendingFlipDirection
+        }
+
+        DispatchQueue.main.asyncAfter(
+            deadline:
+                .now()
+                + 0.42
+        ) {
+
+            guard
+                self.isFlippingAlbum
+            else {
+                return
+            }
+
+            // The back face is now the front.
+            self.displayedArtwork =
+                newArtwork
+
+            self.incomingArtwork =
+                nil
+
+            self.isFlippingAlbum =
+                false
+
+            self.albumFlipAngle =
+                0
+
+            self.lastArtworkFingerprint =
+                artworkFingerprint
+        }
+    }
+
+    // MARK: - Track Navigation
+
+    private func skipForwardWithFlip() {
+
+        // Keep this value until the actual new artwork arrives.
+        pendingFlipDirection =
+            1
+
+        activity.skipForward()
+    }
+
+    private func skipBackwardWithFlip() {
+
+        // Keep this value until the actual new artwork arrives.
+        pendingFlipDirection =
+            -1
+
+        activity.skipBackward()
+    }
 
     // MARK: - Title
 
     private var titleBlock: some View {
 
         VStack(
-            alignment: .leading,
+            alignment:
+                .leading,
+
             spacing:
                 DesignTokens.Spacing.xxs
         ) {
 
             Text(
-                activity.playbackState?.title
+                activity
+                    .playbackState?
+                    .title
                 ?? ""
             )
             .font(
@@ -643,11 +957,17 @@ struct MusicIslandView: View {
             .foregroundStyle(
                 DesignTokens.Color.primaryText
             )
-            .lineLimit(1)
-            .truncationMode(.tail)
+            .lineLimit(
+                1
+            )
+            .truncationMode(
+                .tail
+            )
 
             Text(
-                activity.playbackState?.artist
+                activity
+                    .playbackState?
+                    .artist
                 ?? ""
             )
             .font(
@@ -661,13 +981,18 @@ struct MusicIslandView: View {
             .foregroundStyle(
                 DesignTokens.Color.secondaryText
             )
-            .lineLimit(1)
-            .truncationMode(.tail)
+            .lineLimit(
+                1
+            )
+            .truncationMode(
+                .tail
+            )
         }
 
         .frame(
             width:
                 titleWidth,
+
             alignment:
                 .leading
         )
@@ -675,6 +1000,7 @@ struct MusicIslandView: View {
         .offset(
             x:
                 titleOrigin.x,
+
             y:
                 titleOrigin.y
                 + (
@@ -687,10 +1013,12 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.12
                 : 0,
+
             duration:
                 0.25
         )
@@ -704,11 +1032,16 @@ struct MusicIslandView: View {
 
     private var progressBar: some View {
 
-        ZStack(alignment: .leading) {
+        ZStack(
+            alignment:
+                .leading
+        ) {
 
             Capsule()
                 .fill(
-                    Color.white.opacity(0.2)
+                    Color.white.opacity(
+                        0.2
+                    )
                 )
 
             Capsule()
@@ -725,6 +1058,7 @@ struct MusicIslandView: View {
         .frame(
             width:
                 progressSize.width,
+
             height:
                 progressSize.height
         )
@@ -732,6 +1066,7 @@ struct MusicIslandView: View {
         .offset(
             x:
                 progressOrigin.x,
+
             y:
                 progressOrigin.y
                 + (
@@ -744,10 +1079,12 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.14
                 : 0,
+
             duration:
                 0.25
         )
@@ -757,22 +1094,29 @@ struct MusicIslandView: View {
         )
     }
 
-    // MARK: - Elapsed time
+    // MARK: - Elapsed
 
     private var elapsedLabel: some View {
 
         Text(
             formatted(
-                activity.playbackState?.elapsed
+                activity
+                    .playbackState?
+                    .elapsed
                 ?? 0
             )
         )
 
         .font(
             .system(
-                size: 12,
-                weight: .regular,
-                design: .default
+                size:
+                    12,
+
+                weight:
+                    .regular,
+
+                design:
+                    .default
             )
         )
 
@@ -789,6 +1133,7 @@ struct MusicIslandView: View {
         .offset(
             x:
                 elapsedOrigin.x,
+
             y:
                 elapsedOrigin.y
                 + (
@@ -801,30 +1146,38 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.14
                 : 0,
+
             duration:
                 0.25
         )
     }
 
-    // MARK: - Remaining time
+    // MARK: - Remaining
 
     private var remainingLabel: some View {
 
         Text(
-            "-" + formatted(
+            "-"
+            + formatted(
                 remaining
             )
         )
 
         .font(
             .system(
-                size: 12,
-                weight: .regular,
-                design: .default
+                size:
+                    12,
+
+                weight:
+                    .regular,
+
+                design:
+                    .default
             )
         )
 
@@ -841,6 +1194,7 @@ struct MusicIslandView: View {
         .offset(
             x:
                 remainingOrigin.x,
+
             y:
                 remainingOrigin.y
                 + (
@@ -853,10 +1207,12 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.14
                 : 0,
+
             duration:
                 0.25
         )
@@ -869,17 +1225,22 @@ struct MusicIslandView: View {
         PlaybackButton(
             systemName:
                 "backward.fill",
+
             action:
-                activity.skipBackward,
+                skipBackwardWithFlip,
+
             size:
                 20
         )
 
-        .opacity(0.7)
+        .opacity(
+            0.7
+        )
 
         .position(
             x:
                 previousCenter.x,
+
             y:
                 previousCenter.y
                 + (
@@ -892,10 +1253,12 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.16
                 : 0,
+
             duration:
                 0.25
         )
@@ -911,14 +1274,12 @@ struct MusicIslandView: View {
 
         PlaybackButton(
             systemName:
-
                 (
                     activity
                         .playbackState?
                         .isPlaying
                     ?? false
                 )
-
                 ? "pause.fill"
                 : "play.fill",
 
@@ -930,13 +1291,17 @@ struct MusicIslandView: View {
         )
 
         .frame(
-            width: 34,
-            height: 34
+            width:
+                34,
+
+            height:
+                34
         )
 
         .position(
             x:
                 pauseCenter.x,
+
             y:
                 pauseCenter.y
                 + (
@@ -949,10 +1314,12 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.16
                 : 0,
+
             duration:
                 0.25
         )
@@ -969,17 +1336,22 @@ struct MusicIslandView: View {
         PlaybackButton(
             systemName:
                 "forward.fill",
+
             action:
-                activity.skipForward,
+                skipForwardWithFlip,
+
             size:
                 20
         )
 
-        .opacity(0.7)
+        .opacity(
+            0.7
+        )
 
         .position(
             x:
                 nextCenter.x,
+
             y:
                 nextCenter.y
                 + (
@@ -992,10 +1364,12 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.16
                 : 0,
+
             duration:
                 0.25
         )
@@ -1015,7 +1389,10 @@ struct MusicIslandView: View {
         )
 
         .font(
-            .system(size: 18)
+            .system(
+                size:
+                    18
+            )
         )
 
         .foregroundStyle(
@@ -1025,6 +1402,7 @@ struct MusicIslandView: View {
         .frame(
             width:
                 Metrics.airplayIconSize,
+
             height:
                 Metrics.airplayIconSize
         )
@@ -1032,6 +1410,7 @@ struct MusicIslandView: View {
         .position(
             x:
                 airplayCenter.x,
+
             y:
                 airplayCenter.y
                 + (
@@ -1044,10 +1423,12 @@ struct MusicIslandView: View {
         .fadeOnly(
             isVisible:
                 isExpanded,
+
             delay:
                 isExpanded
                 ? 0.16
                 : 0,
+
             duration:
                 0.25
         )
@@ -1062,8 +1443,20 @@ struct MusicIslandView: View {
     private var remaining: TimeInterval {
 
         max(
-            (activity.playbackState?.duration ?? 0)
-                - (activity.playbackState?.elapsed ?? 0),
+            (
+                activity
+                    .playbackState?
+                    .duration
+                ?? 0
+            )
+            -
+            (
+                activity
+                    .playbackState?
+                    .elapsed
+                ?? 0
+            ),
+
             0
         )
     }
@@ -1073,6 +1466,7 @@ struct MusicIslandView: View {
         guard
             let state =
                 activity.playbackState,
+
             state.duration > 0
         else {
 
@@ -1081,15 +1475,19 @@ struct MusicIslandView: View {
 
         return min(
             max(
-                state.elapsed / state.duration,
+                state.elapsed
+                    / state.duration,
+
                 0
             ),
+
             1
         )
     }
 
     private func formatted(
-        _ interval: TimeInterval
+        _ interval:
+            TimeInterval
     ) -> String {
 
         let total =
@@ -1101,7 +1499,9 @@ struct MusicIslandView: View {
         return String(
             format:
                 "%d:%02d",
+
             total / 60,
+
             total % 60
         )
     }
@@ -1112,23 +1512,30 @@ struct MusicIslandView: View {
 private extension View {
 
     func fadeOnly(
-        isVisible: Bool,
-        delay: Double,
-        duration: Double
+        isVisible:
+            Bool,
+
+        delay:
+            Double,
+
+        duration:
+            Double
     ) -> some View {
 
         self
-
             .transaction { transaction in
-                transaction.animation = nil
-            }
 
+                transaction.animation =
+                    nil
+            }
             .modifier(
                 FadeOnlyModifier(
                     isVisible:
                         isVisible,
+
                     delay:
                         delay,
+
                     duration:
                         duration
                 )
@@ -1139,16 +1546,21 @@ private extension View {
 private struct FadeOnlyModifier:
     ViewModifier {
 
-    let isVisible: Bool
+    let isVisible:
+        Bool
 
-    let delay: Double
+    let delay:
+        Double
 
-    let duration: Double
+    let duration:
+        Double
 
-    @State private var opacity: Double = 0
+    @State private var opacity:
+        Double = 0
 
     func body(
-        content: Content
+        content:
+            Content
     ) -> some View {
 
         content
