@@ -32,6 +32,7 @@ final class WindowManager {
             width:
                 expandedSize.width
                 + DesignTokens.Shadow.canvasInsetX * 2,
+
             height:
                 expandedSize.height
                 + DesignTokens.Shadow.canvasInsetBottom
@@ -69,10 +70,13 @@ final class WindowManager {
                 .padding(
                     EdgeInsets(
                         top: 0,
+
                         leading:
                             DesignTokens.Shadow.canvasInsetX,
+
                         bottom:
                             DesignTokens.Shadow.canvasInsetBottom,
+
                         trailing:
                             DesignTokens.Shadow.canvasInsetX
                     )
@@ -110,6 +114,7 @@ final class WindowManager {
             panel
 
         startMouseTracking()
+
         updateAllClickThroughStates()
     }
 
@@ -122,6 +127,9 @@ final class WindowManager {
         }
 
         windows.removeAll()
+
+        activeScreenID =
+            nil
     }
 
     func repositionAllWindows() {
@@ -131,8 +139,9 @@ final class WindowManager {
             let id =
                 ObjectIdentifier(screen)
 
-            guard let window =
-                windows[id]
+            guard
+                let window =
+                    windows[id]
             else {
                 continue
             }
@@ -156,9 +165,15 @@ final class WindowManager {
     ) {
 
         if active {
+
             activeScreenID =
                 screenID
-        } else if activeScreenID == screenID {
+
+        } else if
+            activeScreenID ==
+                screenID
+        {
+
             activeScreenID =
                 nil
         }
@@ -170,17 +185,22 @@ final class WindowManager {
 
     private func startMouseTracking() {
 
-        guard localMouseMonitor == nil else {
+        guard
+            localMouseMonitor == nil
+        else {
             return
         }
 
         localMouseMonitor =
             NSEvent.addLocalMonitorForEvents(
-                matching: [.mouseMoved]
+                matching:
+                    [.mouseMoved]
             ) { [weak self] event in
 
                 Task { @MainActor in
-                    self?.updateAllClickThroughStates()
+
+                    self?
+                        .updateAllClickThroughStates()
                 }
 
                 return event
@@ -188,23 +208,31 @@ final class WindowManager {
 
         globalMouseMonitor =
             NSEvent.addGlobalMonitorForEvents(
-                matching: [.mouseMoved]
+                matching:
+                    [.mouseMoved]
             ) { [weak self] _ in
 
                 Task { @MainActor in
-                    self?.updateAllClickThroughStates()
+
+                    self?
+                        .updateAllClickThroughStates()
                 }
             }
 
         NotificationCenter.default.addObserver(
             self,
+
             selector:
                 #selector(
                     screenParametersChanged
                 ),
+
             name:
-                NSApplication.didChangeScreenParametersNotification,
-            object: nil
+                NSApplication
+                    .didChangeScreenParametersNotification,
+
+            object:
+                nil
         )
     }
 
@@ -226,8 +254,9 @@ final class WindowManager {
             let id =
                 ObjectIdentifier(screen)
 
-            guard let window =
-                windows[id]
+            guard
+                let window =
+                    windows[id]
             else {
                 continue
             }
@@ -235,6 +264,7 @@ final class WindowManager {
             let activeRect =
                 activeRectOnScreen(
                     for: window,
+
                     isExpanded:
                         activeScreenID == id
                 )
@@ -254,11 +284,27 @@ final class WindowManager {
                 ? expandedSize
                 : compactSize
 
+        // ---------------------------------------------------------
+        // IMPORTANT:
+        //
+        // The SwiftUI content is NOT centered inside the canvas.
+        //
+        // `present()` adds:
+        //
+        //     leading: canvasInsetX
+        //
+        // and the same inset on the trailing side.
+        //
+        // Therefore the actual island begins at canvasInsetX.
+        // ---------------------------------------------------------
+
         let originInCanvas =
             CGPoint(
                 x:
-                    (canvasSize.width - size.width) / 2,
-                y: 0
+                    DesignTokens.Shadow.canvasInsetX,
+
+                y:
+                    0
             )
 
         let screenX =
@@ -267,17 +313,61 @@ final class WindowManager {
 
         let screenY =
             window.frame.origin.y
-            + (
-                canvasSize.height
-                - originInCanvas.y
-                - size.height
+            + canvasSize.height
+            - size.height
+
+        // ---------------------------------------------------------
+        // COMPACT HIT AREA
+        //
+        // The visible island is 29pt high, but its album/waveform
+        // content needs a little breathing room for hover detection.
+        //
+        // This ONLY changes the mouse hit area.
+        //
+        // It does NOT change the visual island size.
+        // ---------------------------------------------------------
+
+        if !isExpanded {
+
+            let hitHeight:
+                CGFloat = 34
+
+            let visualCenterY =
+                screenY
+                + size.height / 2
+
+            return NSRect(
+                x:
+                    screenX,
+
+                y:
+                    visualCenterY
+                    - hitHeight / 2,
+
+                width:
+                    size.width,
+
+                height:
+                    hitHeight
             )
+        }
+
+        // ---------------------------------------------------------
+        // EXPANDED HIT AREA
+        // ---------------------------------------------------------
 
         return NSRect(
-            x: screenX,
-            y: screenY,
-            width: size.width,
-            height: size.height
+            x:
+                screenX,
+
+            y:
+                screenY,
+
+            width:
+                size.width,
+
+            height:
+                size.height
         )
     }
 
@@ -316,12 +406,14 @@ final class WindowManager {
     deinit {
 
         if let localMouseMonitor {
+
             NSEvent.removeMonitor(
                 localMouseMonitor
             )
         }
 
         if let globalMouseMonitor {
+
             NSEvent.removeMonitor(
                 globalMouseMonitor
             )

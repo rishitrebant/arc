@@ -35,16 +35,21 @@ final class MediaRemoteMusicService:
     private var isRunning =
         false
 
-    // MARK: - Development Paths
+    // MARK: - Paths
 
-    private var adapterScriptPath: String {
+    private var adapterScriptPath:
+        String {
 
         guard let path =
             Bundle.main.path(
-                forResource: "mediaremote-adapter",
-                ofType: "pl"
+                forResource:
+                    "mediaremote-adapter",
+
+                ofType:
+                    "pl"
             )
         else {
+
             fatalError(
                 "mediaremote-adapter.pl was not found in the app bundle."
             )
@@ -53,14 +58,19 @@ final class MediaRemoteMusicService:
         return path
     }
 
-    private var frameworkPath: String {
+    private var frameworkPath:
+        String {
 
         guard let path =
             Bundle.main.path(
-                forResource: "MediaRemoteAdapter",
-                ofType: "framework"
+                forResource:
+                    "MediaRemoteAdapter",
+
+                ofType:
+                    "framework"
             )
         else {
+
             fatalError(
                 "MediaRemoteAdapter.framework was not found in the app bundle."
             )
@@ -68,47 +78,78 @@ final class MediaRemoteMusicService:
 
         return path
     }
-    // MARK: - Live Playback Tracking
 
+    // MARK: - Playback State
+
+    /// Current supported music state shown by the island.
     private var currentState:
         MusicPlaybackState?
 
-    /// Position reported by the adapter at the last sync.
+    /// Last supported Apple Music / Spotify state.
+    ///
+    /// IMPORTANT:
+    /// This survives while YouTube/Safari temporarily takes over
+    /// Now Playing, so playback commands still know which music app
+    /// they belong to.
+    private var lastSupportedState:
+        MusicPlaybackState?
+
+    /// What MediaRemote currently reports as Now Playing.
+    private var currentNowPlayingBundleIdentifier:
+        String?
+
+    /// Whether a real competing media source is currently hiding
+    /// the music island.
+    private var isCompetingMedia =
+        false
+
+    /// Last reported position.
     private var baseElapsed:
         TimeInterval = 0
 
-    /// Wall-clock moment corresponding to `baseElapsed`.
+    /// Time at which baseElapsed was received.
     private var baseTimestamp:
         Date = .now
 
-    /// Playback speed reported by the adapter.
+    /// Playback rate.
     private var playbackRate:
         Double = 0
 
-    /// Drives the visible progress locally between adapter updates.
+    /// Smooth local progress timer.
     private var progressTimer:
         Timer?
+
+    // MARK: - Unsupported Media
+
+    /// Anything shorter than this is treated as a transient sound
+    /// rather than meaningful media.
+    ///
+    /// Example:
+    /// WhatsApp notification = ~2 sec → ignored.
+    /// YouTube video = several minutes → hides island.
+    private let unsupportedMediaMinimumDuration:
+        TimeInterval = 10
 
     // MARK: - Start
 
     func start() {
 
-        guard !isRunning else {
+        guard
+            !isRunning
+        else {
             return
         }
 
-        isRunning = true
+        isRunning =
+            true
 
         startAdapter()
 
-        // Local progress ticker.
-        //
-        // This does NOT query MediaRemote.
-        // It simply advances the already-known position smoothly.
         progressTimer =
             Timer.scheduledTimer(
                 withTimeInterval:
                     0.1,
+
                 repeats:
                     true
             ) { [weak self] _ in
@@ -121,26 +162,50 @@ final class MediaRemoteMusicService:
 
     func stop() {
 
-        isRunning = false
+        isRunning =
+            false
 
         progressTimer?.invalidate()
-        progressTimer = nil
+
+        progressTimer =
+            nil
 
         process?.terminate()
-        process = nil
 
-        outputPipe = nil
+        process =
+            nil
 
-        currentState = nil
+        outputPipe =
+            nil
 
-        baseElapsed = 0
-        baseTimestamp = .now
-        playbackRate = 0
+        currentState =
+            nil
 
-        stateSubject.send(nil)
+        lastSupportedState =
+            nil
+
+        currentNowPlayingBundleIdentifier =
+            nil
+
+        isCompetingMedia =
+            false
+
+        baseElapsed =
+            0
+
+        baseTimestamp =
+            .now
+
+        playbackRate =
+            0
+
+        stateSubject.send(
+            nil
+        )
     }
 
     deinit {
+
         stop()
     }
 
@@ -184,40 +249,44 @@ final class MediaRemoteMusicService:
             return
         }
 
-        let process =
+        let newProcess =
             Process()
 
-        process.executableURL =
+        newProcess.executableURL =
             URL(
                 fileURLWithPath:
                     "/usr/bin/perl"
             )
 
-        process.arguments = [
+        newProcess.arguments = [
+
             adapterScriptPath,
+
             frameworkPath,
+
             "stream",
+
             "--no-diff"
         ]
 
         let pipe =
             Pipe()
 
-        process.standardOutput =
+        newProcess.standardOutput =
             pipe
 
-        process.standardError =
+        newProcess.standardError =
             FileHandle.nullDevice
 
-        self.process =
-            process
+        process =
+            newProcess
 
-        self.outputPipe =
+        outputPipe =
             pipe
 
         do {
 
-            try process.run()
+            try newProcess.run()
 
             print(
                 "✅ MediaRemote Adapter started"
@@ -233,8 +302,11 @@ final class MediaRemoteMusicService:
                 error
             )
 
-            self.process = nil
-            self.outputPipe = nil
+            process =
+                nil
+
+            outputPipe =
+                nil
 
             return
         }
@@ -245,7 +317,7 @@ final class MediaRemoteMusicService:
         )
     }
 
-    // MARK: - Read Stream
+    // MARK: - Read Adapter Output
 
     private func readAdapterOutput(
         from pipe:
@@ -254,13 +326,16 @@ final class MediaRemoteMusicService:
 
         DispatchQueue(
             label:
-                "com.island.mediaremote.adapter.reader",
+                "com.island.mediaremote.reader",
+
             qos:
                 .userInitiated
         )
         .async { [weak self] in
 
-            guard let self else {
+            guard
+                let self
+            else {
                 return
             }
 
@@ -270,12 +345,16 @@ final class MediaRemoteMusicService:
             var buffer =
                 Data()
 
-            while self.isRunning {
+            while
+                self.isRunning
+            {
 
                 let chunk =
                     handle.availableData
 
-                guard !chunk.isEmpty else {
+                guard
+                    !chunk.isEmpty
+                else {
                     break
                 }
 
@@ -283,11 +362,12 @@ final class MediaRemoteMusicService:
                     chunk
                 )
 
-                while let newlineRange =
-                    buffer.range(
-                        of:
-                            Data([0x0A])
-                    )
+                while
+                    let newlineRange =
+                        buffer.range(
+                            of:
+                                Data([0x0A])
+                        )
                 {
 
                     let lineData =
@@ -305,6 +385,7 @@ final class MediaRemoteMusicService:
                             String(
                                 data:
                                     lineData,
+
                                 encoding:
                                     .utf8
                             )
@@ -324,7 +405,8 @@ final class MediaRemoteMusicService:
                         continue
                     }
 
-                    DispatchQueue.main.async { [weak self] in
+                    DispatchQueue.main.async {
+                        [weak self] in
 
                         self?.handleAdapterLine(
                             cleanLine
@@ -335,13 +417,17 @@ final class MediaRemoteMusicService:
         }
     }
 
-    // MARK: - Parse Adapter Line
+    // MARK: - Handle Adapter Line
 
     private func handleAdapterLine(
         _ line:
             String
     ) {
-        print("📦 ADAPTER:", line)
+
+        print(
+            "📦 ADAPTER:",
+            line
+        )
 
         guard
             let data =
@@ -364,7 +450,8 @@ final class MediaRemoteMusicService:
                     )
 
             guard
-                message.type == "data"
+                message.type ==
+                    "data"
             else {
                 return
             }
@@ -406,35 +493,27 @@ final class MediaRemoteMusicService:
         _ payload:
             AdapterPayload
     ) {
-        print("🎯 BUNDLE ID:", payload.bundleIdentifier ?? "NIL")
 
-        // -------------------------------------------------------------
-        // No active media.
-        // -------------------------------------------------------------
+        let bundleIdentifier =
+            payload.bundleIdentifier
 
-        guard
-            let title =
-                payload.title,
-            !title.isEmpty
-        else {
+        print(
+            "🎯 BUNDLE ID:",
+            bundleIdentifier ?? "NIL"
+        )
 
-            currentState = nil
+        if let bundleIdentifier {
 
-            baseElapsed = 0
-            playbackRate = 0
-
-            stateSubject.send(nil)
-
-            return
+            currentNowPlayingBundleIdentifier =
+                bundleIdentifier
         }
 
         // -------------------------------------------------------------
-        // Supported app.
+        // Unsupported source
         // -------------------------------------------------------------
 
         guard
-            let bundleIdentifier =
-                payload.bundleIdentifier,
+            let bundleIdentifier,
 
             let app =
                 MusicApp(
@@ -443,12 +522,41 @@ final class MediaRemoteMusicService:
                 )
         else {
 
+            print(
+                "ℹ️ Unsupported Now Playing source:"
+                + " \(bundleIdentifier ?? "unknown")"
+            )
+
+            handleUnsupportedMedia(
+                payload
+            )
+
             return
         }
 
         // -------------------------------------------------------------
-        // Duration.
+        // Supported music source is back.
+        //
+        // This immediately ends the competing-media state and updates
+        // the saved music state.
         // -------------------------------------------------------------
+
+        isCompetingMedia =
+            false
+
+        handleSupportedMusic(
+            payload,
+            app:
+                app
+        )
+    }
+
+    // MARK: - Unsupported Media
+
+    private func handleUnsupportedMedia(
+        _ payload:
+            AdapterPayload
+    ) {
 
         let duration =
             max(
@@ -456,12 +564,192 @@ final class MediaRemoteMusicService:
                 0
             )
 
-        // -------------------------------------------------------------
-        // Playback rate.
-        // -------------------------------------------------------------
-
         let rate =
             payload.playbackRate ?? 0
+
+        let isPlaying =
+            payload.playing
+            ?? (rate > 0.01)
+
+        let isLongFormMedia =
+            duration >=
+                unsupportedMediaMinimumDuration
+
+        // -------------------------------------------------------------
+        // REAL COMPETING MEDIA
+        //
+        // Example:
+        // Safari / WebKit
+        // YouTube
+        // duration = 580 sec
+        // playing = true
+        //
+        // Hide the island, BUT preserve the music state internally.
+        // -------------------------------------------------------------
+
+        if
+            isPlaying,
+            isLongFormMedia
+        {
+
+            guard
+                !isCompetingMedia
+            else {
+                return
+            }
+
+            isCompetingMedia =
+                true
+
+            print(
+                "🎬 Competing media detected."
+            )
+
+            print(
+                "   Source:"
+                + " \(payload.bundleIdentifier ?? "unknown")"
+            )
+
+            print(
+                "   Title:"
+                + " \(payload.title ?? "")"
+            )
+
+            print(
+                "   Duration:"
+                + " \(duration)s"
+            )
+
+            print(
+                "🚫 Hiding music island."
+            )
+
+            // IMPORTANT:
+            //
+            // DO NOT erase lastSupportedState.
+            //
+            // The island can disappear while we still remember:
+            //
+            // Spotify → paused
+            // or
+            // Apple Music → playing
+            //
+            // This is what fixes the first-play problem.
+
+            currentState =
+                nil
+
+            baseElapsed =
+                0
+
+            baseTimestamp =
+                .now
+
+            playbackRate =
+                0
+
+            stateSubject.send(
+                nil
+            )
+
+            return
+        }
+
+        // -------------------------------------------------------------
+        // COMPETING MEDIA STOPPED
+        //
+        // Restore the last known supported music state.
+        //
+        // This means the first click on Play/Pause after YouTube stops
+        // already knows whether it should control Spotify or Music.
+        // -------------------------------------------------------------
+
+        if
+            isCompetingMedia,
+            !isPlaying
+        {
+
+            guard
+                let savedState =
+                    lastSupportedState
+            else {
+
+                isCompetingMedia =
+                    false
+
+                return
+            }
+
+            print(
+                "↩️ Competing media stopped."
+            )
+
+            print(
+                "🎵 Restoring:"
+                + " \(savedState.app.rawValue)"
+            )
+
+            isCompetingMedia =
+                false
+
+            currentState =
+                savedState
+
+            baseElapsed =
+                savedState.elapsed
+
+            baseTimestamp =
+                .now
+
+            playbackRate =
+                savedState.isPlaying
+                    ? 1
+                    : 0
+
+            stateSubject.send(
+                savedState
+            )
+
+            return
+        }
+
+        // -------------------------------------------------------------
+        // SHORT SOUND / NOTIFICATION
+        //
+        // Do absolutely nothing.
+        //
+        // WhatsApp notification, notification chime, etc.
+        // will therefore not kill the island.
+        // -------------------------------------------------------------
+
+        print(
+            "🔔 Short/unimportant unsupported event."
+        )
+
+        print(
+            "   Keeping current music state."
+        )
+    }
+
+    // MARK: - Supported Music
+
+    private func handleSupportedMusic(
+        _ payload:
+            AdapterPayload,
+
+        app:
+            MusicApp
+    ) {
+
+        let duration =
+            max(
+                payload.duration ?? 0,
+                0
+            )
+
+        let rate =
+            payload.playbackRate
+            ?? 0
 
         let isPlaying:
             Bool
@@ -478,25 +766,14 @@ final class MediaRemoteMusicService:
                 rate > 0.01
         }
 
-        // -------------------------------------------------------------
-        // Adapter's latest known elapsed position.
-        // -------------------------------------------------------------
-
         let reportedElapsed =
             max(
                 payload.elapsedTimeNow
                     ?? payload.elapsedTime
                     ?? 0,
+
                 0
             )
-
-        // -------------------------------------------------------------
-        // Sync local progress to the newest adapter position.
-        //
-        // Whenever MediaRemote gives us a new position, this resets
-        // our local clock. Between updates, advanceProgress() takes
-        // over so the visible time does not sit frozen.
-        // -------------------------------------------------------------
 
         baseElapsed =
             reportedElapsed
@@ -507,22 +784,15 @@ final class MediaRemoteMusicService:
         playbackRate =
             rate
 
-        // -------------------------------------------------------------
-        // Clamp.
-        // -------------------------------------------------------------
-
         let safeElapsed =
             clampElapsed(
                 reportedElapsed,
+
                 duration:
                     duration
             )
 
-        // -------------------------------------------------------------
-        // Artwork.
-        //
-        // This remains exactly the same working adapter path.
-        // -------------------------------------------------------------
+        // MARK: Artwork
 
         var artwork:
             NSImage?
@@ -545,9 +815,7 @@ final class MediaRemoteMusicService:
                 )
         }
 
-        // -------------------------------------------------------------
-        // Build state.
-        // -------------------------------------------------------------
+        // MARK: Create state
 
         let state =
             MusicPlaybackState(
@@ -556,10 +824,12 @@ final class MediaRemoteMusicService:
                     app,
 
                 title:
-                    title,
+                    payload.title
+                    ?? "",
 
                 artist:
-                    payload.artist ?? "",
+                    payload.artist
+                    ?? "",
 
                 artwork:
                     artwork,
@@ -574,6 +844,15 @@ final class MediaRemoteMusicService:
                     duration
             )
 
+        // -------------------------------------------------------------
+        // SAVE IT.
+        //
+        // This survives unsupported media taking over Now Playing.
+        // -------------------------------------------------------------
+
+        lastSupportedState =
+            state
+
         currentState =
             state
 
@@ -582,7 +861,8 @@ final class MediaRemoteMusicService:
         )
 
         print(
-            "🎵 \(title)"
+            "🎵 \(state.title)"
+            + " | \(app.rawValue)"
             + " | playing: \(isPlaying)"
             + " | elapsed: \(safeElapsed)"
             + " | duration: \(duration)"
@@ -595,14 +875,15 @@ final class MediaRemoteMusicService:
 
         guard
             isRunning,
+
             var state =
                 currentState,
+
             state.isPlaying
         else {
             return
         }
 
-        // Time since the adapter last gave us a position.
         let delta =
             Date()
                 .timeIntervalSince(
@@ -626,6 +907,7 @@ final class MediaRemoteMusicService:
         let finalElapsed =
             clampElapsed(
                 newElapsed,
+
                 duration:
                     state.duration
             )
@@ -636,22 +918,28 @@ final class MediaRemoteMusicService:
         currentState =
             state
 
-        stateSubject.send(
+        // Keep the saved state synchronized too.
+        lastSupportedState =
             state
 
+        stateSubject.send(
+            state
         )
 
-        // If we reach the end locally, don't let the timer
-        // continue pushing past the duration.
         if
             state.duration > 0,
-            finalElapsed >= state.duration
+
+            finalElapsed >=
+                state.duration
         {
 
             state.isPlaying =
                 false
 
             currentState =
+                state
+
+            lastSupportedState =
                 state
 
             stateSubject.send(
@@ -665,6 +953,7 @@ final class MediaRemoteMusicService:
     private func clampElapsed(
         _ value:
             TimeInterval,
+
         duration:
             TimeInterval
     ) -> TimeInterval {
@@ -675,7 +964,9 @@ final class MediaRemoteMusicService:
                 0
             )
 
-        guard duration > 0 else {
+        guard
+            duration > 0
+        else {
             return safe
         }
 
@@ -708,7 +999,79 @@ final class MediaRemoteMusicService:
         )
     }
 
+    // MARK: - Command Routing
+
     private func sendCommand(
+        _ command:
+            Int
+    ) {
+
+        // -------------------------------------------------------------
+        // THIS IS THE IMPORTANT FIX.
+        //
+        // If competing media temporarily cleared currentState,
+        // fall back to the last supported music state.
+        // -------------------------------------------------------------
+
+        guard
+            let state =
+                currentState
+                ?? lastSupportedState
+        else {
+
+            print(
+                "🚫 No supported music state available."
+            )
+
+            return
+        }
+
+        let targetApp =
+            state.app
+
+        let targetBundle =
+            targetApp.bundleIdentifier
+
+        if
+            currentNowPlayingBundleIdentifier
+                == targetBundle
+        {
+
+            print(
+                "🎯 Sending MediaRemote command to:"
+                + " \(targetBundle)"
+            )
+
+            sendMediaRemoteCommand(
+                command
+            )
+
+            return
+        }
+
+        // -------------------------------------------------------------
+        // Another app is currently Now Playing.
+        //
+        // Send directly to the remembered music app.
+        // -------------------------------------------------------------
+
+        print(
+            "🔀 Current Now Playing:"
+            + " \(currentNowPlayingBundleIdentifier ?? "unknown")"
+            + " | Target music app:"
+            + " \(targetBundle)"
+        )
+
+        sendDirectMusicAppCommand(
+            command,
+            app:
+                targetApp
+        )
+    }
+
+    // MARK: - MediaRemote Command
+
+    private func sendMediaRemoteCommand(
         _ command:
             Int
     ) {
@@ -723,9 +1086,13 @@ final class MediaRemoteMusicService:
             )
 
         commandProcess.arguments = [
+
             adapterScriptPath,
+
             frameworkPath,
+
             "send",
+
             "\(command)"
         ]
 
@@ -742,12 +1109,192 @@ final class MediaRemoteMusicService:
         } catch {
 
             print(
-                "❌ Failed to send command:"
+                "❌ Failed to send MediaRemote command:"
             )
 
             print(
                 error
             )
+        }
+    }
+
+    // MARK: - Direct Music App Command
+
+    private func sendDirectMusicAppCommand(
+        _ command:
+            Int,
+
+        app:
+            MusicApp
+    ) {
+
+        let script =
+            appleScriptFor(
+                command:
+                    command,
+
+                app:
+                    app
+            )
+
+        guard
+            !script.isEmpty
+        else {
+
+            print(
+                "🚫 No direct command available."
+            )
+
+            return
+        }
+
+        DispatchQueue.main.async {
+
+            var errorInfo:
+                NSDictionary?
+
+            guard
+                let appleScript =
+                    NSAppleScript(
+                        source:
+                            script
+                    )
+            else {
+
+                print(
+                    "❌ Could not create AppleScript."
+                )
+
+                return
+            }
+
+            let result =
+                appleScript
+                    .executeAndReturnError(
+                        &errorInfo
+                    )
+
+            if let errorInfo {
+
+                print(
+                    "❌ AppleScript command failed:"
+                )
+
+                print(
+                    errorInfo
+                )
+
+                if let number =
+                    errorInfo[
+                        NSAppleScript.errorNumber
+                    ] as? NSNumber,
+
+                    number.intValue ==
+                        -1743
+                {
+
+                    print(
+                        "⚠️ Automation permission required for:"
+                        + " \(app.rawValue)"
+                    )
+
+                    print(
+                        "Go to:"
+                        + " System Settings → Privacy & Security"
+                        + " → Automation"
+                    )
+                }
+
+            } else {
+
+                print(
+                    "✅ Direct music command sent:"
+                    + " \(app.rawValue)"
+                    + " | command \(command)"
+                )
+
+                _ = result
+            }
+        }
+    }
+
+    // MARK: - AppleScript
+
+    private func appleScriptFor(
+        command:
+            Int,
+
+        app:
+            MusicApp
+    ) -> String {
+
+        switch app {
+
+        case .appleMusic:
+
+            switch command {
+
+            case 2:
+
+                return """
+                tell application "Music"
+                    playpause
+                end tell
+                """
+
+            case 4:
+
+                return """
+                tell application "Music"
+                    next track
+                end tell
+                """
+
+            case 5:
+
+                return """
+                tell application "Music"
+                    previous track
+                end tell
+                """
+
+            default:
+
+                return ""
+            }
+
+        case .spotify:
+
+            switch command {
+
+            case 2:
+
+                return """
+                tell application "Spotify"
+                    playpause
+                end tell
+                """
+
+            case 4:
+
+                return """
+                tell application "Spotify"
+                    next track
+                end tell
+                """
+
+            case 5:
+
+                return """
+                tell application "Spotify"
+                    previous track
+                end tell
+                """
+
+            default:
+
+                return ""
+            }
         }
     }
 
