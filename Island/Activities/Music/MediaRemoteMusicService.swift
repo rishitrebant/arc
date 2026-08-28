@@ -341,6 +341,7 @@ final class MediaRemoteMusicService:
         _ line:
             String
     ) {
+        print("📦 ADAPTER:", line)
 
         guard
             let data =
@@ -405,6 +406,7 @@ final class MediaRemoteMusicService:
         _ payload:
             AdapterPayload
     ) {
+        print("🎯 BUNDLE ID:", payload.bundleIdentifier ?? "NIL")
 
         // -------------------------------------------------------------
         // No active media.
