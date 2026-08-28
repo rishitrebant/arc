@@ -19,40 +19,34 @@ struct MusicIslandView: View {
 
     // MARK: - Album Flip
 
-    /// Artwork currently displayed on the front of the card.
+    /// The artwork currently shown on the front.
     @State private var displayedArtwork: NSImage?
 
-    /// Real artwork that will be mounted on the back of the card.
+    /// The real incoming artwork shown on the back.
     @State private var incomingArtwork: NSImage?
 
-    /// Current physical card rotation.
+    /// Current rotation of the physical album card.
     @State private var albumFlipAngle: Double = 0
 
-    /// Whether a flip is currently happening.
+    /// True while the physical card is rotating.
     @State private var isFlippingAlbum = false
 
-    /// Last known track.
+    /// Last track that we have seen.
     @State private var lastTrackKey = ""
 
-    /// Track waiting for its real artwork.
+    /// Track that is waiting for its real artwork.
     @State private var pendingTrackKey: String?
 
-    /// Direction that belongs to the pending transition.
+    /// Direction that belongs to the pending track change.
     ///
     /// +1 = next / forward
     /// -1 = previous / backward
     @State private var pendingFlipDirection: Double = 1
 
-    /// Frozen direction for the CURRENT animation.
-    ///
-    /// This is deliberately separate from pendingFlipDirection.
-    /// Once a flip starts, nothing can change the direction halfway through.
-    @State private var activeFlipDirection: Double = 1
-
-    /// Prevent duplicate transitions for one track.
+    /// Prevents duplicate flips for the same track.
     @State private var lastStartedFlipTrackKey: String?
 
-    /// Fingerprint of the last real artwork we accepted.
+    /// Last artwork fingerprint that we accepted.
     @State private var lastArtworkFingerprint: Data?
 
     private typealias Metrics = DesignTokens.MusicMetrics
@@ -61,7 +55,6 @@ struct MusicIslandView: View {
     // MARK: - Sizes
 
     private var compactSize: CGSize {
-
         CGSize(
             width: Metrics.compactWidth,
             height: Metrics.compactHeight
@@ -69,7 +62,6 @@ struct MusicIslandView: View {
     }
 
     private var expandedSize: CGSize {
-
         CGSize(
             width: Metrics.expandedWidth,
             height: Metrics.expandedHeight
@@ -77,7 +69,6 @@ struct MusicIslandView: View {
     }
 
     private var currentSize: CGSize {
-
         isExpanded
             ? expandedSize
             : compactSize
@@ -85,44 +76,34 @@ struct MusicIslandView: View {
 
     // MARK: - Artwork
 
-    /// Only real artwork received from the backend.
+    /// Only REAL backend artwork.
     ///
-    /// NO Currents fallback here.
-    /// This prevents Currents from ever becoming the incoming face.
+    /// There is intentionally no Currents fallback.
     private var realArtwork: NSImage? {
-
         activity.playbackState?.artwork
     }
 
-    /// Normal artwork shown when no flip is happening.
-    ///
-    /// Currents is only a visual fallback if there is genuinely no
-    /// artwork available.
-    private var normalArtwork: NSImage {
-
+    /// Only artwork that has actually arrived from the playback backend.
+    /// When artwork is unavailable, no placeholder album is rendered.
+    private var normalArtwork: NSImage? {
         displayedArtwork
-            ?? NSImage(named: "Currents")
-            ?? NSImage()
     }
 
     // MARK: - Track
 
     private var trackKey: String {
-
         "\(activity.playbackState?.title ?? "")|\(activity.playbackState?.artist ?? "")"
     }
 
     // MARK: - Artwork Fingerprint
 
     private var currentArtworkFingerprint: Data? {
-
         realArtwork?.tiffRepresentation
     }
 
     // MARK: - Collapse compensation
 
     private var expandedContentCollapseOffset: CGFloat {
-
         isExpanded
             ? 0
             : -(expandedSize.width - compactSize.width) / 2
@@ -131,21 +112,18 @@ struct MusicIslandView: View {
     // MARK: - Shared elements
 
     private var artSize: CGFloat {
-
         isExpanded
             ? 65
             : Metrics.compactIconSize
     }
 
     private var artCornerRadius: CGFloat {
-
         isExpanded
             ? Metrics.albumArtCornerRadius
             : Metrics.compactIconCornerRadius
     }
 
     private var artCenter: CGPoint {
-
         isExpanded
             ? CGPoint(
                 x: 24 + 65 / 2,
@@ -155,7 +133,6 @@ struct MusicIslandView: View {
                 x:
                     Metrics.compactEdgePadding
                     + Metrics.compactIconSize / 2,
-
                 y:
                     DesignTokens.MusicMetrics
                     .compactContentCenterY
@@ -163,7 +140,6 @@ struct MusicIslandView: View {
     }
 
     private var waveformSize: CGSize {
-
         isExpanded
             ? CGSize(
                 width: 25.57,
@@ -176,13 +152,11 @@ struct MusicIslandView: View {
     }
 
     private var waveformCenter: CGPoint {
-
         isExpanded
             ? CGPoint(
                 x:
                     338.85
                     + 25.57 / 2,
-
                 y:
                     24
                     + 24 / 2
@@ -192,7 +166,6 @@ struct MusicIslandView: View {
                     compactSize.width
                     - Metrics.compactEdgePadding
                     - Metrics.compactIconSize / 2,
-
                 y:
                     DesignTokens.MusicMetrics
                     .compactContentCenterY
@@ -207,7 +180,6 @@ struct MusicIslandView: View {
     )
 
     private var titleWidth: CGFloat {
-
         338.85
         - titleOrigin.x
         - 16
@@ -238,35 +210,27 @@ struct MusicIslandView: View {
     private let playbackButtonSpacing: CGFloat = 70
 
     private var pauseCenter: CGPoint {
-
         CGPoint(
-            x:
-                expandedSize.width / 2,
-
-            y:
-                rowCenterY
+            x: expandedSize.width / 2,
+            y: rowCenterY
         )
     }
 
     private var previousCenter: CGPoint {
-
         CGPoint(
             x:
                 pauseCenter.x
                 - playbackButtonSpacing,
-
             y:
                 rowCenterY
         )
     }
 
     private var nextCenter: CGPoint {
-
         CGPoint(
             x:
                 pauseCenter.x
                 + playbackButtonSpacing,
-
             y:
                 rowCenterY
         )
@@ -340,19 +304,12 @@ struct MusicIslandView: View {
             ) {
 
                 titleBlock
-
                 progressBar
-
                 elapsedLabel
-
                 remainingLabel
-
                 previousButton
-
                 pauseButton
-
                 nextButton
-
                 airplayButton
             }
             .offset(
@@ -452,25 +409,27 @@ struct MusicIslandView: View {
                 currentArtworkFingerprint
         ) {
 
-            let colorArtwork =
+            if let colorArtwork =
                 realArtwork
-                ?? NSImage(
-                    named:
-                        "Currents"
-                )
-                ?? NSImage()
+            {
 
-            artworkColor =
-                ArtworkColorExtractor.dominantColor(
-                    from:
-                        colorArtwork,
+                artworkColor =
+                    ArtworkColorExtractor.dominantColor(
+                        from:
+                            colorArtwork,
 
-                    fallback:
-                        DesignTokens.Color.musicAccent
-                )
+                        fallback:
+                            DesignTokens.Color.musicAccent
+                    )
+
+            } else {
+
+                artworkColor =
+                    DesignTokens.Color.musicAccent
+            }
         }
 
-        // MARK: Artwork arrival
+        // MARK: REAL artwork arrival
 
         .onChange(
             of:
@@ -482,15 +441,17 @@ struct MusicIslandView: View {
 
                 let newArtwork =
                     realArtwork
+
             else {
                 return
             }
 
-            // Ignore exact same image.
-            guard
+            // Ignore the exact same artwork.
+
+            if
                 lastArtworkFingerprint
-                    != newFingerprint
-            else {
+                    == newFingerprint
+            {
                 return
             }
 
@@ -513,7 +474,7 @@ struct MusicIslandView: View {
             }
 
             // ---------------------------------------------------------
-            // NEW TRACK WAITING FOR REAL ARTWORK
+            // A NEW TRACK IS WAITING
             // ---------------------------------------------------------
 
             if
@@ -523,9 +484,7 @@ struct MusicIslandView: View {
                     == trackKey,
 
                 pendingTrackKey
-                    != lastStartedFlipTrackKey,
-
-                !isFlippingAlbum
+                    != lastStartedFlipTrackKey
             {
 
                 startAlbumFlip(
@@ -543,7 +502,7 @@ struct MusicIslandView: View {
             }
 
             // ---------------------------------------------------------
-            // NORMAL ARTWORK CHANGE
+            // NORMAL ARTWORK UPDATE
             // ---------------------------------------------------------
 
             if !isFlippingAlbum {
@@ -570,7 +529,7 @@ struct MusicIslandView: View {
             }
 
             // ---------------------------------------------------------
-            // FIRST TRACK
+            // First track.
             // ---------------------------------------------------------
 
             if lastTrackKey.isEmpty {
@@ -579,9 +538,6 @@ struct MusicIslandView: View {
                     newKey
 
                 pendingTrackKey =
-                    nil
-
-                lastStartedFlipTrackKey =
                     nil
 
                 if let artwork =
@@ -593,13 +549,14 @@ struct MusicIslandView: View {
 
                     lastArtworkFingerprint =
                         artwork
-                        .tiffRepresentation
+                            .tiffRepresentation
                 }
 
                 return
             }
 
             // Same track.
+
             guard
                 newKey != lastTrackKey
             else {
@@ -610,12 +567,10 @@ struct MusicIslandView: View {
                 newKey
 
             // ---------------------------------------------------------
-            // DO NOT flip here.
+            // DO NOT flip yet.
             //
-            // Metadata can arrive before the artwork.
-            //
-            // Direction was already stored by the navigation button
-            // and will remain there until the REAL new artwork arrives.
+            // The metadata can arrive before the new artwork.
+            // Keep the direction alive until the real artwork arrives.
             // ---------------------------------------------------------
 
             pendingTrackKey =
@@ -623,72 +578,81 @@ struct MusicIslandView: View {
         }
     }
 
-    // MARK: - Album Card
+    // MARK: - Album Art
 
     private var albumArtView: some View {
 
         ZStack {
 
-            // =========================================================
-            // FRONT FACE
-            // =========================================================
+            if isFlippingAlbum {
 
-            AlbumArtView(
-                image:
-                    displayedArtwork,
+                // =====================================================
+                // FRONT
+                // =====================================================
 
-                size:
-                    artSize,
+                AlbumArtView(
+                    image:
+                        displayedArtwork,
 
-                cornerRadius:
-                    artCornerRadius,
+                    size:
+                        artSize,
 
-                showGlow:
-                    isExpanded,
+                    cornerRadius:
+                        artCornerRadius,
 
-                glowColor:
-                    artworkColor,
+                    showGlow:
+                        isExpanded,
 
-                glowOffset:
-                    isExpanded
-                    ? glowOffset
-                    : .zero
-            )
-            .frame(
-                width:
-                    artSize,
+                    glowColor:
+                        artworkColor,
 
-                height:
-                    artSize
-            )
-
-            // Hide the front after the card passes halfway.
-            .opacity(
-                isFlippingAlbum
-                ? (
-                    activeFlipDirection > 0
-
-                    ? (
-                        albumFlipAngle < 90
-                        ? 1
-                        : 0
-                    )
-
-                    : (
-                        albumFlipAngle > -90
-                        ? 1
-                        : 0
-                    )
+                    glowOffset:
+                        isExpanded
+                        ? glowOffset
+                        : .zero
                 )
 
-                : 1
-            )
+                .frame(
+                    width:
+                        artSize,
 
-            // =========================================================
-            // BACK FACE
-            // =========================================================
+                    height:
+                        artSize
+                )
 
-            if isFlippingAlbum {
+                .rotation3DEffect(
+                    .degrees(
+                        albumFlipAngle
+                    ),
+
+                    axis:
+                        (
+                            x: 0,
+                            y: 1,
+                            z: 0
+                        ),
+
+                    anchor:
+                        .center,
+
+                    anchorZ:
+                        0,
+
+                    perspective:
+                        0.55
+                )
+
+                .opacity(
+                    abs(
+                        albumFlipAngle
+                    ) < 90
+                    ? 1
+                    : 0
+                )
+
+                // =====================================================
+                // BACK
+                // =====================================================
 
                 AlbumArtView(
                     image:
@@ -711,6 +675,7 @@ struct MusicIslandView: View {
                         ? glowOffset
                         : .zero
                 )
+
                 .frame(
                     width:
                         artSize,
@@ -719,15 +684,10 @@ struct MusicIslandView: View {
                         artSize
                 )
 
-                // The new artwork is physically attached to the back
-                // of the card.
-                //
-                // IMPORTANT:
-                // The back itself never changes orientation after this.
-                // The entire card below is what rotates.
                 .rotation3DEffect(
                     .degrees(
                         180
+                        + albumFlipAngle
                     ),
 
                     axis:
@@ -747,65 +707,57 @@ struct MusicIslandView: View {
                         0.55
                 )
 
-                // Only show the back after the midpoint.
                 .opacity(
-                    activeFlipDirection > 0
+                    abs(
+                        albumFlipAngle
+                    ) >= 90
+                    ? 1
+                    : 0
+                )
 
-                    ? (
-                        albumFlipAngle >= 90
-                        ? 1
-                        : 0
-                    )
+            } else if let artwork =
+                        normalArtwork {
 
-                    : (
-                        albumFlipAngle <= -90
-                        ? 1
-                        : 0
-                    )
+                // =====================================================
+                // NORMAL
+                // =====================================================
+
+                AlbumArtView(
+                    image:
+                        artwork,
+
+                    size:
+                        artSize,
+
+                    cornerRadius:
+                        artCornerRadius,
+
+                    showGlow:
+                        isExpanded,
+
+                    glowColor:
+                        artworkColor,
+
+                    glowOffset:
+                        isExpanded
+                        ? glowOffset
+                        : .zero
+                )
+
+                .frame(
+                    width:
+                        artSize,
+
+                    height:
+                        artSize
                 )
             }
         }
 
-        // =============================================================
-        // ONE PHYSICAL CARD
-        // =============================================================
-        //
-        // This is the ONLY animated rotation.
-        //
-        // Next:
-        //      0 → +180
-        //
-        // Previous:
-        //      0 → -180
-        //
-        // Front and back are fixed relative to this card.
-        // =============================================================
+        // IMPORTANT:
+        // The album card itself stays exactly the same size.
+        // NO `.clipped()` here.
 
-        .rotation3DEffect(
-            .degrees(
-                albumFlipAngle
-            ),
-
-            axis:
-                (
-                    x: 0,
-                    y: 1,
-                    z: 0
-                ),
-
-            anchor:
-                .center,
-
-            anchorZ:
-                0,
-
-            perspective:
-                0.55
-        )
-
-        // Do NOT clip.
-        //
-        // This preserves the expanded artwork glow.
         .frame(
             width:
                 artSize,
@@ -828,13 +780,16 @@ struct MusicIslandView: View {
             String
     ) {
 
+        // Don't interrupt an existing flip.
+
         guard
             !isFlippingAlbum
         else {
             return
         }
 
-        // We need a real current album.
+        // We need a real current front.
+
         guard
             displayedArtwork != nil
         else {
@@ -859,6 +814,7 @@ struct MusicIslandView: View {
 
         // -------------------------------------------------------------
         // REAL NEW ARTWORK GOES ON THE BACK.
+        // Currents is never allowed here.
         // -------------------------------------------------------------
 
         incomingArtwork =
@@ -870,29 +826,22 @@ struct MusicIslandView: View {
         lastStartedFlipTrackKey =
             trackKey
 
-        // -------------------------------------------------------------
-        // FREEZE THE DIRECTION.
-        //
-        // This is important.
-        //
-        // Once the flip starts, later state updates cannot change
-        // which way THIS card is rotating.
-        // -------------------------------------------------------------
-
-        activeFlipDirection =
-            pendingFlipDirection
-
         isFlippingAlbum =
             true
+
+        // Always start from zero.
 
         albumFlipAngle =
             0
 
-        let direction =
-            activeFlipDirection
-
         // -------------------------------------------------------------
         // PHYSICAL CARD ROTATION
+        //
+        // Next:
+        //      0° → +180°
+        //
+        // Previous:
+        //      0° → -180°
         // -------------------------------------------------------------
 
         withAnimation(
@@ -904,12 +853,8 @@ struct MusicIslandView: View {
 
             albumFlipAngle =
                 180
-                * direction
+                * pendingFlipDirection
         }
-
-        // -------------------------------------------------------------
-        // Finish the flip.
-        // -------------------------------------------------------------
 
         DispatchQueue.main.asyncAfter(
             deadline:
@@ -923,7 +868,8 @@ struct MusicIslandView: View {
                 return
             }
 
-            // The back face is now the permanent front.
+            // The back face is now the front.
+
             self.displayedArtwork =
                 newArtwork
 
@@ -941,11 +887,10 @@ struct MusicIslandView: View {
         }
     }
 
-    // MARK: - Navigation
+    // MARK: - Track Navigation
 
     private func skipForwardWithFlip() {
 
-        // NEXT = positive rotation.
         pendingFlipDirection =
             1
 
@@ -954,7 +899,6 @@ struct MusicIslandView: View {
 
     private func skipBackwardWithFlip() {
 
-        // PREVIOUS = negative rotation.
         pendingFlipDirection =
             -1
 
@@ -1056,7 +1000,7 @@ struct MusicIslandView: View {
         )
     }
 
-    // MARK: - Progress Bar
+    // MARK: - Progress bar
 
     private var progressBar: some View {
 
@@ -1246,7 +1190,7 @@ struct MusicIslandView: View {
         )
     }
 
-    // MARK: - Previous Button
+    // MARK: - Previous button
 
     private var previousButton: some View {
 
@@ -1357,7 +1301,7 @@ struct MusicIslandView: View {
         )
     }
 
-    // MARK: - Next Button
+    // MARK: - Next button
 
     private var nextButton: some View {
 
@@ -1466,7 +1410,7 @@ struct MusicIslandView: View {
         )
     }
 
-    // MARK: - Derived Values
+    // MARK: - Derived values
 
     private var remaining: TimeInterval {
 
@@ -1484,7 +1428,6 @@ struct MusicIslandView: View {
                     .elapsed
                 ?? 0
             ),
-
             0
         )
     }
@@ -1497,14 +1440,13 @@ struct MusicIslandView: View {
 
             state.duration > 0
         else {
-
             return 0
         }
 
         return min(
             max(
                 state.elapsed
-                / state.duration,
+                    / state.duration,
 
                 0
             ),
@@ -1556,6 +1498,7 @@ private extension View {
                 transaction.animation =
                     nil
             }
+
             .modifier(
                 FadeOnlyModifier(
                     isVisible:

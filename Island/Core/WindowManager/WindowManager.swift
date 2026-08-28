@@ -13,21 +13,38 @@ final class WindowManager {
     private var activeScreenID:
         ObjectIdentifier?
 
+    /// Screens whose island is currently docked.
+    ///
+    /// The window remains alive, but its visible island is hidden.
+    /// We keep a small hit region at the top-center so the user can
+    /// click or drag downward to restore it.
+    private var dockedScreens:
+        Set<ObjectIdentifier> = []
+
     private var compactSize: CGSize {
+
         CGSize(
-            width: DesignTokens.MusicMetrics.compactWidth,
-            height: DesignTokens.MusicMetrics.compactHeight
+            width:
+                DesignTokens.MusicMetrics.compactWidth,
+
+            height:
+                DesignTokens.MusicMetrics.compactHeight
         )
     }
 
     private var expandedSize: CGSize {
+
         CGSize(
-            width: DesignTokens.MusicMetrics.expandedWidth,
-            height: DesignTokens.MusicMetrics.expandedHeight
+            width:
+                DesignTokens.MusicMetrics.expandedWidth,
+
+            height:
+                DesignTokens.MusicMetrics.expandedHeight
         )
     }
 
     private var canvasSize: CGSize {
+
         CGSize(
             width:
                 expandedSize.width
@@ -51,17 +68,24 @@ final class WindowManager {
 
         let origin =
             notchOrigin(
-                on: screen,
-                size: canvasSize
+                on:
+                    screen,
+
+                size:
+                    canvasSize
             )
 
         let panel =
             windows[screenID]
-            ?? IslandWindow(
+            ??
+            IslandWindow(
                 contentRect:
                     NSRect(
-                        origin: origin,
-                        size: canvasSize
+                        origin:
+                            origin,
+
+                        size:
+                            canvasSize
                     )
             )
 
@@ -69,33 +93,49 @@ final class WindowManager {
             rootView
                 .padding(
                     EdgeInsets(
-                        top: 0,
+                        top:
+                            0,
 
                         leading:
-                            DesignTokens.Shadow.canvasInsetX,
+                            DesignTokens
+                                .Shadow
+                                .canvasInsetX,
 
                         bottom:
-                            DesignTokens.Shadow.canvasInsetBottom,
+                            DesignTokens
+                                .Shadow
+                                .canvasInsetBottom,
 
                         trailing:
-                            DesignTokens.Shadow.canvasInsetX
+                            DesignTokens
+                                .Shadow
+                                .canvasInsetX
                     )
                 )
                 .frame(
-                    width: canvasSize.width,
-                    height: canvasSize.height,
-                    alignment: .top
+                    width:
+                        canvasSize.width,
+
+                    height:
+                        canvasSize.height,
+
+                    alignment:
+                        .top
                 )
 
         let hosting =
             NSHostingView(
-                rootView: centeredRoot
+                rootView:
+                    centeredRoot
             )
 
         hosting.frame =
             NSRect(
-                origin: .zero,
-                size: canvasSize
+                origin:
+                    .zero,
+
+                size:
+                    canvasSize
             )
 
         hosting.autoresizingMask =
@@ -123,10 +163,13 @@ final class WindowManager {
     func removeAllWindows() {
 
         for window in windows.values {
+
             window.orderOut(nil)
         }
 
         windows.removeAll()
+
+        dockedScreens.removeAll()
 
         activeScreenID =
             nil
@@ -139,17 +182,19 @@ final class WindowManager {
             let id =
                 ObjectIdentifier(screen)
 
-            guard
-                let window =
-                    windows[id]
+            guard let window =
+                windows[id]
             else {
                 continue
             }
 
             window.setFrameOrigin(
                 notchOrigin(
-                    on: screen,
-                    size: canvasSize
+                    on:
+                        screen,
+
+                    size:
+                        canvasSize
                 )
             )
         }
@@ -164,18 +209,53 @@ final class WindowManager {
         for screenID: ObjectIdentifier
     ) {
 
+        // A docked island owns its own top-center hit region.
+        if dockedScreens.contains(screenID) {
+
+            updateAllClickThroughStates()
+
+            return
+        }
+
         if active {
 
             activeScreenID =
                 screenID
 
-        } else if
-            activeScreenID ==
-                screenID
-        {
+        } else if activeScreenID == screenID {
 
             activeScreenID =
                 nil
+        }
+
+        updateAllClickThroughStates()
+    }
+
+    // MARK: - Dock Region
+
+    func setDocked(
+        _ docked: Bool,
+        for screenID: ObjectIdentifier
+    ) {
+
+        if docked {
+
+            dockedScreens.insert(
+                screenID
+            )
+
+            // Docked islands must be compact.
+            if activeScreenID == screenID {
+
+                activeScreenID =
+                    nil
+            }
+
+        } else {
+
+            dockedScreens.remove(
+                screenID
+            )
         }
 
         updateAllClickThroughStates()
@@ -185,9 +265,7 @@ final class WindowManager {
 
     private func startMouseTracking() {
 
-        guard
-            localMouseMonitor == nil
-        else {
+        guard localMouseMonitor == nil else {
             return
         }
 
@@ -254,25 +332,55 @@ final class WindowManager {
             let id =
                 ObjectIdentifier(screen)
 
-            guard
-                let window =
-                    windows[id]
+            guard let window =
+                windows[id]
             else {
                 continue
             }
 
+            // ---------------------------------------------------------
+            // DOCKED
+            //
+            // Keep ONLY the top-center compact hit region active.
+            // ---------------------------------------------------------
+
+            if dockedScreens.contains(id) {
+
+                let dockRect =
+                    dockedHitRect(
+                        for:
+                            window
+                    )
+
+                window.ignoresMouseEvents =
+                    !dockRect.contains(
+                        cursor
+                    )
+
+                continue
+            }
+
+            // ---------------------------------------------------------
+            // NORMAL
+            // ---------------------------------------------------------
+
             let activeRect =
                 activeRectOnScreen(
-                    for: window,
+                    for:
+                        window,
 
                     isExpanded:
                         activeScreenID == id
                 )
 
             window.ignoresMouseEvents =
-                !activeRect.contains(cursor)
+                !activeRect.contains(
+                    cursor
+                )
         }
     }
+
+    // MARK: - Active Rect
 
     private func activeRectOnScreen(
         for window: NSWindow,
@@ -284,24 +392,14 @@ final class WindowManager {
                 ? expandedSize
                 : compactSize
 
-        // ---------------------------------------------------------
-        // IMPORTANT:
-        //
-        // The SwiftUI content is NOT centered inside the canvas.
-        //
-        // `present()` adds:
-        //
-        //     leading: canvasInsetX
-        //
-        // and the same inset on the trailing side.
-        //
-        // Therefore the actual island begins at canvasInsetX.
-        // ---------------------------------------------------------
-
         let originInCanvas =
             CGPoint(
                 x:
-                    DesignTokens.Shadow.canvasInsetX,
+                    (
+                        canvasSize.width
+                        - size.width
+                    )
+                    / 2,
 
                 y:
                     0
@@ -313,48 +411,11 @@ final class WindowManager {
 
         let screenY =
             window.frame.origin.y
-            + canvasSize.height
-            - size.height
-
-        // ---------------------------------------------------------
-        // COMPACT HIT AREA
-        //
-        // The visible island is 29pt high, but its album/waveform
-        // content needs a little breathing room for hover detection.
-        //
-        // This ONLY changes the mouse hit area.
-        //
-        // It does NOT change the visual island size.
-        // ---------------------------------------------------------
-
-        if !isExpanded {
-
-            let hitHeight:
-                CGFloat = 34
-
-            let visualCenterY =
-                screenY
-                + size.height / 2
-
-            return NSRect(
-                x:
-                    screenX,
-
-                y:
-                    visualCenterY
-                    - hitHeight / 2,
-
-                width:
-                    size.width,
-
-                height:
-                    hitHeight
+            + (
+                canvasSize.height
+                - originInCanvas.y
+                - size.height
             )
-        }
-
-        // ---------------------------------------------------------
-        // EXPANDED HIT AREA
-        // ---------------------------------------------------------
 
         return NSRect(
             x:
@@ -368,6 +429,85 @@ final class WindowManager {
 
             height:
                 size.height
+        )
+    }
+
+    // MARK: - Docked Hit Rect
+
+    private func dockedHitRect(
+        for window: NSWindow
+    ) -> NSRect {
+
+        // The docked target is the same top-center logical location
+        // as the compact island.
+        //
+        // This means:
+        //
+        // Mac WITH notch:
+        //     target sits directly below/within the notch area.
+        //
+        // Mac WITHOUT notch:
+        //     target becomes a virtual notch at the screen center.
+        //
+        // No hardware-specific coordinates are required.
+
+        let targetWidth =
+            compactSize.width
+
+        let targetHeight =
+            compactSize.height
+
+        let originInCanvas =
+            CGPoint(
+                x:
+                    (
+                        canvasSize.width
+                        - targetWidth
+                    )
+                    / 2,
+
+                y:
+                    0
+            )
+
+        let screenX =
+            window.frame.origin.x
+            + originInCanvas.x
+
+        let screenY =
+            window.frame.origin.y
+            + (
+                canvasSize.height
+                - originInCanvas.y
+                - targetHeight
+            )
+
+        // Slightly larger hit area than the invisible island.
+        //
+        // This makes the dock much easier to grab without making
+        // the entire window clickable.
+        let horizontalPadding:
+            CGFloat = 12
+
+        let verticalPadding:
+            CGFloat = 6
+
+        return NSRect(
+            x:
+                screenX
+                - horizontalPadding,
+
+            y:
+                screenY
+                - verticalPadding,
+
+            width:
+                targetWidth
+                + horizontalPadding * 2,
+
+            height:
+                targetHeight
+                + verticalPadding * 2
         )
     }
 
@@ -396,8 +536,11 @@ final class WindowManager {
             .rounded()
 
         return NSPoint(
-            x: x,
-            y: y
+            x:
+                x,
+
+            y:
+                y
         )
     }
 

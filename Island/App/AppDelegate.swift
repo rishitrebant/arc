@@ -35,30 +35,35 @@ final class AppDelegate:
 
     private func createIslandOnMacBookScreen() {
 
-        guard let macBookScreen = NSScreen.screens.first(
-            where: { screen in
+        guard let macBookScreen =
+            NSScreen.screens.first(
+                where: { screen in
 
-                guard let screenNumber =
-                    screen.deviceDescription[
-                        NSDeviceDescriptionKey(
-                            "NSScreenNumber"
-                        )
-                    ] as? CGDirectDisplayID
+                    guard let screenNumber =
+                        screen.deviceDescription[
+                            NSDeviceDescriptionKey(
+                                "NSScreenNumber"
+                            )
+                        ] as? CGDirectDisplayID
 
-                else {
-                    return false
+                    else {
+                        return false
+                    }
+
+                    return CGDisplayIsBuiltin(
+                        screenNumber
+                    ) != 0
                 }
+            )
 
-                return CGDisplayIsBuiltin(
-                    screenNumber
-                ) != 0
-            }
-        ) else {
+        else {
             return
         }
 
         let screenID =
-            ObjectIdentifier(macBookScreen)
+            ObjectIdentifier(
+                macBookScreen
+            )
 
         let root =
             IslandRootView(
@@ -69,18 +74,34 @@ final class AppDelegate:
                     screenID,
 
                 onHoverRegionChange:
-                    { [weak windowManager] active, screenID in
+                    { [weak windowManager]
+                        active,
+                        screenID in
 
                         windowManager?.setHoverActive(
                             active,
-                            for: screenID
+                            for:
+                                screenID
+                        )
+                    },
+
+                onDockStateChange:
+                    { [weak windowManager]
+                        docked,
+                        screenID in
+
+                        windowManager?.setDocked(
+                            docked,
+                            for:
+                                screenID
                         )
                     }
             )
 
         windowManager.present(
             root,
-            for: macBookScreen
+            for:
+                macBookScreen
         )
     }
 }

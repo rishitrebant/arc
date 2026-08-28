@@ -18,6 +18,11 @@ struct IslandRootView: View {
     var onHoverRegionChange:
         (Bool, ObjectIdentifier) -> Void = { _, _ in }
 
+    /// Reports docking state to WindowManager so the hidden island still
+    /// has a small clickable area at the top-center.
+    var onDockStateChange:
+        (Bool, ObjectIdentifier) -> Void = { _, _ in }
+
     @Namespace private var morphNamespace
 
     @State private var isHovering = false
@@ -27,10 +32,20 @@ struct IslandRootView: View {
     /// Immediate hover feedback.
     @State private var isPrimed = false
 
+    // MARK: - Docking
+
+    /// True while the island is tucked away at the top-center.
+    @State private var isDocked = false
+
+    /// Temporary drag amount while dragging.
+    @State private var dockDragOffset: CGFloat = 0
+
     private var compactSize: CGSize {
+
         CGSize(
             width:
                 DesignTokens.MusicMetrics.compactWidth,
+
             height:
                 DesignTokens.MusicMetrics.compactHeight
         )
@@ -46,13 +61,27 @@ struct IslandRootView: View {
                 activity.islandView(
                     isExpanded: isExpanded
                 )
+                .offset(
+                    y:
+                        isDocked
+                            ? 0
+                            : dockDragOffset
+                )
+                .opacity(
+                    isDocked
+                        ? 0
+                        : 1
+                )
 
             } else {
 
                 Color.clear
                     .frame(
-                        width: compactSize.width,
-                        height: compactSize.height
+                        width:
+                            compactSize.width,
+
+                        height:
+                            compactSize.height
                     )
             }
         }
@@ -69,6 +98,21 @@ struct IslandRootView: View {
                     .ownedActivity?
                     .id
         )
+
+        // ---------------------------------------------------------
+        // IMPORTANT:
+        //
+        // Even when the island is invisible, this view remains
+        // hit-testable so the user can click/drag it back.
+        // ---------------------------------------------------------
+
+        .contentShape(
+            Rectangle()
+        )
+
+        // ---------------------------------------------------------
+        // EXISTING SHADOW
+        // ---------------------------------------------------------
 
         .shadow(
             color:
@@ -91,14 +135,60 @@ struct IslandRootView: View {
 
         .animation(
             AnimationTokens.hoverPrimeTransition,
-            value: isPrimed
+            value:
+                isPrimed
         )
 
+        // ---------------------------------------------------------
+        // EXISTING HOVER
+        // ---------------------------------------------------------
+
         .onHover { hovering in
+
             handleHover(
                 hovering
             )
         }
+
+        // ---------------------------------------------------------
+        // CLICK TO UNDOCK
+        //
+        // Single click works.
+        //
+        // A double click also contains a click, so this is enough
+        // for the requested "single OR double click" behaviour.
+        // ---------------------------------------------------------
+
+        .onTapGesture {
+
+            guard isDocked else {
+                return
+            }
+
+            undock()
+        }
+
+        // ---------------------------------------------------------
+        // DRAG TO DOCK / UNDOCK
+        // ---------------------------------------------------------
+
+        .simultaneousGesture(
+            DragGesture(
+                minimumDistance: 4
+            )
+            .onChanged { value in
+
+                handleDockDrag(
+                    value.translation.height
+                )
+            }
+            .onEnded { value in
+
+                handleDockDragEnded(
+                    value.translation.height
+                )
+            }
+        )
     }
 
     // MARK: - Hover
@@ -106,6 +196,11 @@ struct IslandRootView: View {
     private func handleHover(
         _ hovering: Bool
     ) {
+
+        // Never expand while docked.
+        guard !isDocked else {
+            return
+        }
 
         isHovering =
             hovering
@@ -136,11 +231,19 @@ struct IslandRootView: View {
                     return
                 }
 
+                // =====================================================
+                // YOUR ORIGINAL MORPH ANIMATION.
+                //
+                // COMPLETELY UNTOUCHED.
+                // =====================================================
+
                 withAnimation(
                     AnimationTokens.shapeMorph(
-                        isExpanding: hovering
+                        isExpanding:
+                            hovering
                     )
                 ) {
+
                     isExpanded =
                         hovering
                 }
@@ -152,8 +255,164 @@ struct IslandRootView: View {
         DispatchQueue.main.asyncAfter(
             deadline:
                 .now() + delay,
+
             execute:
                 workItem
         )
+    }
+
+    // MARK: - Dock Drag
+
+    private func handleDockDrag(
+        _ translation: CGFloat
+    ) {
+
+        // ---------------------------------------------------------
+        // ALREADY DOCKED
+        //
+        // Drag DOWN to bring it back.
+        // ---------------------------------------------------------
+
+        if isDocked {
+
+            if translation > 0 {
+
+                dockDragOffset =
+                    min(
+                        translation,
+                        70
+                    )
+            }
+
+            return
+        }
+
+        // ---------------------------------------------------------
+        // NORMAL
+        //
+        // Drag UP toward the notch.
+        // ---------------------------------------------------------
+
+        if translation < 0 {
+
+            dockDragOffset =
+                max(
+                    translation,
+                    -100
+                )
+        }
+    }
+
+    // MARK: - Dock Drag End
+
+    private func handleDockDragEnded(
+        _ translation: CGFloat
+    ) {
+
+        // ---------------------------------------------------------
+        // DOCKED → NORMAL
+        // ---------------------------------------------------------
+
+        if isDocked {
+
+            if translation > 20 {
+
+                undock()
+
+            } else {
+
+                // No sufficient downward drag.
+                dockDragOffset =
+                    0
+            }
+
+            return
+        }
+
+        // ---------------------------------------------------------
+        // NORMAL → DOCKED
+        // ---------------------------------------------------------
+
+        if translation < -35 {
+
+            dock()
+
+        } else {
+
+            // Not far enough.
+            dockDragOffset =
+                0
+        }
+    }
+
+    // MARK: - Dock
+
+    private func dock() {
+
+        hoverWorkItem?.cancel()
+
+        hoverWorkItem =
+            nil
+
+        isHovering =
+            false
+
+        isPrimed =
+            false
+
+        // Docking is always from compact state.
+        isExpanded =
+            false
+
+        dockDragOffset =
+            0
+
+        // ---------------------------------------------------------
+        // NO SPRING.
+        // NO SCALE.
+        // NO FADE.
+        //
+        // It simply disappears.
+        // ---------------------------------------------------------
+
+        isDocked =
+            true
+
+        onDockStateChange(
+            true,
+            screenID
+        )
+    }
+
+    // MARK: - Undock
+
+    private func undock() {
+
+        // Already visible.
+        guard isDocked else {
+            return
+        }
+
+        // Make it visible immediately.
+        isDocked =
+            false
+
+        dockDragOffset =
+            0
+
+        onDockStateChange(
+            false,
+            screenID
+        )
+
+        // Don't accidentally trigger an expansion immediately.
+        isHovering =
+            false
+
+        isExpanded =
+            false
+
+        isPrimed =
+            false
     }
 }
