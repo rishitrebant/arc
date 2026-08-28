@@ -1,53 +1,32 @@
 import SwiftUI
 
-/// Music's single island presentation — compact and expanded are NOT two
-/// separate views being swapped anymore, just one view's parameters
-/// changing under `isExpanded`.
-
 struct MusicIslandView: View {
 
     @ObservedObject var activity: MusicActivity
 
     var isExpanded: Bool
 
-    // MARK: - Artwork / Glow
-
     @State private var artworkColor: Color =
         DesignTokens.Color.musicAccent
 
     @State private var glowOffset: CGSize = .zero
 
-    // MARK: - Album Flip
-
-    /// The artwork currently shown on the front.
     @State private var displayedArtwork: NSImage?
-
-    /// The real incoming artwork shown on the back.
     @State private var incomingArtwork: NSImage?
-
-    /// Current rotation of the physical album card.
     @State private var albumFlipAngle: Double = 0
-
-    /// True while the physical card is rotating.
     @State private var isFlippingAlbum = false
 
-    /// Last track that we have seen.
     @State private var lastTrackKey = ""
-
-    /// Track that is waiting for its real artwork.
     @State private var pendingTrackKey: String?
 
-    /// Direction that belongs to the pending track change.
-    ///
-    /// +1 = next / forward
-    /// -1 = previous / backward
     @State private var pendingFlipDirection: Double = 1
 
-    /// Prevents duplicate flips for the same track.
     @State private var lastStartedFlipTrackKey: String?
-
-    /// Last artwork fingerprint that we accepted.
     @State private var lastArtworkFingerprint: Data?
+
+    // Local playback state so the waveform always receives
+    // an explicit SwiftUI state change.
+    @State private var displayedPlaybackState = false
 
     private typealias Metrics = DesignTokens.MusicMetrics
     private typealias ShapeTokens = DesignTokens.Shape
@@ -76,15 +55,10 @@ struct MusicIslandView: View {
 
     // MARK: - Artwork
 
-    /// Only REAL backend artwork.
-    ///
-    /// There is intentionally no Currents fallback.
     private var realArtwork: NSImage? {
         activity.playbackState?.artwork
     }
 
-    /// Only artwork that has actually arrived from the playback backend.
-    /// When artwork is unavailable, no placeholder album is rendered.
     private var normalArtwork: NSImage? {
         displayedArtwork
     }
@@ -277,13 +251,13 @@ struct MusicIslandView: View {
 
             Waveform(
                 isPlaying:
-                    activity
-                        .playbackState?
-                        .isPlaying
-                    ?? false,
+                    displayedPlaybackState,
 
                 color:
                     artworkColor
+            )
+            .id(
+                "waveform-\(displayedPlaybackState)"
             )
             .frame(
                 width:
@@ -429,6 +403,27 @@ struct MusicIslandView: View {
             }
         }
 
+        // MARK: Playback state
+
+        .onAppear {
+
+            displayedPlaybackState =
+                activity
+                    .playbackState?
+                    .isPlaying
+                ?? false
+        }
+
+        .onChange(
+            of:
+                activity.playbackState?.isPlaying
+        ) { _, newValue in
+
+            displayedPlaybackState =
+                newValue
+                ?? false
+        }
+
         // MARK: REAL artwork arrival
 
         .onChange(
@@ -455,9 +450,6 @@ struct MusicIslandView: View {
                 return
             }
 
-            lastArtworkFingerprint =
-                newFingerprint
-
             // ---------------------------------------------------------
             // FIRST ARTWORK
             // ---------------------------------------------------------
@@ -470,11 +462,16 @@ struct MusicIslandView: View {
                 incomingArtwork =
                     nil
 
+                lastArtworkFingerprint =
+                    newFingerprint
+
                 return
             }
 
             // ---------------------------------------------------------
-            // A NEW TRACK IS WAITING
+            // NORMAL ORDER
+            //
+            // Track metadata arrived first.
             // ---------------------------------------------------------
 
             if
@@ -502,7 +499,54 @@ struct MusicIslandView: View {
             }
 
             // ---------------------------------------------------------
-            // NORMAL ARTWORK UPDATE
+            // IMPORTANT:
+            //
+            // Artwork can arrive BEFORE the track observer.
+            //
+            // In that case:
+            //
+            //     trackKey       = NEW TRACK
+            //     lastTrackKey   = OLD TRACK
+            //
+            // So we can detect the transition directly here.
+            // ---------------------------------------------------------
+
+            if
+                !lastTrackKey.isEmpty,
+
+                trackKey != lastTrackKey,
+
+                !isFlippingAlbum,
+
+                lastStartedFlipTrackKey
+                    != trackKey
+            {
+
+                let newTrackKey =
+                    trackKey
+
+                lastTrackKey =
+                    newTrackKey
+
+                pendingTrackKey =
+                    nil
+
+                startAlbumFlip(
+                    to:
+                        newArtwork,
+
+                    artworkFingerprint:
+                        newFingerprint,
+
+                    trackKey:
+                        newTrackKey
+                )
+
+                return
+            }
+
+            // ---------------------------------------------------------
+            // NORMAL ARTWORK REFRESH
             // ---------------------------------------------------------
 
             if !isFlippingAlbum {
@@ -512,6 +556,9 @@ struct MusicIslandView: View {
 
                 incomingArtwork =
                     nil
+
+                lastArtworkFingerprint =
+                    newFingerprint
             }
         }
 
@@ -529,7 +576,7 @@ struct MusicIslandView: View {
             }
 
             // ---------------------------------------------------------
-            // First track.
+            // FIRST TRACK
             // ---------------------------------------------------------
 
             if lastTrackKey.isEmpty {
@@ -549,13 +596,15 @@ struct MusicIslandView: View {
 
                     lastArtworkFingerprint =
                         artwork
-                            .tiffRepresentation
+                        .tiffRepresentation
                 }
 
                 return
             }
 
-            // Same track.
+            // ---------------------------------------------------------
+            // SAME TRACK
+            // ---------------------------------------------------------
 
             guard
                 newKey != lastTrackKey
@@ -566,15 +615,47 @@ struct MusicIslandView: View {
             lastTrackKey =
                 newKey
 
-            // ---------------------------------------------------------
-            // DO NOT flip yet.
-            //
-            // The metadata can arrive before the new artwork.
-            // Keep the direction alive until the real artwork arrives.
-            // ---------------------------------------------------------
-
             pendingTrackKey =
                 newKey
+
+            // ---------------------------------------------------------
+            // IMPORTANT:
+            //
+            // Artwork may already have arrived before this observer.
+            //
+            // If so, there will be no second artwork callback.
+            // Start the flip immediately.
+            // ---------------------------------------------------------
+
+            if
+                let newArtwork =
+                    realArtwork,
+
+                let newFingerprint =
+                    newArtwork.tiffRepresentation,
+
+                displayedArtwork != nil,
+
+                newFingerprint
+                    != lastArtworkFingerprint,
+
+                !isFlippingAlbum,
+
+                lastStartedFlipTrackKey
+                    != newKey
+            {
+
+                startAlbumFlip(
+                    to:
+                        newArtwork,
+
+                    artworkFingerprint:
+                        newFingerprint,
+
+                    trackKey:
+                        newKey
+                )
+            }
         }
     }
 
@@ -754,10 +835,6 @@ struct MusicIslandView: View {
             }
         }
 
-        // IMPORTANT:
-        // The album card itself stays exactly the same size.
-        // NO `.clipped()` here.
-
         .frame(
             width:
                 artSize,
@@ -780,15 +857,11 @@ struct MusicIslandView: View {
             String
     ) {
 
-        // Don't interrupt an existing flip.
-
         guard
             !isFlippingAlbum
         else {
             return
         }
-
-        // We need a real current front.
 
         guard
             displayedArtwork != nil
@@ -812,10 +885,7 @@ struct MusicIslandView: View {
             return
         }
 
-        // -------------------------------------------------------------
-        // REAL NEW ARTWORK GOES ON THE BACK.
-        // Currents is never allowed here.
-        // -------------------------------------------------------------
+        // Real new artwork goes on the back.
 
         incomingArtwork =
             newArtwork
@@ -829,20 +899,8 @@ struct MusicIslandView: View {
         isFlippingAlbum =
             true
 
-        // Always start from zero.
-
         albumFlipAngle =
             0
-
-        // -------------------------------------------------------------
-        // PHYSICAL CARD ROTATION
-        //
-        // Next:
-        //      0° → +180°
-        //
-        // Previous:
-        //      0° → -180°
-        // -------------------------------------------------------------
 
         withAnimation(
             .easeInOut(
@@ -867,8 +925,6 @@ struct MusicIslandView: View {
             else {
                 return
             }
-
-            // The back face is now the front.
 
             self.displayedArtwork =
                 newArtwork
@@ -1493,6 +1549,7 @@ private extension View {
     ) -> some View {
 
         self
+
             .transaction { transaction in
 
                 transaction.animation =
