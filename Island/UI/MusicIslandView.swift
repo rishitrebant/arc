@@ -1466,11 +1466,18 @@ struct MusicIslandView: View {
                             target
                     )
 
-                    // Let MediaRemote take over again.
-                    DispatchQueue.main.async {
+                    // Keep the preview active until MediaRemote has had
+                    // a chance to report the new position.
+                    //
+                    // This prevents the old position from flashing back
+                    // onto the UI immediately after the click.
 
-                        isSeeking =
-                            false
+                    DispatchQueue.main.asyncAfter(
+                        deadline:
+                            .now() + 0.35
+                    ) {
+
+                        isSeeking = false
                     }
                 }
             )
