@@ -1,46 +1,103 @@
 import Foundation
 import Combine
 
-/// Sprint 1 stand-in for `MusicService`.
-///
-/// Per Sprint 1 scope: no MediaRemote, no Spotify integration yet. This
-/// simply publishes a fixed, hardcoded playback state matching the Figma
-/// reference (`Ongoing music.png` / `Music Expanded.png` — "Pepas" by
-/// Farruko) so the compact UI has something real to render.
-///
-/// This conforms to the exact same `MusicService` protocol a future
-/// `MediaRemoteMusicService` will conform to — swapping this out later is a
-/// one-line change in `MusicActivity.init`, nothing else in the app changes.
-final class HardcodedMusicService: MusicService {
-    private let stateSubject: CurrentValueSubject<MusicPlaybackState?, Never>
+final class HardcodedMusicService:
+    MusicService {
 
-    var playbackStatePublisher: AnyPublisher<MusicPlaybackState?, Never> {
-        stateSubject.eraseToAnyPublisher()
-    }
+    private let stateSubject =
+        CurrentValueSubject<
+            MusicPlaybackState?,
+            Never
+        >(
 
-    init() {
-        stateSubject = CurrentValueSubject(
             MusicPlaybackState(
-                app: .appleMusic,
-                title: "Let it Happen",
-                artist: "Tame Impala",
-                artwork: nil,
-                isPlaying: true,
-                elapsed: 130,   // 2:10, matches the measured Figma label
-                duration: 285   // yields "-2:35" remaining, matches Figma
+
+                app:
+                    .appleMusic,
+
+                title:
+                    "Pepas",
+
+                artist:
+                    "Farruko",
+
+                artwork:
+                    nil,
+
+                isPlaying:
+                    true,
+
+                elapsed:
+                    130,
+
+                duration:
+                    285
             )
         )
+
+    var playbackStatePublisher:
+        AnyPublisher<
+            MusicPlaybackState?,
+            Never
+        > {
+
+        stateSubject
+            .eraseToAnyPublisher()
     }
 
     func togglePlayPause() {
-        guard var state = stateSubject.value else { return }
+
+        guard
+            var state =
+                stateSubject.value
+        else {
+            return
+        }
+
         state.isPlaying.toggle()
-        stateSubject.send(state)
+
+        stateSubject.send(
+            state
+        )
     }
 
-    func skipForward() { /* no-op in Sprint 1 */ }
-    func skipBackward() { /* no-op in Sprint 1 */ }
+    func skipForward() {
+        // no-op
+    }
 
-    func start() { /* nothing to observe yet — state is fixed */ }
-    func stop() { /* nothing to tear down */ }
+    func skipBackward() {
+        // no-op
+    }
+
+    // NEW
+    func seek(
+        to position:
+            TimeInterval
+    ) {
+
+        guard
+            var state =
+                stateSubject.value
+        else {
+            return
+        }
+
+        state.elapsed =
+            min(
+                max(
+                    position,
+                    0
+                ),
+
+                state.duration
+            )
+
+        stateSubject.send(
+            state
+        )
+    }
+
+    func start() {}
+
+    func stop() {}
 }

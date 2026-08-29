@@ -62,6 +62,14 @@ struct MusicIslandView: View {
 
     /// Last artwork fingerprint accepted.
     @State private var lastArtworkFingerprint: Data?
+    
+    // MARK: - Interactive Progress
+
+    @State private var isSeeking =
+        false
+
+    @State private var seekPreviewElapsed:
+        TimeInterval = 0
 
     private typealias Metrics =
         DesignTokens.MusicMetrics
@@ -1271,29 +1279,201 @@ struct MusicIslandView: View {
 
     private var progressBar: some View {
 
-        ZStack(
-            alignment:
-                .leading
-        ) {
+        GeometryReader { proxy in
 
-            Capsule()
-                .fill(
-                    Color.white.opacity(
-                        0.2
+            ZStack(
+                alignment:
+                    .leading
+            ) {
+
+                // ---------------------------------------------------------
+                // Background
+                // ---------------------------------------------------------
+
+                Capsule()
+                    .fill(
+                        Color.white.opacity(
+                            0.2
+                        )
                     )
+
+                // ---------------------------------------------------------
+                // Progress
+                // ---------------------------------------------------------
+
+                Capsule()
+                    .fill(
+                        DesignTokens
+                            .Color
+                            .primaryText
+                    )
+                    .frame(
+                        width:
+                            proxy.size.width
+                            * progressFraction
+                    )
+            }
+
+            // -------------------------------------------------------------
+            // Invisible enlarged hit area.
+            //
+            // The visual bar stays 7pt.
+            // User gets a much easier area to grab.
+            // -------------------------------------------------------------
+
+            .contentShape(
+                Rectangle()
+                    .inset(
+                        by:
+                            -8
+                    )
+            )
+
+            // -------------------------------------------------------------
+            // CLICK + DRAG TO SEEK
+            // -------------------------------------------------------------
+
+            .gesture(
+
+                DragGesture(
+                    minimumDistance:
+                        0,
+
+                    coordinateSpace:
+                        .local
                 )
 
-            Capsule()
-                .fill(
-                    DesignTokens
-                        .Color
-                        .primaryText
-                )
-                .frame(
-                    width:
-                        progressSize.width
-                        * progressFraction
-                )
+                .onChanged { value in
+
+                    guard
+                        isExpanded
+                    else {
+                        return
+                    }
+
+                    let width =
+                        max(
+                            proxy.size.width,
+                            1
+                        )
+
+                    let fraction =
+                        min(
+                            max(
+                                value.location.x
+                                / width,
+
+                                0
+                            ),
+
+                            1
+                        )
+
+                    let duration =
+                        activity
+                            .playbackState?
+                            .duration
+                        ?? 0
+
+                    guard
+                        duration > 0
+                    else {
+                        return
+                    }
+
+                    // -----------------------------------------------------
+                    // Start scrubbing.
+                    // -----------------------------------------------------
+
+                    if !isSeeking {
+
+                        isSeeking =
+                            true
+                    }
+
+                    // -----------------------------------------------------
+                    // IMPORTANT:
+                    //
+                    // Do NOT send MediaRemote on every mouse movement.
+                    //
+                    // We only visually update the preview here.
+                    // -----------------------------------------------------
+
+                    seekPreviewElapsed =
+                        duration
+                        * fraction
+                }
+
+                .onEnded { value in
+
+                    guard
+                        isExpanded
+                    else {
+                        return
+                    }
+
+                    let width =
+                        max(
+                            proxy.size.width,
+                            1
+                        )
+
+                    let fraction =
+                        min(
+                            max(
+                                value.location.x
+                                / width,
+
+                                0
+                            ),
+
+                            1
+                        )
+
+                    let duration =
+                        activity
+                            .playbackState?
+                            .duration
+                        ?? 0
+
+                    guard
+                        duration > 0
+                    else {
+
+                        isSeeking =
+                            false
+
+                        return
+                    }
+
+                    let target =
+                        duration
+                        * fraction
+
+                    // -----------------------------------------------------
+                    // Keep the visual position at the final target.
+                    // -----------------------------------------------------
+
+                    seekPreviewElapsed =
+                        target
+
+                    // -----------------------------------------------------
+                    // ACTUAL SEEK
+                    // -----------------------------------------------------
+
+                    activity.seek(
+                        to:
+                            target
+                    )
+
+                    // Let MediaRemote take over again.
+                    DispatchQueue.main.async {
+
+                        isSeeking =
+                            false
+                    }
+                }
+            )
         }
 
         .frame(
@@ -1334,7 +1514,6 @@ struct MusicIslandView: View {
             isExpanded
         )
     }
-
     // MARK: - Elapsed
 
     private var elapsedLabel: some View {
@@ -1658,6 +1837,18 @@ struct MusicIslandView: View {
     }
 
     // MARK: - Derived Values
+    
+    private var displayedElapsed: TimeInterval {
+
+        if isSeeking {
+            return seekPreviewElapsed
+        }
+
+        return activity
+            .playbackState?
+            .elapsed
+            ?? 0
+    }
 
     private var remaining: TimeInterval {
 
@@ -1682,27 +1873,24 @@ struct MusicIslandView: View {
 
     private var progressFraction: CGFloat {
 
-        guard
-            let state =
-                activity.playbackState,
+        let duration =
+            activity
+                .playbackState?
+                .duration
+            ?? 0
 
-            state.duration > 0
-        else {
+        guard duration > 0 else {
             return 0
         }
 
         return min(
             max(
-                state.elapsed
-                / state.duration,
-
+                displayedElapsed / duration,
                 0
             ),
-
             1
         )
     }
-
     private func formatted(
         _ interval:
             TimeInterval

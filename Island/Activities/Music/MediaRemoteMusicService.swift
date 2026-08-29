@@ -999,6 +999,44 @@ final class MediaRemoteMusicService:
         )
     }
 
+    func seek(
+        to position:
+            TimeInterval
+    ) {
+
+        guard
+            let state =
+                currentState
+                ?? lastSupportedState
+        else {
+
+            print(
+                "🚫 No supported music state available for seek."
+            )
+
+            return
+        }
+
+        let clampedPosition =
+            clampElapsed(
+                position,
+
+                duration:
+                    state.duration
+            )
+
+        print(
+            "⏩ Seeking \(state.app.rawValue) to "
+            + "\(clampedPosition)s"
+        )
+
+        sendDirectMusicSeek(
+            clampedPosition,
+
+            app:
+                state.app
+        )
+    }
     // MARK: - Command Routing
 
     private func sendCommand(
@@ -1357,5 +1395,94 @@ final class MediaRemoteMusicService:
 
         let playbackRate:
             Double?
+    }
+    // MARK: - Direct Music App Seek
+
+    private func sendDirectMusicSeek(
+        _ position:
+            TimeInterval,
+
+        app:
+            MusicApp
+    ) {
+
+        let applicationName:
+            String
+
+        switch app {
+
+        case .appleMusic:
+
+            applicationName =
+                "Music"
+
+        case .spotify:
+
+            applicationName =
+                "Spotify"
+        }
+
+        let script = """
+        tell application "\(applicationName)"
+            set player position to \(position)
+        end tell
+        """
+
+        DispatchQueue.main.async {
+
+            var errorInfo:
+                NSDictionary?
+
+            guard
+                let appleScript =
+                    NSAppleScript(
+                        source:
+                            script
+                    )
+            else {
+
+                print(
+                    "❌ Could not create AppleScript for seek."
+                )
+
+                return
+            }
+
+            _ =
+                appleScript
+                    .executeAndReturnError(
+                        &errorInfo
+                    )
+
+            if let errorInfo {
+
+                print(
+                    "❌ AppleScript seek failed:"
+                )
+
+                print(
+                    errorInfo
+                )
+
+                if let number =
+                    errorInfo[
+                        NSAppleScript.errorNumber
+                    ] as? NSNumber,
+
+                    number.intValue ==
+                        -1743 {
+
+                    print(
+                        "⚠️ Automation permission required for:"
+                        + " \(app.rawValue)"
+                    )
+
+                    print(
+                        "Go to: System Settings → Privacy & Security"
+                        + " → Automation"
+                    )
+                }
+            }
+        }
     }
 }
