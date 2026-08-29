@@ -487,7 +487,7 @@ struct IslandRootView: View {
         // The native/system-style output picker is a separate popover.
         // Moving the pointer into it temporarily leaves the island's
         // hover region, but the island must stay expanded.
-        if isOutputPickerOpen && !hovering {
+        if isOutputPickerOpen {
             return
         }
 

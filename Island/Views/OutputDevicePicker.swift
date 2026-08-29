@@ -146,18 +146,3 @@ struct AudioOutputPicker: View {
             )
     }
 }
-
-// MARK: - Output Picker Notifications
-
-extension Notification.Name {
-
-    static let islandOutputPickerWillPresent =
-        Notification.Name(
-            "IslandOutputPickerWillPresent"
-        )
-
-    static let islandOutputPickerDidDismiss =
-        Notification.Name(
-            "IslandOutputPickerDidDismiss"
-        )
-}

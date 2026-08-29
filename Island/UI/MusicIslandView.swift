@@ -103,6 +103,9 @@ struct MusicIslandView: View {
 
         TimeInterval = 0
 
+    // Optimistic play/pause UI state so the icon changes immediately.
+    @State private var uiIsPlaying = false
+
     private typealias Metrics =
 
         DesignTokens.MusicMetrics
@@ -819,6 +822,9 @@ struct MusicIslandView: View {
 
         .onAppear {
 
+            uiIsPlaying =
+                activity.playbackState?.isPlaying ?? false
+
             // ---------------------------------------------------------
 
             // FIRST SONG FIX
@@ -1051,6 +1057,27 @@ struct MusicIslandView: View {
 
             }
 
+        }
+
+        // MARK: Playback State
+
+        .onChange(
+            of:
+                activity.playbackState?.isPlaying
+        ) { _, newValue in
+
+            guard let newValue else { return }
+
+            uiIsPlaying = newValue
+        }
+
+        .onChange(
+            of:
+                trackKey
+        ) { _, _ in
+
+            uiIsPlaying =
+                activity.playbackState?.isPlaying ?? uiIsPlaying
         }
 
         // MARK: Track Change
@@ -2573,17 +2600,7 @@ struct MusicIslandView: View {
 
             systemName:
 
-                (
-
-                    activity
-
-                        .playbackState?
-
-                        .isPlaying
-
-                    ?? false
-
-                )
+                uiIsPlaying
 
                 ? "pause.fill"
 
@@ -2591,7 +2608,7 @@ struct MusicIslandView: View {
 
             action:
 
-                activity.togglePlayPause,
+                togglePlayPauseWithUI,
 
             size:
 
@@ -2649,6 +2666,13 @@ struct MusicIslandView: View {
 
         )
 
+    }
+
+    // MARK: - Playback
+
+    private func togglePlayPauseWithUI() {
+        uiIsPlaying.toggle()
+        activity.togglePlayPause()
     }
 
     // MARK: - Next Button
@@ -2748,8 +2772,8 @@ struct MusicIslandView: View {
             }
             .popover(
                 isPresented: $isOutputPickerPresented,
-                attachmentAnchor: .point(.bottom),
-                arrowEdge: .bottom
+                attachmentAnchor: .point(.bottomTrailing),
+                arrowEdge: .top
             ) {
                 AudioOutputPicker(
                     manager: outputDeviceManager,
@@ -2761,8 +2785,8 @@ struct MusicIslandView: View {
             .onChange(of: isOutputPickerPresented) { _, presented in
                 NotificationCenter.default.post(
                     name: presented
-                        ? .islandAirPlayWillPresent
-                        : .islandAirPlayDidEndPresenting,
+                        ? .islandOutputPickerWillPresent
+                        : .islandOutputPickerDidDismiss,
                     object: nil
                 )
             }
@@ -3052,4 +3076,19 @@ extension Notification.Name {
 
     static let islandAirPlayDidEndPresenting =
         Notification.Name("IslandAirPlayDidEndPresenting")
+}
+
+// MARK: - Output Picker Notifications
+
+extension Notification.Name {
+
+    static let islandOutputPickerWillPresent =
+        Notification.Name(
+            "IslandOutputPickerWillPresent"
+        )
+
+    static let islandOutputPickerDidDismiss =
+        Notification.Name(
+            "IslandOutputPickerDidDismiss"
+        )
 }
