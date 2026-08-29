@@ -1,53 +1,100 @@
 import SwiftUI
 
+/// Music's single island presentation.
+///
+/// Compact and expanded are NOT separate views.
+/// The same view changes under `isExpanded`.
+
 struct MusicIslandView: View {
 
     @ObservedObject var activity: MusicActivity
 
     var isExpanded: Bool
 
+    // MARK: - Artwork / Waveform Color
+
+    /// Colour used by the waveform.
+    ///
+    /// This can update as soon as new artwork arrives.
     @State private var artworkColor: Color =
+        DesignTokens.Color.musicAccent
+
+    /// Colour belonging to the artwork that is CURRENTLY
+    /// visible on the album.
+    ///
+    /// IMPORTANT:
+    /// This is deliberately separate from `artworkColor`.
+    ///
+    /// `artworkColor` can change before the album flip finishes,
+    /// but `displayedArtworkColor` only changes when the artwork
+    /// actually becomes the front face.
+    @State private var displayedArtworkColor: Color =
         DesignTokens.Color.musicAccent
 
     @State private var glowOffset: CGSize = .zero
 
+    // MARK: - Album Flip
+
+    /// Artwork currently visible on the front.
     @State private var displayedArtwork: NSImage?
+
+    /// New artwork temporarily placed on the back.
     @State private var incomingArtwork: NSImage?
+
+    /// Current physical rotation.
     @State private var albumFlipAngle: Double = 0
+
+    /// True while the album is physically flipping.
     @State private var isFlippingAlbum = false
 
+    /// Last track observed.
     @State private var lastTrackKey = ""
+
+    /// Track waiting for its artwork.
     @State private var pendingTrackKey: String?
 
+    /// +1 = next
+    /// -1 = previous
     @State private var pendingFlipDirection: Double = 1
 
+    /// Prevent duplicate flips for the same track.
     @State private var lastStartedFlipTrackKey: String?
+
+    /// Last artwork fingerprint accepted.
     @State private var lastArtworkFingerprint: Data?
 
-    // Local playback state so the waveform always receives
-    // an explicit SwiftUI state change.
-    @State private var displayedPlaybackState = false
+    private typealias Metrics =
+        DesignTokens.MusicMetrics
 
-    private typealias Metrics = DesignTokens.MusicMetrics
-    private typealias ShapeTokens = DesignTokens.Shape
+    private typealias ShapeTokens =
+        DesignTokens.Shape
 
     // MARK: - Sizes
 
     private var compactSize: CGSize {
+
         CGSize(
-            width: Metrics.compactWidth,
-            height: Metrics.compactHeight
+            width:
+                Metrics.compactWidth,
+
+            height:
+                Metrics.compactHeight
         )
     }
 
     private var expandedSize: CGSize {
+
         CGSize(
-            width: Metrics.expandedWidth,
-            height: Metrics.expandedHeight
+            width:
+                Metrics.expandedWidth,
+
+            height:
+                Metrics.expandedHeight
         )
     }
 
     private var currentSize: CGSize {
+
         isExpanded
             ? expandedSize
             : compactSize
@@ -55,175 +102,239 @@ struct MusicIslandView: View {
 
     // MARK: - Artwork
 
+    /// Only real artwork from MediaRemote.
+    ///
+    /// Currents is never used as incoming artwork.
     private var realArtwork: NSImage? {
-        activity.playbackState?.artwork
+
+        activity
+            .playbackState?
+            .artwork
     }
 
-    private var normalArtwork: NSImage? {
+    /// Artwork shown when we are not currently flipping.
+    ///
+    /// The real backend artwork is preferred.
+    private var normalArtwork: NSImage {
+
         displayedArtwork
+            ?? NSImage(named: "Currents")
+            ?? NSImage()
     }
 
     // MARK: - Track
 
     private var trackKey: String {
+
         "\(activity.playbackState?.title ?? "")|\(activity.playbackState?.artist ?? "")"
     }
 
     // MARK: - Artwork Fingerprint
 
     private var currentArtworkFingerprint: Data? {
-        realArtwork?.tiffRepresentation
+
+        realArtwork?
+            .tiffRepresentation
     }
 
-    // MARK: - Collapse compensation
+    // MARK: - Collapse Compensation
 
     private var expandedContentCollapseOffset: CGFloat {
+
         isExpanded
             ? 0
-            : -(expandedSize.width - compactSize.width) / 2
+            : -(
+                expandedSize.width
+                - compactSize.width
+            ) / 2
     }
 
-    // MARK: - Shared elements
+    // MARK: - Shared Elements
 
     private var artSize: CGFloat {
+
         isExpanded
             ? 65
             : Metrics.compactIconSize
     }
 
     private var artCornerRadius: CGFloat {
+
         isExpanded
             ? Metrics.albumArtCornerRadius
             : Metrics.compactIconCornerRadius
     }
 
     private var artCenter: CGPoint {
+
         isExpanded
+
             ? CGPoint(
-                x: 24 + 65 / 2,
-                y: 24 + 65 / 2
+                x:
+                    24 + 65 / 2,
+
+                y:
+                    24 + 65 / 2
             )
+
             : CGPoint(
                 x:
                     Metrics.compactEdgePadding
                     + Metrics.compactIconSize / 2,
+
                 y:
-                    DesignTokens.MusicMetrics
-                    .compactContentCenterY
+                    DesignTokens
+                        .MusicMetrics
+                        .compactContentCenterY
             )
     }
 
     private var waveformSize: CGSize {
+
         isExpanded
+
             ? CGSize(
-                width: 25.57,
-                height: 24
+                width:
+                    25.57,
+
+                height:
+                    24
             )
+
             : CGSize(
-                width: Metrics.compactIconSize,
-                height: Metrics.compactIconSize
+                width:
+                    Metrics.compactIconSize,
+
+                height:
+                    Metrics.compactIconSize
             )
     }
 
     private var waveformCenter: CGPoint {
+
         isExpanded
+
             ? CGPoint(
                 x:
                     338.85
                     + 25.57 / 2,
+
                 y:
                     24
                     + 24 / 2
             )
+
             : CGPoint(
                 x:
                     compactSize.width
                     - Metrics.compactEdgePadding
                     - Metrics.compactIconSize / 2,
+
                 y:
-                    DesignTokens.MusicMetrics
-                    .compactContentCenterY
+                    DesignTokens
+                        .MusicMetrics
+                        .compactContentCenterY
             )
     }
 
-    // MARK: - Expanded-only layout
+    // MARK: - Expanded Layout
 
-    private let titleOrigin = CGPoint(
-        x: 106,
-        y: 36
-    )
+    private let titleOrigin =
+        CGPoint(
+            x: 106,
+            y: 36
+        )
 
     private var titleWidth: CGFloat {
+
         338.85
         - titleOrigin.x
         - 16
     }
 
-    private let progressOrigin = CGPoint(
-        x: 71,
-        y: 112
-    )
+    private let progressOrigin =
+        CGPoint(
+            x: 71,
+            y: 112
+        )
 
-    private let progressSize = CGSize(
-        width: 242,
-        height: 7
-    )
+    private let progressSize =
+        CGSize(
+            width: 242,
+            height: 7
+        )
 
-    private let elapsedOrigin = CGPoint(
-        x: 24,
-        y: 106
-    )
+    private let elapsedOrigin =
+        CGPoint(
+            x: 24,
+            y: 106
+        )
 
-    private let remainingOrigin = CGPoint(
-        x: 333,
-        y: 106
-    )
+    private let remainingOrigin =
+        CGPoint(
+            x: 333,
+            y: 106
+        )
 
-    private let rowCenterY: CGFloat = 159.9
+    private let rowCenterY:
+        CGFloat = 159.9
 
-    private let playbackButtonSpacing: CGFloat = 70
+    private let playbackButtonSpacing:
+        CGFloat = 70
 
     private var pauseCenter: CGPoint {
+
         CGPoint(
-            x: expandedSize.width / 2,
-            y: rowCenterY
+            x:
+                expandedSize.width / 2,
+
+            y:
+                rowCenterY
         )
     }
 
     private var previousCenter: CGPoint {
+
         CGPoint(
             x:
                 pauseCenter.x
                 - playbackButtonSpacing,
+
             y:
                 rowCenterY
         )
     }
 
     private var nextCenter: CGPoint {
+
         CGPoint(
             x:
                 pauseCenter.x
                 + playbackButtonSpacing,
+
             y:
                 rowCenterY
         )
     }
 
-    private let airplayCenter = CGPoint(
-        x: 335.5,
-        y: 159.9
-    )
+    private let airplayCenter =
+        CGPoint(
+            x: 335.5,
+            y: 159.9
+        )
 
     // MARK: - Body
 
     var body: some View {
 
         ZStack(
-            alignment: .topLeading
+            alignment:
+                .topLeading
         ) {
 
-            // MARK: Island background
+            // ---------------------------------------------------------
+            // Island background
+            // ---------------------------------------------------------
 
             IslandShape(
                 topRadius:
@@ -237,27 +348,39 @@ struct MusicIslandView: View {
                     : ShapeTokens.compactBottomRadius
             )
             .fill(
-                DesignTokens.Color.islandBackground
+                DesignTokens
+                    .Color
+                    .islandBackground
             )
 
-            // MARK: Album
+            // ---------------------------------------------------------
+            // Album
+            // ---------------------------------------------------------
 
             albumArtView
                 .position(
                     artCenter
                 )
 
-            // MARK: Waveform
+            // ---------------------------------------------------------
+            // Waveform
+            //
+            // IMPORTANT:
+            // Keep this using `artworkColor`.
+            //
+            // This means the waveform immediately follows the
+            // currently reported artwork colour.
+            // ---------------------------------------------------------
 
             Waveform(
                 isPlaying:
-                    displayedPlaybackState,
+                    activity
+                        .playbackState?
+                        .isPlaying
+                    ?? false,
 
                 color:
                     artworkColor
-            )
-            .id(
-                "waveform-\(displayedPlaybackState)"
             )
             .frame(
                 width:
@@ -270,7 +393,9 @@ struct MusicIslandView: View {
                 waveformCenter
             )
 
-            // MARK: Expanded content
+            // ---------------------------------------------------------
+            // Expanded content
+            // ---------------------------------------------------------
 
             ZStack(
                 alignment:
@@ -300,16 +425,14 @@ struct MusicIslandView: View {
                 currentSize.height
         )
 
-        // MARK: Hover glow
+        // MARK: Hover Glow Offset
 
         .onContinuousHover(
             coordinateSpace:
                 .local
         ) { phase in
 
-            guard
-                isExpanded
-            else {
+            guard isExpanded else {
                 return
             }
 
@@ -376,55 +499,88 @@ struct MusicIslandView: View {
             }
         }
 
-        // MARK: Artwork color
+        // MARK: Artwork Colour
 
         .task(
             id:
                 currentArtworkFingerprint
         ) {
 
-            if let colorArtwork =
-                realArtwork
-            {
+            guard
+                let colorArtwork =
+                    realArtwork
+            else {
+                return
+            }
 
-                artworkColor =
-                    ArtworkColorExtractor.dominantColor(
+            // ---------------------------------------------------------
+            // IMPORTANT:
+            //
+            // This colour belongs to the current MediaRemote artwork.
+            //
+            // It is intentionally ONLY assigned to `artworkColor`.
+            //
+            // We do NOT touch `displayedArtworkColor` here.
+            //
+            // Therefore the waveform can immediately change colour
+            // while the currently visible album keeps its own glow.
+            // ---------------------------------------------------------
+
+            artworkColor =
+                ArtworkColorExtractor
+                    .dominantColor(
                         from:
                             colorArtwork,
 
                         fallback:
-                            DesignTokens.Color.musicAccent
+                            DesignTokens
+                                .Color
+                                .musicAccent
                     )
-
-            } else {
-
-                artworkColor =
-                    DesignTokens.Color.musicAccent
-            }
         }
 
-        // MARK: Playback state
+        // MARK: Initial Artwork
 
         .onAppear {
 
-            displayedPlaybackState =
-                activity
-                    .playbackState?
-                    .isPlaying
-                ?? false
+            // ---------------------------------------------------------
+            // FIRST SONG FIX
+            //
+            // MediaRemote can already contain artwork before SwiftUI
+            // starts observing `onChange`.
+            //
+            // Establish the front immediately.
+            // ---------------------------------------------------------
+
+            if displayedArtwork == nil,
+               let artwork =
+                    realArtwork {
+
+                displayedArtwork =
+                    artwork
+
+                lastArtworkFingerprint =
+                    artwork.tiffRepresentation
+
+                // -----------------------------------------------------
+                // The first visible album owns this glow colour.
+                // -----------------------------------------------------
+
+                displayedArtworkColor =
+                    ArtworkColorExtractor
+                        .dominantColor(
+                            from:
+                                artwork,
+
+                            fallback:
+                                DesignTokens
+                                    .Color
+                                    .musicAccent
+                        )
+            }
         }
 
-        .onChange(
-            of:
-                activity.playbackState?.isPlaying
-        ) { _, newValue in
-
-            displayedPlaybackState =
-                newValue
-                ?? false
-        }
-
-        // MARK: REAL artwork arrival
+        // MARK: Artwork Arrival
 
         .onChange(
             of:
@@ -436,22 +592,20 @@ struct MusicIslandView: View {
 
                 let newArtwork =
                     realArtwork
-
             else {
                 return
             }
 
-            // Ignore the exact same artwork.
-
+            // Same artwork.
             if
                 lastArtworkFingerprint
-                    == newFingerprint
+                == newFingerprint
             {
                 return
             }
 
             // ---------------------------------------------------------
-            // FIRST ARTWORK
+            // FIRST REAL ARTWORK
             // ---------------------------------------------------------
 
             if displayedArtwork == nil {
@@ -465,20 +619,32 @@ struct MusicIslandView: View {
                 lastArtworkFingerprint =
                     newFingerprint
 
+                // First visible artwork gets its colour immediately.
+
+                displayedArtworkColor =
+                    ArtworkColorExtractor
+                        .dominantColor(
+                            from:
+                                newArtwork,
+
+                            fallback:
+                                DesignTokens
+                                    .Color
+                                    .musicAccent
+                        )
+
                 return
             }
 
             // ---------------------------------------------------------
-            // NORMAL ORDER
-            //
-            // Track metadata arrived first.
+            // A NEW TRACK IS WAITING
             // ---------------------------------------------------------
 
             if
                 let pendingTrackKey,
 
-                pendingTrackKey
-                    == trackKey,
+                pendingTrackKey ==
+                    trackKey,
 
                 pendingTrackKey
                     != lastStartedFlipTrackKey
@@ -499,54 +665,7 @@ struct MusicIslandView: View {
             }
 
             // ---------------------------------------------------------
-            // IMPORTANT:
-            //
-            // Artwork can arrive BEFORE the track observer.
-            //
-            // In that case:
-            //
-            //     trackKey       = NEW TRACK
-            //     lastTrackKey   = OLD TRACK
-            //
-            // So we can detect the transition directly here.
-            // ---------------------------------------------------------
-
-            if
-                !lastTrackKey.isEmpty,
-
-                trackKey != lastTrackKey,
-
-                !isFlippingAlbum,
-
-                lastStartedFlipTrackKey
-                    != trackKey
-            {
-
-                let newTrackKey =
-                    trackKey
-
-                lastTrackKey =
-                    newTrackKey
-
-                pendingTrackKey =
-                    nil
-
-                startAlbumFlip(
-                    to:
-                        newArtwork,
-
-                    artworkFingerprint:
-                        newFingerprint,
-
-                    trackKey:
-                        newTrackKey
-                )
-
-                return
-            }
-
-            // ---------------------------------------------------------
-            // NORMAL ARTWORK REFRESH
+            // NORMAL ARTWORK UPDATE
             // ---------------------------------------------------------
 
             if !isFlippingAlbum {
@@ -559,10 +678,26 @@ struct MusicIslandView: View {
 
                 lastArtworkFingerprint =
                     newFingerprint
+
+                // -----------------------------------------------------
+                // Only now does the visible album's glow change.
+                // -----------------------------------------------------
+
+                displayedArtworkColor =
+                    ArtworkColorExtractor
+                        .dominantColor(
+                            from:
+                                newArtwork,
+
+                            fallback:
+                                DesignTokens
+                                    .Color
+                                    .musicAccent
+                        )
             }
         }
 
-        // MARK: Track change
+        // MARK: Track Change
 
         .onChange(
             of:
@@ -588,15 +723,26 @@ struct MusicIslandView: View {
                     nil
 
                 if let artwork =
-                    realArtwork
-                {
+                    realArtwork {
 
                     displayedArtwork =
                         artwork
 
                     lastArtworkFingerprint =
                         artwork
-                        .tiffRepresentation
+                            .tiffRepresentation
+
+                    displayedArtworkColor =
+                        ArtworkColorExtractor
+                            .dominantColor(
+                                from:
+                                    artwork,
+
+                                fallback:
+                                    DesignTokens
+                                        .Color
+                                        .musicAccent
+                            )
                 }
 
                 return
@@ -615,47 +761,14 @@ struct MusicIslandView: View {
             lastTrackKey =
                 newKey
 
+            // ---------------------------------------------------------
+            // Metadata can arrive before artwork.
+            //
+            // Wait for real artwork before flipping.
+            // ---------------------------------------------------------
+
             pendingTrackKey =
                 newKey
-
-            // ---------------------------------------------------------
-            // IMPORTANT:
-            //
-            // Artwork may already have arrived before this observer.
-            //
-            // If so, there will be no second artwork callback.
-            // Start the flip immediately.
-            // ---------------------------------------------------------
-
-            if
-                let newArtwork =
-                    realArtwork,
-
-                let newFingerprint =
-                    newArtwork.tiffRepresentation,
-
-                displayedArtwork != nil,
-
-                newFingerprint
-                    != lastArtworkFingerprint,
-
-                !isFlippingAlbum,
-
-                lastStartedFlipTrackKey
-                    != newKey
-            {
-
-                startAlbumFlip(
-                    to:
-                        newArtwork,
-
-                    artworkFingerprint:
-                        newFingerprint,
-
-                    trackKey:
-                        newKey
-                )
-            }
         }
     }
 
@@ -684,15 +797,18 @@ struct MusicIslandView: View {
                     showGlow:
                         isExpanded,
 
+                    // IMPORTANT:
+                    // The FRONT keeps the OLD album's colour
+                    // throughout the flip.
+
                     glowColor:
-                        artworkColor,
+                        displayedArtworkColor,
 
                     glowOffset:
                         isExpanded
                         ? glowOffset
                         : .zero
                 )
-
                 .frame(
                     width:
                         artSize,
@@ -700,7 +816,6 @@ struct MusicIslandView: View {
                     height:
                         artSize
                 )
-
                 .rotation3DEffect(
                     .degrees(
                         albumFlipAngle
@@ -722,7 +837,6 @@ struct MusicIslandView: View {
                     perspective:
                         0.55
                 )
-
                 .opacity(
                     abs(
                         albumFlipAngle
@@ -748,15 +862,20 @@ struct MusicIslandView: View {
                     showGlow:
                         isExpanded,
 
+                    // IMPORTANT:
+                    // The back uses the NEW album's extracted colour.
+                    //
+                    // Since the back is invisible until ~90 degrees,
+                    // this colour cannot flash on the old front album.
+
                     glowColor:
-                        artworkColor,
+                        incomingArtworkColor,
 
                     glowOffset:
                         isExpanded
                         ? glowOffset
                         : .zero
                 )
-
                 .frame(
                     width:
                         artSize,
@@ -764,7 +883,6 @@ struct MusicIslandView: View {
                     height:
                         artSize
                 )
-
                 .rotation3DEffect(
                     .degrees(
                         180
@@ -787,7 +905,6 @@ struct MusicIslandView: View {
                     perspective:
                         0.55
                 )
-
                 .opacity(
                     abs(
                         albumFlipAngle
@@ -796,8 +913,7 @@ struct MusicIslandView: View {
                     : 0
                 )
 
-            } else if let artwork =
-                        normalArtwork {
+            } else {
 
                 // =====================================================
                 // NORMAL
@@ -805,7 +921,7 @@ struct MusicIslandView: View {
 
                 AlbumArtView(
                     image:
-                        artwork,
+                        normalArtwork,
 
                     size:
                         artSize,
@@ -817,14 +933,13 @@ struct MusicIslandView: View {
                         isExpanded,
 
                     glowColor:
-                        artworkColor,
+                        displayedArtworkColor,
 
                     glowOffset:
                         isExpanded
                         ? glowOffset
                         : .zero
                 )
-
                 .frame(
                     width:
                         artSize,
@@ -844,6 +959,33 @@ struct MusicIslandView: View {
         )
     }
 
+    // MARK: - Incoming Artwork Colour
+
+    /// Extracts the colour from the artwork that is ABOUT TO become
+    /// the front face.
+    ///
+    /// This is deliberately NOT stored in `displayedArtworkColor`
+    /// until the flip has completed.
+    private var incomingArtworkColor: Color {
+
+        guard
+            let incomingArtwork
+        else {
+            return displayedArtworkColor
+        }
+
+        return ArtworkColorExtractor
+            .dominantColor(
+                from:
+                    incomingArtwork,
+
+                fallback:
+                    DesignTokens
+                        .Color
+                        .musicAccent
+            )
+    }
+
     // MARK: - Start Album Flip
 
     private func startAlbumFlip(
@@ -857,11 +999,17 @@ struct MusicIslandView: View {
             String
     ) {
 
+        // Don't interrupt another flip.
+
         guard
             !isFlippingAlbum
         else {
             return
         }
+
+        // -------------------------------------------------------------
+        // If there is no current album yet, establish it directly.
+        // -------------------------------------------------------------
 
         guard
             displayedArtwork != nil
@@ -882,10 +1030,26 @@ struct MusicIslandView: View {
             lastArtworkFingerprint =
                 artworkFingerprint
 
+            // First visible album gets its colour.
+
+            displayedArtworkColor =
+                ArtworkColorExtractor
+                    .dominantColor(
+                        from:
+                            newArtwork,
+
+                        fallback:
+                            DesignTokens
+                                .Color
+                                .musicAccent
+                    )
+
             return
         }
 
-        // Real new artwork goes on the back.
+        // -------------------------------------------------------------
+        // REAL NEW ARTWORK GOES ON THE BACK
+        // -------------------------------------------------------------
 
         incomingArtwork =
             newArtwork
@@ -899,8 +1063,20 @@ struct MusicIslandView: View {
         isFlippingAlbum =
             true
 
+        // Always start from zero.
+
         albumFlipAngle =
             0
+
+        // -------------------------------------------------------------
+        // Physical card rotation
+        //
+        // Next:
+        //      0° → +180°
+        //
+        // Previous:
+        //      0° → -180°
+        // -------------------------------------------------------------
 
         withAnimation(
             .easeInOut(
@@ -926,6 +1102,10 @@ struct MusicIslandView: View {
                 return
             }
 
+            // ---------------------------------------------------------
+            // The back is now the front.
+            // ---------------------------------------------------------
+
             self.displayedArtwork =
                 newArtwork
 
@@ -940,6 +1120,27 @@ struct MusicIslandView: View {
 
             self.lastArtworkFingerprint =
                 artworkFingerprint
+
+            // ---------------------------------------------------------
+            // IMPORTANT:
+            //
+            // Only NOW does the new album's colour become the
+            // displayed album's glow colour.
+            //
+            // This prevents the yellow/other-colour flash.
+            // ---------------------------------------------------------
+
+            self.displayedArtworkColor =
+                ArtworkColorExtractor
+                    .dominantColor(
+                        from:
+                            newArtwork,
+
+                        fallback:
+                            DesignTokens
+                                .Color
+                                .musicAccent
+                    )
         }
     }
 
@@ -970,7 +1171,9 @@ struct MusicIslandView: View {
                 .leading,
 
             spacing:
-                DesignTokens.Spacing.xxs
+                DesignTokens
+                    .Spacing
+                    .xxs
         ) {
 
             Text(
@@ -980,10 +1183,14 @@ struct MusicIslandView: View {
                 ?? ""
             )
             .font(
-                DesignTokens.Typography.title
+                DesignTokens
+                    .Typography
+                    .title
             )
             .foregroundStyle(
-                DesignTokens.Color.primaryText
+                DesignTokens
+                    .Color
+                    .primaryText
             )
             .lineLimit(
                 1
@@ -999,7 +1206,9 @@ struct MusicIslandView: View {
                 ?? ""
             )
             .font(
-                DesignTokens.Typography.subtitle
+                DesignTokens
+                    .Typography
+                    .subtitle
             )
             .tracking(
                 DesignTokens
@@ -1007,7 +1216,9 @@ struct MusicIslandView: View {
                     .letterSpacingTight
             )
             .foregroundStyle(
-                DesignTokens.Color.secondaryText
+                DesignTokens
+                    .Color
+                    .secondaryText
             )
             .lineLimit(
                 1
@@ -1056,7 +1267,7 @@ struct MusicIslandView: View {
         )
     }
 
-    // MARK: - Progress bar
+    // MARK: - Progress Bar
 
     private var progressBar: some View {
 
@@ -1074,7 +1285,9 @@ struct MusicIslandView: View {
 
             Capsule()
                 .fill(
-                    DesignTokens.Color.primaryText
+                    DesignTokens
+                        .Color
+                        .primaryText
                 )
                 .frame(
                     width:
@@ -1134,7 +1347,6 @@ struct MusicIslandView: View {
                 ?? 0
             )
         )
-
         .font(
             .system(
                 size:
@@ -1147,17 +1359,16 @@ struct MusicIslandView: View {
                     .default
             )
         )
-
         .tracking(
             DesignTokens
                 .Typography
                 .letterSpacingTight
         )
-
         .foregroundStyle(
-            DesignTokens.Color.secondaryText
+            DesignTokens
+                .Color
+                .secondaryText
         )
-
         .offset(
             x:
                 elapsedOrigin.x,
@@ -1170,7 +1381,6 @@ struct MusicIslandView: View {
                     : -3
                 )
         )
-
         .fadeOnly(
             isVisible:
                 isExpanded,
@@ -1195,7 +1405,6 @@ struct MusicIslandView: View {
                 remaining
             )
         )
-
         .font(
             .system(
                 size:
@@ -1208,17 +1417,16 @@ struct MusicIslandView: View {
                     .default
             )
         )
-
         .tracking(
             DesignTokens
                 .Typography
                 .letterSpacingTight
         )
-
         .foregroundStyle(
-            DesignTokens.Color.secondaryText
+            DesignTokens
+                .Color
+                .secondaryText
         )
-
         .offset(
             x:
                 remainingOrigin.x,
@@ -1231,7 +1439,6 @@ struct MusicIslandView: View {
                     : -3
                 )
         )
-
         .fadeOnly(
             isVisible:
                 isExpanded,
@@ -1246,7 +1453,7 @@ struct MusicIslandView: View {
         )
     }
 
-    // MARK: - Previous button
+    // MARK: - Previous Button
 
     private var previousButton: some View {
 
@@ -1260,11 +1467,9 @@ struct MusicIslandView: View {
             size:
                 20
         )
-
         .opacity(
             0.7
         )
-
         .position(
             x:
                 previousCenter.x,
@@ -1277,7 +1482,6 @@ struct MusicIslandView: View {
                     : -4
                 )
         )
-
         .fadeOnly(
             isVisible:
                 isExpanded,
@@ -1290,7 +1494,6 @@ struct MusicIslandView: View {
             duration:
                 0.25
         )
-
         .allowsHitTesting(
             isExpanded
         )
@@ -1317,7 +1520,6 @@ struct MusicIslandView: View {
             size:
                 32
         )
-
         .frame(
             width:
                 34,
@@ -1325,7 +1527,6 @@ struct MusicIslandView: View {
             height:
                 34
         )
-
         .position(
             x:
                 pauseCenter.x,
@@ -1338,7 +1539,6 @@ struct MusicIslandView: View {
                     : -4
                 )
         )
-
         .fadeOnly(
             isVisible:
                 isExpanded,
@@ -1351,13 +1551,12 @@ struct MusicIslandView: View {
             duration:
                 0.25
         )
-
         .allowsHitTesting(
             isExpanded
         )
     }
 
-    // MARK: - Next button
+    // MARK: - Next Button
 
     private var nextButton: some View {
 
@@ -1371,11 +1570,9 @@ struct MusicIslandView: View {
             size:
                 20
         )
-
         .opacity(
             0.7
         )
-
         .position(
             x:
                 nextCenter.x,
@@ -1388,7 +1585,6 @@ struct MusicIslandView: View {
                     : -4
                 )
         )
-
         .fadeOnly(
             isVisible:
                 isExpanded,
@@ -1401,7 +1597,6 @@ struct MusicIslandView: View {
             duration:
                 0.25
         )
-
         .allowsHitTesting(
             isExpanded
         )
@@ -1415,18 +1610,17 @@ struct MusicIslandView: View {
             systemName:
                 "airplayaudio"
         )
-
         .font(
             .system(
                 size:
                     18
             )
         )
-
         .foregroundStyle(
-            DesignTokens.Color.primaryText
+            DesignTokens
+                .Color
+                .primaryText
         )
-
         .frame(
             width:
                 Metrics.airplayIconSize,
@@ -1434,7 +1628,6 @@ struct MusicIslandView: View {
             height:
                 Metrics.airplayIconSize
         )
-
         .position(
             x:
                 airplayCenter.x,
@@ -1447,7 +1640,6 @@ struct MusicIslandView: View {
                     : -4
                 )
         )
-
         .fadeOnly(
             isVisible:
                 isExpanded,
@@ -1460,13 +1652,12 @@ struct MusicIslandView: View {
             duration:
                 0.25
         )
-
         .allowsHitTesting(
             isExpanded
         )
     }
 
-    // MARK: - Derived values
+    // MARK: - Derived Values
 
     private var remaining: TimeInterval {
 
@@ -1484,6 +1675,7 @@ struct MusicIslandView: View {
                     .elapsed
                 ?? 0
             ),
+
             0
         )
     }
@@ -1502,7 +1694,7 @@ struct MusicIslandView: View {
         return min(
             max(
                 state.elapsed
-                    / state.duration,
+                / state.duration,
 
                 0
             ),
@@ -1527,13 +1719,12 @@ struct MusicIslandView: View {
                 "%d:%02d",
 
             total / 60,
-
             total % 60
         )
     }
 }
 
-// MARK: - Fade-only animation
+// MARK: - Fade Only
 
 private extension View {
 
@@ -1549,7 +1740,6 @@ private extension View {
     ) -> some View {
 
         self
-
             .transaction { transaction in
 
                 transaction.animation =
@@ -1592,7 +1782,6 @@ private struct FadeOnlyModifier:
     ) -> some View {
 
         content
-
             .opacity(
                 opacity
             )
