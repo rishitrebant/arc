@@ -88,6 +88,8 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A53269663040165E00EDDE1E /* Utilities */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Utilities; sourceTree = "<group>"; };
 		A532696B3040B9F700EDDE1E /* Vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A53269733040BCBC00EDDE1E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, A53269753041639F00EDDE1E /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Vendor; sourceTree = "<group>"; };
+		A5326977304309F600EDDE1E /* AudioRouting */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AudioRouting; sourceTree = "<group>"; };
+		A532698230430A5100EDDE1E /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -112,6 +114,7 @@
 		000000000000000000100003 /* Island */ = {
 			isa = PBXGroup;
 			children = (
+				A532698230430A5100EDDE1E /* Views */,
 				A532696B3040B9F700EDDE1E /* Vendor */,
 				000000000000000000100043 /* Activities */,
 				000000000000000000100041 /* App */,
@@ -155,6 +158,7 @@
 		000000000000000000100042 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				A5326977304309F600EDDE1E /* AudioRouting */,
 				A53269663040165E00EDDE1E /* Utilities */,
 				00000000000000000010004A /* ActivityEngine */,
 				000000000000000000100046 /* Configuration */,
@@ -258,6 +262,8 @@
 			fileSystemSynchronizedGroups = (
 				A53269663040165E00EDDE1E /* Utilities */,
 				A532696B3040B9F700EDDE1E /* Vendor */,
+				A5326977304309F600EDDE1E /* AudioRouting */,
+				A532698230430A5100EDDE1E /* Views */,
 			);
 			name = Island;
 			productName = Island;

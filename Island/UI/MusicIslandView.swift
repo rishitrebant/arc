@@ -1,7 +1,5 @@
 import SwiftUI
 
-import AVKit
-
 /// Music's single island presentation.
 
 ///
@@ -15,6 +13,9 @@ struct MusicIslandView: View {
     @ObservedObject var activity: MusicActivity
 
     var isExpanded: Bool
+
+    @StateObject private var outputDeviceManager = AudioOutputDeviceManager()
+    @State private var isOutputPickerPresented = false
 
     // MARK: - Artwork / Waveform Color
 
@@ -192,10 +193,10 @@ struct MusicIslandView: View {
 
     private var trackKey: String {
 
-        "\(activity.playbackState?.title ?? "")" +
-        "\(activity.playbackState?.artist ?? "")"
+        "\(activity.playbackState?.title ?? "")|\(activity.playbackState?.artist ?? "")"
+
     }
-    
+
     // MARK: - Artwork Fingerprint
 
     private var currentArtworkFingerprint: Data? {
@@ -2720,132 +2721,51 @@ struct MusicIslandView: View {
 
     private var airplayButton: some View {
 
-        ZStack {
-
-            // Existing AirPlay icon.
-
-            // The native route picker below receives the click.
-
-            Image(
-
-                systemName:
-
-                    "airplayaudio"
-
-            )
-
-            .font(
-
-                .system(
-
-                    size:
-
-                        18
-
-                )
-
-            )
-
+        Image(systemName: "airplayaudio")
+            .font(.system(size: 18))
             .foregroundStyle(
-
-                DesignTokens
-
-                    .Color
-
-                    .primaryText
-
+                DesignTokens.Color.primaryText
             )
-
             .frame(
-
-                width:
-
-                    Metrics.airplayIconSize,
-
-                height:
-
-                    Metrics.airplayIconSize
-
+                width: Metrics.airplayIconSize,
+                height: Metrics.airplayIconSize
             )
-
-            .allowsHitTesting(
-
-                false
-
+            .contentShape(Rectangle())
+            .position(
+                x: airplayCenter.x,
+                y: airplayCenter.y
             )
-
-            // Native macOS AirPlay route picker.
-
-            // Keep it visually transparent while preserving its
-
-            // native hit target and system picker behaviour.
-
-            AirPlayRoutePicker()
-
-                .frame(
-
-                    width:
-
-                        32,
-
-                    height:
-
-                        32
-
+            .fadeOnly(
+                isVisible: isExpanded,
+                delay: isExpanded ? 0.14 : 0,
+                duration: 0.25
+            )
+            .allowsHitTesting(isExpanded)
+            .onTapGesture {
+                guard isExpanded else { return }
+                outputDeviceManager.refresh()
+                isOutputPickerPresented = true
+            }
+            .popover(
+                isPresented: $isOutputPickerPresented,
+                attachmentAnchor: .point(.bottom),
+                arrowEdge: .bottom
+            ) {
+                AudioOutputPicker(
+                    manager: outputDeviceManager,
+                    onDismiss: {
+                        isOutputPickerPresented = false
+                    }
                 )
-
-        }
-
-        .frame(
-
-            width:
-
-                32,
-
-            height:
-
-                32
-
-        )
-
-        .position(
-
-            x:
-
-                airplayCenter.x,
-
-            y:
-
-                airplayCenter.y
-
-        )
-
-        .fadeOnly(
-
-            isVisible:
-
-                isExpanded,
-
-            delay:
-
-                isExpanded
-
-                ? 0.14
-
-                : 0,
-
-            duration:
-
-                0.25
-
-        )
-
-        .allowsHitTesting(
-
-            isExpanded
-
-        )
-
+            }
+            .onChange(of: isOutputPickerPresented) { _, presented in
+                NotificationCenter.default.post(
+                    name: presented
+                        ? .islandAirPlayWillPresent
+                        : .islandAirPlayDidEndPresenting,
+                    object: nil
+                )
+            }
     }
 
     // MARK: - Derived Values
@@ -3124,7 +3044,7 @@ private struct FadeOnlyModifier:
 
 }
 
-// MARK: - Native macOS AirPlay Route Picker
+// MARK: - AirPlay Notifications
 
 extension Notification.Name {
     static let islandAirPlayWillPresent =
@@ -3132,75 +3052,4 @@ extension Notification.Name {
 
     static let islandAirPlayDidEndPresenting =
         Notification.Name("IslandAirPlayDidEndPresenting")
-}
-
-private struct AirPlayRoutePicker:
-    NSViewRepresentable {
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-
-    func makeNSView(
-        context:
-            Context
-    ) -> AVRoutePickerView {
-
-        let picker =
-            AVRoutePickerView()
-
-        // We keep our own SwiftUI AirPlay icon visible.
-        // The native picker remains transparent but clickable.
-        picker.isRoutePickerButtonBordered =
-            false
-
-        picker.alphaValue =
-            0.01
-
-        picker.delegate =
-            context.coordinator
-
-        return picker
-    }
-
-    func updateNSView(
-        _ nsView:
-            AVRoutePickerView,
-
-        context:
-            Context
-    ) {
-        // Nothing to update.
-    }
-
-    final class Coordinator:
-        NSObject,
-        AVRoutePickerViewDelegate {
-
-        func routePickerViewWillBeginPresentingRoutes(
-            _ routePickerView:
-                AVRoutePickerView
-        ) {
-
-            NotificationCenter.default.post(
-                name:
-                    .islandAirPlayWillPresent,
-                object:
-                    nil
-            )
-        }
-
-        func routePickerViewDidEndPresentingRoutes(
-            _ routePickerView:
-                AVRoutePickerView
-        ) {
-
-            NotificationCenter.default.post(
-                name:
-                    .islandAirPlayDidEndPresenting,
-                object:
-                    nil
-            )
-        }
-    }
 }
