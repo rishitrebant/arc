@@ -145,18 +145,6 @@ struct MusicIslandView: View {
             .tiffRepresentation
     }
 
-    // MARK: - Collapse Compensation
-
-    private var expandedContentCollapseOffset: CGFloat {
-
-        isExpanded
-            ? 0
-            : -(
-                expandedSize.width
-                - compactSize.width
-            ) / 2
-    }
-
     // MARK: - Shared Elements
 
     private var artSize: CGFloat {
@@ -419,10 +407,6 @@ struct MusicIslandView: View {
                 nextButton
                 airplayButton
             }
-            .offset(
-                x:
-                    expandedContentCollapseOffset
-            )
         }
 
         .frame(
@@ -1250,11 +1234,6 @@ struct MusicIslandView: View {
 
             y:
                 titleOrigin.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -4
-                )
         )
 
         .fadeOnly(
@@ -1263,7 +1242,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.12
+                ? 0.08
                 : 0,
 
             duration:
@@ -1497,11 +1476,6 @@ struct MusicIslandView: View {
 
             y:
                 progressOrigin.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -3
-                )
         )
 
         .fadeOnly(
@@ -1510,7 +1484,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.14
+                ? 0.10
                 : 0,
 
             duration:
@@ -1561,11 +1535,6 @@ struct MusicIslandView: View {
 
             y:
                 elapsedOrigin.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -3
-                )
         )
         .fadeOnly(
             isVisible:
@@ -1573,7 +1542,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.14
+                ? 0.10
                 : 0,
 
             duration:
@@ -1619,11 +1588,6 @@ struct MusicIslandView: View {
 
             y:
                 remainingOrigin.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -3
-                )
         )
         .fadeOnly(
             isVisible:
@@ -1631,7 +1595,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.14
+                ? 0.10
                 : 0,
 
             duration:
@@ -1662,11 +1626,6 @@ struct MusicIslandView: View {
 
             y:
                 previousCenter.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -4
-                )
         )
         .fadeOnly(
             isVisible:
@@ -1674,7 +1633,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.16
+                ? 0.12
                 : 0,
 
             duration:
@@ -1719,11 +1678,6 @@ struct MusicIslandView: View {
 
             y:
                 pauseCenter.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -4
-                )
         )
         .fadeOnly(
             isVisible:
@@ -1731,7 +1685,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.16
+                ? 0.14
                 : 0,
 
             duration:
@@ -1765,11 +1719,6 @@ struct MusicIslandView: View {
 
             y:
                 nextCenter.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -4
-                )
         )
         .fadeOnly(
             isVisible:
@@ -1777,7 +1726,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.16
+                ? 0.12
                 : 0,
 
             duration:
@@ -1820,11 +1769,6 @@ struct MusicIslandView: View {
 
             y:
                 airplayCenter.y
-                + (
-                    isExpanded
-                    ? 0
-                    : -4
-                )
         )
         .fadeOnly(
             isVisible:
@@ -1832,7 +1776,7 @@ struct MusicIslandView: View {
 
             delay:
                 isExpanded
-                ? 0.16
+                ? 0.14
                 : 0,
 
             duration:

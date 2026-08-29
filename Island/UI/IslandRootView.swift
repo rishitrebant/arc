@@ -40,6 +40,30 @@ struct IslandRootView: View {
     /// Temporary drag amount while dragging.
     @State private var dockDragOffset: CGFloat = 0
 
+    // MARK: - Enter / Exit Animation
+
+    /// The activity currently being rendered.
+    ///
+    /// This deliberately stays alive for the duration of the exit
+    /// animation. That prevents SwiftUI from destroying the island
+    /// halfway through the animation and causing the old flicker/glitch.
+    @State private var renderedActivity: AnyActivity?
+
+    /// Controls the horizontal "emerge from centre" animation.
+    ///
+    /// false = collapsed into the centre
+    /// true  = full island width
+    @State private var isPresentationVisible = false
+
+    /// Cancels a pending exit if another activity arrives during it.
+    @State private var presentationWorkItem: DispatchWorkItem?
+
+    /// Duration for the very small horizontal enter/exit animation.
+    ///
+    /// This is intentionally separate from the existing morph animation.
+    private let presentationAnimationDuration:
+        TimeInterval = 0.18
+
     private var compactSize: CGSize {
 
         CGSize(
@@ -56,10 +80,11 @@ struct IslandRootView: View {
         Group {
 
             if let activity =
-                activityManager.ownedActivity {
+                renderedActivity {
 
                 activity.islandView(
-                    isExpanded: isExpanded
+                    isExpanded:
+                        isExpanded
                 )
                 .offset(
                     y:
@@ -91,6 +116,12 @@ struct IslandRootView: View {
             morphNamespace
         )
 
+        // ---------------------------------------------------------
+        // EXISTING OWNERSHIP ANIMATION
+        //
+        // LEFT COMPLETELY INTACT.
+        // ---------------------------------------------------------
+
         .animation(
             AnimationTokens.ownershipChange,
             value:
@@ -100,10 +131,68 @@ struct IslandRootView: View {
         )
 
         // ---------------------------------------------------------
+        // ENTER / EXIT SCALE
+        //
+        // This is the ONLY animation added for the new feature.
+        //
+        // The island grows/shrinks horizontally around its exact
+        // centre.
+        //
+        // No opacity animation.
+        // No layout animation.
+        // No transition.
+        // No changing frame size.
+        //
+        // This prevents the previous fade-out glitches.
+        // ---------------------------------------------------------
+
+        .scaleEffect(
+            x:
+                isPresentationVisible
+                    ? 1
+                    : 0.001,
+
+            y:
+                1,
+
+            anchor:
+                .center
+        )
+
+        .animation(
+            .easeOut(
+                duration:
+                    presentationAnimationDuration
+            ),
+
+            value:
+                isPresentationVisible
+        )
+
+        // ---------------------------------------------------------
         // IMPORTANT:
         //
-        // Even when the island is invisible, this view remains
-        // hit-testable so the user can click/drag it back.
+        // Watch ownership separately so we can keep the old island
+        // mounted while it shrinks to the centre.
+        // ---------------------------------------------------------
+
+        .onAppear {
+
+            syncInitialPresentation()
+        }
+
+        .onChange(
+            of:
+                activityManager
+                    .ownedActivity?
+                    .id
+        ) { _, _ in
+
+            handleOwnershipChange()
+        }
+
+        // ---------------------------------------------------------
+        // CLICK THROUGH REGION
         // ---------------------------------------------------------
 
         .contentShape(
@@ -125,7 +214,8 @@ struct IslandRootView: View {
                     ? DesignTokens.Shadow.hoverRadius
                     : DesignTokens.Shadow.restRadius,
 
-            x: 0,
+            x:
+                0,
 
             y:
                 isPrimed
@@ -151,21 +241,24 @@ struct IslandRootView: View {
         }
 
         // ---------------------------------------------------------
-        // CLICK TO UNDOCK
-        //
-        // Single click works.
-        //
-        // A double click also contains a click, so this is enough
-        // for the requested "single OR double click" behaviour.
+        // CLICK TO EXPAND / UNDOCK
         // ---------------------------------------------------------
 
         .onTapGesture {
 
-            guard isDocked else {
+            // A tap on the docked island brings it back immediately.
+            if isDocked {
+
+                undock()
+
                 return
             }
 
-            undock()
+            // A tap on the compact island bypasses the hover delay.
+            if !isExpanded {
+
+                expandImmediately()
+            }
         }
 
         // ---------------------------------------------------------
@@ -173,15 +266,19 @@ struct IslandRootView: View {
         // ---------------------------------------------------------
 
         .simultaneousGesture(
+
             DragGesture(
-                minimumDistance: 4
+                minimumDistance:
+                    4
             )
+
             .onChanged { value in
 
                 handleDockDrag(
                     value.translation.height
                 )
             }
+
             .onEnded { value in
 
                 handleDockDragEnded(
@@ -189,6 +286,168 @@ struct IslandRootView: View {
                 )
             }
         )
+    }
+
+    // MARK: - Enter / Exit
+
+    /// Establishes the initial activity without animating from an
+    /// empty state. This prevents the island from appearing late when
+    /// the app first launches.
+    private func syncInitialPresentation() {
+
+        presentationWorkItem?.cancel()
+        presentationWorkItem = nil
+
+        renderedActivity =
+            activityManager.ownedActivity
+
+        // A docked island must remain visually hidden.
+
+        if isDocked {
+
+            isPresentationVisible =
+                false
+
+            return
+        }
+
+        // ---------------------------------------------------------
+        // Startup:
+        //
+        // The island starts at the centre and spreads outward.
+        //
+        // We intentionally trigger this on the next main-loop turn
+        // so SwiftUI has already laid out the view at scale 0.001.
+        // That avoids the first-frame snap/glitch.
+        // ---------------------------------------------------------
+
+        guard renderedActivity != nil else {
+
+            isPresentationVisible =
+                false
+
+            return
+        }
+
+        isPresentationVisible =
+            false
+
+        DispatchQueue.main.async {
+
+            guard
+                !isDocked,
+                renderedActivity != nil
+            else {
+                return
+            }
+
+            isPresentationVisible =
+                true
+        }
+    }
+
+    /// Handles a change in island ownership.
+    ///
+    /// New activity:
+    ///     centre → sides
+    ///
+    /// No activity:
+    ///     sides → centre → removed
+    private func handleOwnershipChange() {
+
+        presentationWorkItem?.cancel()
+        presentationWorkItem = nil
+
+        guard
+            let newActivity =
+                activityManager.ownedActivity
+        else {
+
+            // ---------------------------------------------------------
+            // EXIT
+            //
+            // Keep `renderedActivity` alive.
+            //
+            // First shrink it to the centre.
+            // Only AFTER the animation completes do we remove it.
+            // ---------------------------------------------------------
+
+            isPresentationVisible =
+                false
+
+            let workItem =
+                DispatchWorkItem { [self] in
+
+                    // Only remove the rendered activity if there still
+                    // isn't a new owner waiting for the island.
+
+                    guard
+                        activityManager
+                            .ownedActivity
+                        == nil
+                    else {
+                        return
+                    }
+
+                    renderedActivity =
+                        nil
+                }
+
+            presentationWorkItem =
+                workItem
+
+            DispatchQueue.main.asyncAfter(
+                deadline:
+                    .now()
+                    + presentationAnimationDuration,
+
+                execute:
+                    workItem
+            )
+
+            return
+        }
+
+        // ---------------------------------------------------------
+        // NEW ACTIVITY
+        // ---------------------------------------------------------
+
+        renderedActivity =
+            newActivity
+
+        // If currently docked, don't visually enter yet.
+        // Undocking will reveal it normally.
+        guard !isDocked else {
+
+            isPresentationVisible =
+                false
+
+            return
+        }
+
+        // ---------------------------------------------------------
+        // ENTER
+        //
+        // Start completely collapsed.
+        // Then spread horizontally from the centre.
+        // ---------------------------------------------------------
+
+        isPresentationVisible =
+            false
+
+        DispatchQueue.main.async {
+
+            guard
+                !isDocked,
+                renderedActivity?.id
+                    == newActivity.id
+            else {
+                return
+            }
+
+            isPresentationVisible =
+                true
+        }
     }
 
     // MARK: - Hover
@@ -232,9 +491,9 @@ struct IslandRootView: View {
                 }
 
                 // =====================================================
-                // YOUR ORIGINAL MORPH ANIMATION.
+                // EXISTING MORPH ANIMATION.
                 //
-                // COMPLETELY UNTOUCHED.
+                // DO NOT CHANGE.
                 // =====================================================
 
                 withAnimation(
@@ -254,11 +513,33 @@ struct IslandRootView: View {
 
         DispatchQueue.main.asyncAfter(
             deadline:
-                .now() + delay,
+                .now()
+                + delay,
 
             execute:
                 workItem
         )
+    }
+
+    // MARK: - Immediate Tap Expansion
+
+    private func expandImmediately() {
+
+        // Cancel delayed hover expansion.
+        hoverWorkItem?.cancel()
+        hoverWorkItem = nil
+
+        // Same morph animation as hover.
+        withAnimation(
+            AnimationTokens.shapeMorph(
+                isExpanding:
+                    true
+            )
+        ) {
+
+            isExpanded =
+                true
+        }
     }
 
     // MARK: - Dock Drag
@@ -321,7 +602,6 @@ struct IslandRootView: View {
 
             } else {
 
-                // No sufficient downward drag.
                 dockDragOffset =
                     0
             }
@@ -339,7 +619,6 @@ struct IslandRootView: View {
 
         } else {
 
-            // Not far enough.
             dockDragOffset =
                 0
         }
@@ -350,9 +629,7 @@ struct IslandRootView: View {
     private func dock() {
 
         hoverWorkItem?.cancel()
-
-        hoverWorkItem =
-            nil
+        hoverWorkItem = nil
 
         isHovering =
             false
@@ -368,11 +645,12 @@ struct IslandRootView: View {
             0
 
         // ---------------------------------------------------------
-        // NO SPRING.
-        // NO SCALE.
-        // NO FADE.
+        // EXISTING DOCK BEHAVIOUR.
         //
-        // It simply disappears.
+        // NO ENTER/EXIT ANIMATION HERE.
+        //
+        // Docking is deliberately kept separate from activity
+        // ownership animation.
         // ---------------------------------------------------------
 
         isDocked =
@@ -388,7 +666,6 @@ struct IslandRootView: View {
 
     private func undock() {
 
-        // Already visible.
         guard isDocked else {
             return
         }
@@ -414,5 +691,16 @@ struct IslandRootView: View {
 
         isPrimed =
             false
+
+        // ---------------------------------------------------------
+        // The island was still rendered while docked.
+        //
+        // Bring it back at full size exactly as before.
+        //
+        // No new entrance animation is applied to undocking.
+        // ---------------------------------------------------------
+
+        isPresentationVisible =
+            true
     }
 }

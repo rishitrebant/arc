@@ -2,87 +2,202 @@ import SwiftUI
 
 /// The expanded, hover-triggered presentation of Music.
 ///
-/// A fixed 390×200 canvas, not a responsive layout. Every element is
-/// placed at an explicit coordinate inside a single `ZStack(alignment:
-/// .topLeading)` — no `HStack`/`VStack`/`Spacer()` composing the overall
-/// layout, and no `GeometryReader` measuring anything to derive a
-/// position. The ONLY layout container used for composition is the small
-/// leading-aligned `VStack` for the title+artist block, since that's the
-/// one genuinely dynamic piece of content (title truncates rather than
-/// reflowing anything else).
+/// A fixed 390×200 canvas. Album art and waveform continue to use
+/// matched geometry and are intentionally left untouched.
 ///
-/// Coordinates below are the measurements as given — treated as source of
-/// truth verbatim, not re-derived or "corrected" against any prior layout.
+/// The remaining expanded elements use their own lightweight
+/// opacity/scale/offset animation so they enter and leave smoothly
+/// without fighting the island's morph animation.
 struct MusicExpandedView: View {
+
     @ObservedObject var activity: MusicActivity
 
     @Environment(\.islandNamespace) private var namespace
 
-    /// The fixed coordinate grid. `Origin` values are top-left points, used
-    /// with `.offset(x:y:)` against the ZStack's `.topLeading` alignment.
-    /// `Center` values are used with `.position(_:)`, which places a view's
-    /// center at an absolute point regardless of the parent's alignment.
+    // MARK: - Layout
+
     private enum Layout {
-        static let canvasWidth: CGFloat = DesignTokens.MusicMetrics.expandedWidth   // 390
-        static let canvasHeight: CGFloat = DesignTokens.MusicMetrics.expandedHeight // 200
 
-        static let artOrigin = CGPoint(x: 24, y: 24)
-        static let artSize: CGFloat = 65
+        static let canvasWidth: CGFloat =
+            DesignTokens.MusicMetrics.expandedWidth
 
-        static let waveformOrigin = CGPoint(x: 338.85, y: 24)
-        static let waveformSize = CGSize(width: 25.57, height: 24)
+        static let canvasHeight: CGFloat =
+            DesignTokens.MusicMetrics.expandedHeight
 
-        static let titleOrigin = CGPoint(x: 106, y: 36)
-        // No explicit width was given for the title block. Derived from the
-        // waveform's fixed x minus a small gap, so a long title truncates
-        // before ever reaching the waveform rather than overlapping it.
-        static let titleWidth: CGFloat = waveformOrigin.x - titleOrigin.x - 16
+        static let artOrigin =
+            CGPoint(
+                x: 24,
+                y: 24
+            )
 
-        static let progressTrackOrigin = CGPoint(x: 71, y: 112)
-        static let progressTrackSize = CGSize(width: 242, height: 7)
+        static let artSize:
+            CGFloat = 65
 
-        static let elapsedOrigin = CGPoint(x: 24, y: 106)
-        static let remainingOrigin = CGPoint(x: 333, y: 106)
+        static let waveformOrigin =
+            CGPoint(
+                x: 338.85,
+                y: 24
+            )
 
-        // Transport row. Horizontal centering confirmed directly by you
-        // ("play pause is in the center"); x-spacing measured (41).
-        // Vertical position (159.9) is now taken from the AirPlay icon's
-        // directly-measured center — since AirPlay sits in the same row as
-        // the transport buttons, its measured Y is a far better anchor
-        // than the old unconfirmed placeholder (140) ever was.
-        static let rowCenterY: CGFloat = 159.9
-        static let pauseCenter = CGPoint(x: canvasWidth / 2, y: rowCenterY)
-        static let previousCenter = CGPoint(
-            x: pauseCenter.x - DesignTokens.MusicMetrics.playbackButtonSpacing,
-            y: rowCenterY
-        )
-        static let nextCenter = CGPoint(
-            x: pauseCenter.x + DesignTokens.MusicMetrics.playbackButtonSpacing,
-            y: rowCenterY
-        )
+        static let waveformSize =
+            CGSize(
+                width: 25.57,
+                height: 24
+            )
 
-        // Measured directly (selection: left 324.01, top 148.39, size
-        // 23×22.99) — center computed from that, not inferred from gaps.
-        // This doesn't fully reconcile with the previous/next centers
-        // above via the 43pt forward→AirPlay gap (~35pt short of what
-        // that math implies) — flagged, not silently smoothed over. If the
-        // row looks visually off between the transport buttons and
-        // AirPlay specifically, that gap is the thing to re-measure.
-        static let airplayIconSize: CGFloat = 23
-        static let airplayCenter = CGPoint(x: 335.5, y: 159.9)
+        static let titleOrigin =
+            CGPoint(
+                x: 106,
+                y: 36
+            )
+
+        static let titleWidth:
+            CGFloat =
+                waveformOrigin.x
+                - titleOrigin.x
+                - 16
+
+        static let progressTrackOrigin =
+            CGPoint(
+                x: 71,
+                y: 112
+            )
+
+        static let progressTrackSize =
+            CGSize(
+                width: 242,
+                height: 7
+            )
+
+        static let elapsedOrigin =
+            CGPoint(
+                x: 24,
+                y: 106
+            )
+
+        static let remainingOrigin =
+            CGPoint(
+                x: 333,
+                y: 106
+            )
+
+        static let rowCenterY:
+            CGFloat = 159.9
+
+        static let pauseCenter =
+            CGPoint(
+                x:
+                    canvasWidth / 2,
+
+                y:
+                    rowCenterY
+            )
+
+        static let previousCenter =
+            CGPoint(
+                x:
+                    pauseCenter.x
+                    - DesignTokens
+                        .MusicMetrics
+                        .playbackButtonSpacing,
+
+                y:
+                    rowCenterY
+            )
+
+        static let nextCenter =
+            CGPoint(
+                x:
+                    pauseCenter.x
+                    + DesignTokens
+                        .MusicMetrics
+                        .playbackButtonSpacing,
+
+                y:
+                    rowCenterY
+            )
+
+        static let airplayIconSize:
+            CGFloat = 23
+
+        static let airplayCenter =
+            CGPoint(
+                x: 335.5,
+                y: 159.9
+            )
     }
 
+    // MARK: - Animation
+
+    /// Small, deliberately independent animation for the elements
+    /// other than album art and waveform.
+    ///
+    /// We do NOT use `.transition()` here because the expanded view
+    /// itself remains mounted during the island morph.
+    private let elementAnimation =
+        Animation.easeOut(
+            duration: 0.20
+        )
+
+    // MARK: - Body
+
     var body: some View {
-        ZStack(alignment: .topLeading) {
+
+        ZStack(
+            alignment:
+                .topLeading
+        ) {
+
+            // =========================================================
+            // ISLAND
+            //
+            // UNTOUCHED.
+            // =========================================================
+
             IslandShape(
-                topRadius: DesignTokens.Shape.expandedTopRadius,
-                bottomRadius: DesignTokens.Shape.expandedBottomRadius
+                topRadius:
+                    DesignTokens
+                        .Shape
+                        .expandedTopRadius,
+
+                bottomRadius:
+                    DesignTokens
+                        .Shape
+                        .expandedBottomRadius
             )
-                .fill(DesignTokens.Color.islandBackground)
-                .islandMatchedGeometry(id: "islandBody", namespace: namespace)
+            .fill(
+                DesignTokens
+                    .Color
+                    .islandBackground
+            )
+            .islandMatchedGeometry(
+                id:
+                    "islandBody",
+
+                namespace:
+                    namespace
+            )
+
+            // =========================================================
+            // ALBUM
+            //
+            // UNTOUCHED.
+            // =========================================================
 
             albumArt
+
+            // =========================================================
+            // WAVEFORM
+            //
+            // UNTOUCHED.
+            // =========================================================
+
             waveform
+
+            // =========================================================
+            // OTHER ELEMENTS
+            // =========================================================
+
             titleBlock
             progressBar
             elapsedLabel
@@ -92,132 +207,667 @@ struct MusicExpandedView: View {
             nextButton
             airplayButton
         }
-        .frame(width: Layout.canvasWidth, height: Layout.canvasHeight)
+
+        .frame(
+            width:
+                Layout.canvasWidth,
+
+            height:
+                Layout.canvasHeight
+        )
     }
 
-    // MARK: - Fixed elements (top-left coordinates via .offset)
+    // MARK: - Album
 
     private var albumArt: some View {
+
         AlbumArtView(
-            image: activity.playbackState?.artwork,
-            size: Layout.artSize,
-            cornerRadius: DesignTokens.MusicMetrics.albumArtCornerRadius
+            image:
+                activity
+                    .playbackState?
+                    .artwork,
+
+            size:
+                Layout.artSize,
+
+            cornerRadius:
+                DesignTokens
+                    .MusicMetrics
+                    .albumArtCornerRadius
         )
-        .islandMatchedGeometry(id: "albumArt", namespace: namespace)
-        .offset(x: Layout.artOrigin.x, y: Layout.artOrigin.y)
+        .islandMatchedGeometry(
+            id:
+                "albumArt",
+
+            namespace:
+                namespace
+        )
+        .offset(
+            x:
+                Layout.artOrigin.x,
+
+            y:
+                Layout.artOrigin.y
+        )
     }
+
+    // MARK: - Waveform
 
     private var waveform: some View {
-        Waveform(isPlaying: activity.playbackState?.isPlaying ?? false)
-            .frame(width: Layout.waveformSize.width, height: Layout.waveformSize.height)
-            .islandMatchedGeometry(id: "waveform", namespace: namespace)
-            .offset(x: Layout.waveformOrigin.x, y: Layout.waveformOrigin.y)
+
+        Waveform(
+            isPlaying:
+                activity
+                    .playbackState?
+                    .isPlaying
+                ?? false
+        )
+        .frame(
+            width:
+                Layout.waveformSize.width,
+
+            height:
+                Layout.waveformSize.height
+        )
+        .islandMatchedGeometry(
+            id:
+                "waveform",
+
+            namespace:
+                namespace
+        )
+        .offset(
+            x:
+                Layout.waveformOrigin.x,
+
+            y:
+                Layout.waveformOrigin.y
+        )
     }
 
-    /// The only dynamic layout in this view — a small leading-aligned
-    /// VStack for title+artist. Fixed width; title truncates instead of
-    /// ever moving or resizing anything else.
+    // MARK: - Title
+
     private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xxs) {
-            Text(activity.playbackState?.title ?? "")
-                .font(DesignTokens.Typography.title)
-                .foregroundStyle(DesignTokens.Color.primaryText)
-                .lineLimit(1)
-                .truncationMode(.tail)
 
-            Text(activity.playbackState?.artist ?? "")
-                .font(DesignTokens.Typography.subtitle)
-                .tracking(DesignTokens.Typography.letterSpacingTight)
-                .foregroundStyle(DesignTokens.Color.secondaryText)
-                .lineLimit(1)
-                .truncationMode(.tail)
+        VStack(
+            alignment:
+                .leading,
+
+            spacing:
+                DesignTokens
+                    .Spacing
+                    .xxs
+        ) {
+
+            Text(
+                activity
+                    .playbackState?
+                    .title
+                ?? ""
+            )
+            .font(
+                DesignTokens
+                    .Typography
+                    .title
+            )
+            .foregroundStyle(
+                DesignTokens
+                    .Color
+                    .primaryText
+            )
+            .lineLimit(
+                1
+            )
+            .truncationMode(
+                .tail
+            )
+
+            Text(
+                activity
+                    .playbackState?
+                    .artist
+                ?? ""
+            )
+            .font(
+                DesignTokens
+                    .Typography
+                    .subtitle
+            )
+            .tracking(
+                DesignTokens
+                    .Typography
+                    .letterSpacingTight
+            )
+            .foregroundStyle(
+                DesignTokens
+                    .Color
+                    .secondaryText
+            )
+            .lineLimit(
+                1
+            )
+            .truncationMode(
+                .tail
+            )
         }
-        .frame(width: Layout.titleWidth, alignment: .leading)
-        .transition(AnimationTokens.contentTransition(insertDelay: 0.02, removeDelay: 0.04))
-        .offset(x: Layout.titleOrigin.x, y: Layout.titleOrigin.y)
+
+        .frame(
+            width:
+                Layout.titleWidth,
+
+            alignment:
+                .leading
+        )
+
+        .expandedElementAnimation(
+            offset:
+                7,
+
+            scale:
+                0.985,
+
+            animation:
+                elementAnimation
+        )
+
+        .offset(
+            x:
+                Layout.titleOrigin.x,
+
+            y:
+                Layout.titleOrigin.y
+        )
     }
 
-    /// Track fill is computed directly from the known fixed track width —
-    /// no `GeometryReader` measurement needed since the track's size is
-    /// itself a fixed constant, not something derived at runtime.
+    // MARK: - Progress Bar
+
     private var progressBar: some View {
-        ZStack(alignment: .leading) {
-            Capsule().fill(Color.white.opacity(0.2))
+
+        ZStack(
+            alignment:
+                .leading
+        ) {
+
             Capsule()
-                .fill(DesignTokens.Color.primaryText)
-                .frame(width: Layout.progressTrackSize.width * progressFraction)
+                .fill(
+                    Color.white.opacity(
+                        0.2
+                    )
+                )
+
+            Capsule()
+                .fill(
+                    DesignTokens
+                        .Color
+                        .primaryText
+                )
+                .frame(
+                    width:
+                        Layout
+                            .progressTrackSize
+                            .width
+                        * progressFraction
+                )
         }
-        .frame(width: Layout.progressTrackSize.width, height: Layout.progressTrackSize.height)
-        .transition(AnimationTokens.contentTransition(insertDelay: 0.05, removeDelay: 0.02))
-        .offset(x: Layout.progressTrackOrigin.x, y: Layout.progressTrackOrigin.y)
+
+        .frame(
+            width:
+                Layout
+                    .progressTrackSize
+                    .width,
+
+            height:
+                Layout
+                    .progressTrackSize
+                    .height
+        )
+
+        .expandedElementAnimation(
+            offset:
+                5,
+
+            scale:
+                0.99,
+
+            animation:
+                elementAnimation
+        )
+
+        .offset(
+            x:
+                Layout
+                    .progressTrackOrigin
+                    .x,
+
+            y:
+                Layout
+                    .progressTrackOrigin
+                    .y
+        )
     }
+
+    // MARK: - Elapsed
 
     private var elapsedLabel: some View {
-        Text(formatted(activity.playbackState?.elapsed ?? 0))
-            .font(.system(size: 12, weight: .regular, design: .monospaced))
-            .tracking(DesignTokens.Typography.letterSpacingTight)
-            .foregroundStyle(DesignTokens.Color.secondaryText)
-            .transition(AnimationTokens.contentTransition(insertDelay: 0.05, removeDelay: 0.02))
-            .offset(x: Layout.elapsedOrigin.x, y: Layout.elapsedOrigin.y)
+
+        Text(
+            formatted(
+                activity
+                    .playbackState?
+                    .elapsed
+                ?? 0
+            )
+        )
+        .font(
+            .system(
+                size:
+                    12,
+
+                weight:
+                    .regular,
+
+                design:
+                    .monospaced
+            )
+        )
+        .tracking(
+            DesignTokens
+                .Typography
+                .letterSpacingTight
+        )
+        .foregroundStyle(
+            DesignTokens
+                .Color
+                .secondaryText
+        )
+
+        .expandedElementAnimation(
+            offset:
+                5,
+
+            scale:
+                0.99,
+
+            animation:
+                elementAnimation
+        )
+
+        .offset(
+            x:
+                Layout
+                    .elapsedOrigin
+                    .x,
+
+            y:
+                Layout
+                    .elapsedOrigin
+                    .y
+        )
     }
+
+    // MARK: - Remaining
 
     private var remainingLabel: some View {
-        Text("-" + formatted(remaining))
-            .font(DesignTokens.Typography.timestamp.monospacedDigit())
-            .tracking(DesignTokens.Typography.letterSpacingTight)
-            .foregroundStyle(DesignTokens.Color.secondaryText)
-            .transition(AnimationTokens.contentTransition(insertDelay: 0.05, removeDelay: 0.02))
-            .offset(x: Layout.remainingOrigin.x, y: Layout.remainingOrigin.y)
+
+        Text(
+            "-"
+            + formatted(
+                remaining
+            )
+        )
+        .font(
+            DesignTokens
+                .Typography
+                .timestamp
+                .monospacedDigit()
+        )
+        .tracking(
+            DesignTokens
+                .Typography
+                .letterSpacingTight
+        )
+        .foregroundStyle(
+            DesignTokens
+                .Color
+                .secondaryText
+        )
+
+        .expandedElementAnimation(
+            offset:
+                5,
+
+            scale:
+                0.99,
+
+            animation:
+                elementAnimation
+        )
+
+        .offset(
+            x:
+                Layout
+                    .remainingOrigin
+                    .x,
+
+            y:
+                Layout
+                    .remainingOrigin
+                    .y
+        )
     }
 
-    // MARK: - Fixed elements (center coordinates via .position)
+    // MARK: - Previous
 
     private var previousButton: some View {
-        PlaybackButton(systemName: "backward.fill", action: activity.skipBackward, size: 16)
-            .opacity(0.7)
-            .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
-            .position(Layout.previousCenter)
+
+        PlaybackButton(
+            systemName:
+                "backward.fill",
+
+            action:
+                activity.skipBackward,
+
+            size:
+                16
+        )
+        .opacity(
+            0.7
+        )
+
+        .expandedElementAnimation(
+            offset:
+                6,
+
+            scale:
+                0.92,
+
+            animation:
+                elementAnimation
+        )
+
+        .position(
+            Layout.previousCenter
+        )
     }
+
+    // MARK: - Pause
 
     private var pauseButton: some View {
+
         PlaybackButton(
-            systemName: (activity.playbackState?.isPlaying ?? false) ? "pause.fill" : "play.fill",
-            action: activity.togglePlayPause,
-            size: 20
+            systemName:
+                (
+                    activity
+                        .playbackState?
+                        .isPlaying
+                    ?? false
+                )
+                ? "pause.fill"
+                : "play.fill",
+
+            action:
+                activity.togglePlayPause,
+
+            size:
+                20
         )
-        .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
-        .position(Layout.pauseCenter)
+
+        .expandedElementAnimation(
+            offset:
+                6,
+
+            scale:
+                0.92,
+
+            animation:
+                elementAnimation
+        )
+
+        .position(
+            Layout.pauseCenter
+        )
     }
+
+    // MARK: - Next
 
     private var nextButton: some View {
-        PlaybackButton(systemName: "forward.fill", action: activity.skipForward, size: 16)
-            .opacity(0.7)
-            .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
-            .position(Layout.nextCenter)
+
+        PlaybackButton(
+            systemName:
+                "forward.fill",
+
+            action:
+                activity.skipForward,
+
+            size:
+                16
+        )
+        .opacity(
+            0.7
+        )
+
+        .expandedElementAnimation(
+            offset:
+                6,
+
+            scale:
+                0.92,
+
+            animation:
+                elementAnimation
+        )
+
+        .position(
+            Layout.nextCenter
+        )
     }
+
+    // MARK: - AirPlay
 
     private var airplayButton: some View {
-        Image(systemName: "airplayaudio")
-            .font(.system(size: 18))
-            .foregroundStyle(DesignTokens.Color.primaryText)
-            .frame(width: DesignTokens.MusicMetrics.airplayIconSize, height: DesignTokens.MusicMetrics.airplayIconSize)
-            .transition(AnimationTokens.contentTransition(insertDelay: 0.08, removeDelay: 0))
-            .position(Layout.airplayCenter)
+
+        Image(
+            systemName:
+                "airplayaudio"
+        )
+        .font(
+            .system(
+                size:
+                    18
+            )
+        )
+        .foregroundStyle(
+            DesignTokens
+                .Color
+                .primaryText
+        )
+        .frame(
+            width:
+                DesignTokens
+                    .MusicMetrics
+                    .airplayIconSize,
+
+            height:
+                DesignTokens
+                    .MusicMetrics
+                    .airplayIconSize
+        )
+
+        .expandedElementAnimation(
+            offset:
+                6,
+
+            scale:
+                0.92,
+
+            animation:
+                elementAnimation
+        )
+
+        .position(
+            Layout.airplayCenter
+        )
     }
 
-    // MARK: - Derived values (formatting only, not layout)
+    // MARK: - Derived Values
 
-    private var remaining: TimeInterval {
-        max((activity.playbackState?.duration ?? 0) - (activity.playbackState?.elapsed ?? 0), 0)
+    private var remaining:
+        TimeInterval {
+
+        max(
+            (
+                activity
+                    .playbackState?
+                    .duration
+                ?? 0
+            )
+            -
+            (
+                activity
+                    .playbackState?
+                    .elapsed
+                ?? 0
+            ),
+
+            0
+        )
     }
 
-    private var progressFraction: CGFloat {
-        guard let state = activity.playbackState, state.duration > 0 else { return 0 }
-        return min(max(state.elapsed / state.duration, 0), 1)
+    private var progressFraction:
+        CGFloat {
+
+        guard
+            let state =
+                activity.playbackState,
+
+            state.duration > 0
+        else {
+            return 0
+        }
+
+        return min(
+            max(
+                state.elapsed
+                / state.duration,
+
+                0
+            ),
+
+            1
+        )
     }
 
-    private func formatted(_ interval: TimeInterval) -> String {
-        let total = max(Int(interval), 0)
-        return String(format: "%d:%02d", total / 60, total % 60)
+    private func formatted(
+        _ interval:
+            TimeInterval
+    ) -> String {
+
+        let total =
+            max(
+                Int(interval),
+                0
+            )
+
+        return String(
+            format:
+                "%d:%02d",
+
+            total / 60,
+
+            total % 60
+        )
+    }
+}
+
+// MARK: - Expanded Element Animation
+
+private extension View {
+
+    func expandedElementAnimation(
+        offset:
+            CGFloat,
+
+        scale:
+            CGFloat,
+
+        animation:
+            Animation
+    ) -> some View {
+
+        modifier(
+            ExpandedElementModifier(
+                offset:
+                    offset,
+
+                scale:
+                    scale,
+
+                animation:
+                    animation
+            )
+        )
+    }
+}
+
+private struct ExpandedElementModifier:
+    ViewModifier {
+
+    let offset:
+        CGFloat
+
+    let scale:
+        CGFloat
+
+    let animation:
+        Animation
+
+    @State private var isVisible =
+        false
+
+    func body(
+        content:
+            Content
+    ) -> some View {
+
+        content
+
+            .opacity(
+                isVisible
+                ? 1
+                : 0
+            )
+
+            .scaleEffect(
+                isVisible
+                ? 1
+                : scale,
+
+                anchor:
+                    .center
+            )
+
+            .offset(
+                y:
+                    isVisible
+                    ? 0
+                    : offset
+            )
+
+            .onAppear {
+
+                isVisible =
+                    false
+
+                DispatchQueue.main.async {
+
+                    withAnimation(
+                        animation
+                    ) {
+
+                        isVisible =
+                            true
+                    }
+                }
+            }
     }
 }
