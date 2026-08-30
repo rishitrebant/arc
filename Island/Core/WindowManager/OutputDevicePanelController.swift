@@ -264,6 +264,18 @@ final class OutputDevicePanelController {
 
         panel?.frame.contains(point) ?? false
     }
+    
+    func toggle(
+        manager: AudioOutputDeviceManager
+    ) {
+        if panel != nil {
+            dismiss()
+        } else {
+            present(
+                manager: manager
+            )
+        }
+    }
 
     private func isInsideIsland(
         _ point: NSPoint

@@ -586,23 +586,9 @@ struct MusicIslandView: View {
             // ---------------------------------------------------------
 
             Waveform(
-
-                isPlaying:
-
-                    activity
-
-                        .playbackState?
-
-                        .isPlaying
-
-                    ?? false,
-
-                color:
-
-                    artworkColor
-
+                isPlaying: uiIsPlaying,
+                color: artworkColor
             )
-
             .frame(
 
                 width:
@@ -2702,31 +2688,12 @@ struct MusicIslandView: View {
 
     private func togglePlayPauseWithUI() {
 
-        // Explicit animation: `uiIsPlaying` now also drives the pause/
-        // play icon's symbol-replace transition and the album art's
-        // paused-state size/opacity/glow — all of that should animate
-        // smoothly rather than snap, regardless of whatever ambient
-        // transaction (if any) happens to be active on this tap.
-        withAnimation(.easeOut(duration: 0.10)) {
+        withAnimation(AnimationTokens.stateUpdate) {
             uiIsPlaying.toggle()
         }
 
         activity.togglePlayPause()
-
-        // MediaRemote can publish the new state slightly after the click.
-        // Reconcile shortly after so the UI stays responsive without getting
-        // stuck on a stale state.
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 0.30
-        ) {
-            withAnimation(.easeOut(duration: 0.7)) {
-                uiIsPlaying =
-                    activity.playbackState?.isPlaying
-                    ?? uiIsPlaying
-            }
-        }
     }
-
     // MARK: - Next Button
 
     private var nextButton: some View {
@@ -2821,7 +2788,7 @@ struct MusicIslandView: View {
 
                 outputDeviceManager.refresh()
 
-                OutputDevicePanelController.shared.present(
+                OutputDevicePanelController.shared.toggle(
                     manager: outputDeviceManager
                 )
             }
