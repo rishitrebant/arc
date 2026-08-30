@@ -392,14 +392,17 @@ final class WindowManager {
                 ? expandedSize
                 : compactSize
 
+        // MusicIslandView is hosted inside the padded canvas.
+        // The visible Island therefore starts at canvasInsetX.
         let originInCanvas =
             CGPoint(
                 x:
-                    (
+                    DesignTokens.Shadow.canvasInsetX
+                    + (
                         canvasSize.width
+                        - DesignTokens.Shadow.canvasInsetX * 2
                         - size.width
-                    )
-                    / 2,
+                    ) / 2,
 
                 y:
                     0
@@ -417,21 +420,38 @@ final class WindowManager {
                 - size.height
             )
 
+        // Give the compact Island a small invisible buffer so touching
+        // anywhere on the visible pill immediately triggers hover.
+        let horizontalPadding:
+            CGFloat =
+                isExpanded
+                    ? 0
+                    : 2
+
+        let verticalPadding:
+            CGFloat =
+                isExpanded
+                    ? 0
+                    : 2
+
         return NSRect(
             x:
-                screenX,
+                screenX
+                - horizontalPadding,
 
             y:
-                screenY,
+                screenY
+                - verticalPadding,
 
             width:
-                size.width,
+                size.width
+                + horizontalPadding * 2,
 
             height:
                 size.height
+                + verticalPadding * 2
         )
     }
-
     // MARK: - Docked Hit Rect
 
     private func dockedHitRect(

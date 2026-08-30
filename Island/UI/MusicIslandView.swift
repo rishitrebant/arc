@@ -17,6 +17,16 @@ struct MusicIslandView: View {
     @StateObject private var outputDeviceManager = AudioOutputDeviceManager()
     @State private var uiIsPlaying = false
 
+    // MARK: - Skip Button "Leapfrog" Animation
+    //
+    // Each increments by 1 on every tap. `SkipChevrons` reads this to
+    // cycle its three chevrons through a 4-slot conveyor (hidden-behind →
+    // rear → front → hidden-ahead), matching the Apple Music / Dynamic
+    // Island transport-button animation. Kept as two separate counters
+    // since previous/next are independent gestures.
+    @State private var backwardSkipTrigger = 0
+    @State private var forwardSkipTrigger = 0
+
     // MARK: - Artwork / Waveform Color
 
     /// Colour used by the waveform.
@@ -211,11 +221,37 @@ struct MusicIslandView: View {
 
     private var artSize: CGFloat {
 
-        isExpanded
+        let base: CGFloat =
+            isExpanded
+                ? 65
+                : Metrics.compactIconSize
 
-            ? 65
+        // Paused: album art shrinks slightly. Expanded gets a clearly
+        // noticeable shrink; compact — per spec — gets a MUCH smaller
+        // one, since there's very little room to work with there and a
+        // shrink of the same magnitude would just look like a glitch.
+        let pausedShrink: CGFloat =
+            isExpanded
+                ? 6
+                : 1
 
-            : Metrics.compactIconSize
+        return uiIsPlaying
+            ? base
+            : base - pausedShrink
+
+    }
+
+    /// Paused: album art fades down slightly (glow — see `showGlow`
+    /// below — is handled separately since it's a fully separate visual
+    /// layer, not just opacity). Expanded fades more noticeably than
+    /// compact, matching the size-shrink asymmetry above.
+    private var artOpacity: Double {
+
+        if uiIsPlaying { return 1 }
+
+        return isExpanded
+            ? 0.6
+            : 0.85
 
     }
 
@@ -886,7 +922,11 @@ struct MusicIslandView: View {
                 activity.playbackState?.isPlaying
         ) { _, newValue in
 
-            uiIsPlaying = newValue ?? false
+            // External changes (media keys, the source app itself, etc.)
+            // should animate the same way a tap on our own button does.
+            withAnimation(.easeOut(duration: 0.13)) {
+                uiIsPlaying = newValue ?? false
+            }
         }
 
         // MARK: Artwork Arrival
@@ -1207,7 +1247,8 @@ struct MusicIslandView: View {
 
                     showGlow:
 
-                        isExpanded,
+                        isExpanded
+                        && uiIsPlaying,
 
                     // IMPORTANT:
 
@@ -1311,7 +1352,8 @@ struct MusicIslandView: View {
 
                     showGlow:
 
-                        isExpanded,
+                        isExpanded
+                        && uiIsPlaying,
 
                     // IMPORTANT:
 
@@ -1423,7 +1465,8 @@ struct MusicIslandView: View {
 
                     showGlow:
 
-                        isExpanded,
+                        isExpanded
+                        && uiIsPlaying,
 
                     glowColor:
 
@@ -1466,6 +1509,12 @@ struct MusicIslandView: View {
                 artSize
 
         )
+        // Paused-state fade — one place, covers the flip transition and
+        // the normal (non-flipping) state alike. Size/glow are handled
+        // per-instance above since those feed into `AlbumArtView`'s own
+        // init params, but opacity is simplest applied once, here, on
+        // the outer container all three cases share.
+        .opacity(artOpacity)
 
     }
 
@@ -1761,6 +1810,8 @@ struct MusicIslandView: View {
 
             1
 
+        forwardSkipTrigger += 1
+
         activity.skipForward()
 
     }
@@ -1770,6 +1821,8 @@ struct MusicIslandView: View {
         pendingFlipDirection =
 
             -1
+
+        backwardSkipTrigger += 1
 
         activity.skipBackward()
 
@@ -2513,21 +2566,20 @@ struct MusicIslandView: View {
 
     private var previousButton: some View {
 
-        PlaybackButton(
-
-            systemName:
-
-                "backward.fill",
-
+        Button(
             action:
+                skipBackwardWithFlip
+        ) {
 
-                skipBackwardWithFlip,
-
-            size:
-
-                20
-
-        )
+            SkipChevronsIcon(
+                forward: false,
+                trigger: backwardSkipTrigger
+            )
+            .foregroundStyle(.white)
+            .frame(width: 40, height: 40)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Circle())
 
         .opacity(
 
@@ -2650,7 +2702,14 @@ struct MusicIslandView: View {
 
     private func togglePlayPauseWithUI() {
 
-        uiIsPlaying.toggle()
+        // Explicit animation: `uiIsPlaying` now also drives the pause/
+        // play icon's symbol-replace transition and the album art's
+        // paused-state size/opacity/glow — all of that should animate
+        // smoothly rather than snap, regardless of whatever ambient
+        // transaction (if any) happens to be active on this tap.
+        withAnimation(.easeOut(duration: 0.10)) {
+            uiIsPlaying.toggle()
+        }
 
         activity.togglePlayPause()
 
@@ -2660,9 +2719,11 @@ struct MusicIslandView: View {
         DispatchQueue.main.asyncAfter(
             deadline: .now() + 0.30
         ) {
-            uiIsPlaying =
-                activity.playbackState?.isPlaying
-                ?? uiIsPlaying
+            withAnimation(.easeOut(duration: 0.7)) {
+                uiIsPlaying =
+                    activity.playbackState?.isPlaying
+                    ?? uiIsPlaying
+            }
         }
     }
 
@@ -2670,21 +2731,20 @@ struct MusicIslandView: View {
 
     private var nextButton: some View {
 
-        PlaybackButton(
-
-            systemName:
-
-                "forward.fill",
-
+        Button(
             action:
+                skipForwardWithFlip
+        ) {
 
-                skipForwardWithFlip,
-
-            size:
-
-                20
-
-        )
+            SkipChevronsIcon(
+                forward: true,
+                trigger: forwardSkipTrigger
+            )
+            .foregroundStyle(.white)
+            .frame(width: 40, height: 40)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Circle())
 
         .opacity(
 
@@ -3042,4 +3102,3 @@ private struct FadeOnlyModifier:
     }
 
 }
-

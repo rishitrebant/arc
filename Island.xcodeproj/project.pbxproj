@@ -34,6 +34,7 @@
 		A5326961303ED0D800EDDE1E /* MusicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5326960303ED0D800EDDE1E /* MusicIslandView.swift */; };
 		A532696A3040B21200EDDE1E /* MediaRemoteMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53269693040B21200EDDE1E /* MediaRemoteMusicService.swift */; };
 		A532698730440A5600EDDE1E /* OutputDevicePanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A532698630440A5000EDDE1E /* OutputDevicePanelController.swift */; };
+		A53269893044144900EDDE1E /* SkipChevronsIcon_NEW.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53269883044144900EDDE1E /* SkipChevronsIcon_NEW.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -65,6 +66,7 @@
 		A5326960303ED0D800EDDE1E /* MusicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicIslandView.swift; sourceTree = "<group>"; };
 		A53269693040B21200EDDE1E /* MediaRemoteMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteMusicService.swift; sourceTree = "<group>"; };
 		A532698630440A5000EDDE1E /* OutputDevicePanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputDevicePanelController.swift; sourceTree = "<group>"; };
+		A53269883044144900EDDE1E /* SkipChevronsIcon_NEW.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipChevronsIcon_NEW.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -188,6 +190,7 @@
 		000000000000000000100045 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				A53269883044144900EDDE1E /* SkipChevronsIcon_NEW.swift */,
 				000000000000000000100030 /* AlbumArtView.swift */,
 				000000000000000000100036 /* IslandShape.swift */,
 				000000000000000000100032 /* PlaybackButton.swift */,
@@ -324,6 +327,7 @@
 			files = (
 				000000000000000000100013 /* IslandApp.swift in Sources */,
 				000000000000000000100015 /* AppDelegate.swift in Sources */,
+				A53269893044144900EDDE1E /* SkipChevronsIcon_NEW.swift in Sources */,
 				000000000000000000100017 /* DesignTokens.swift in Sources */,
 				000000000000000000100019 /* AnimationTokens.swift in Sources */,
 				00000000000000000010001B /* ActivityKind.swift in Sources */,
