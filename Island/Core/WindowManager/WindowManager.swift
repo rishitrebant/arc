@@ -502,15 +502,13 @@ final class WindowManager {
                 - targetHeight
             )
 
-        // Slightly larger hit area than the invisible island.
-        //
-        // This makes the dock much easier to grab without making
-        // the entire window clickable.
-        let horizontalPadding:
-            CGFloat = 12
+        // The compact hover/click region should match the
+        // visible compact island exactly: 263 × 29.
+        // Do not add padding here — this rectangle is what
+        // AppKit uses before SwiftUI receives the hover event.
 
-        let verticalPadding:
-            CGFloat = 6
+        let horizontalPadding: CGFloat = 0
+        let verticalPadding: CGFloat = 4
 
         return NSRect(
             x:
