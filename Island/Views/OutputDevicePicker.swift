@@ -108,7 +108,7 @@ struct AudioOutputPicker: View {
             .padding(.horizontal, 10)
             .padding(.bottom, 12)
         }
-        .frame(width: 310)
+        .frame(width: 290)
         .background(.ultraThinMaterial)
         .clipShape(
             RoundedRectangle(
@@ -145,4 +145,19 @@ struct AudioOutputPicker: View {
                 * 0.80
             )
     }
+}
+
+// MARK: - Output Picker Notifications
+
+extension Notification.Name {
+
+    static let islandOutputPickerWillPresent =
+        Notification.Name(
+            "IslandOutputPickerWillPresent"
+        )
+
+    static let islandOutputPickerDidDismiss =
+        Notification.Name(
+            "IslandOutputPickerDidDismiss"
+        )
 }

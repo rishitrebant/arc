@@ -15,7 +15,7 @@ struct MusicIslandView: View {
     var isExpanded: Bool
 
     @StateObject private var outputDeviceManager = AudioOutputDeviceManager()
-    @State private var isOutputPickerPresented = false
+    @State private var uiIsPlaying = false
 
     // MARK: - Artwork / Waveform Color
 
@@ -102,9 +102,6 @@ struct MusicIslandView: View {
     @State private var seekPreviewElapsed:
 
         TimeInterval = 0
-
-    // Optimistic play/pause UI state so the icon changes immediately.
-    @State private var uiIsPlaying = false
 
     private typealias Metrics =
 
@@ -822,9 +819,6 @@ struct MusicIslandView: View {
 
         .onAppear {
 
-            uiIsPlaying =
-                activity.playbackState?.isPlaying ?? false
-
             // ---------------------------------------------------------
 
             // FIRST SONG FIX
@@ -883,6 +877,16 @@ struct MusicIslandView: View {
 
             }
 
+        }
+
+        // MARK: Playback State
+
+        .onChange(
+            of:
+                activity.playbackState?.isPlaying
+        ) { _, newValue in
+
+            uiIsPlaying = newValue ?? false
         }
 
         // MARK: Artwork Arrival
@@ -1057,27 +1061,6 @@ struct MusicIslandView: View {
 
             }
 
-        }
-
-        // MARK: Playback State
-
-        .onChange(
-            of:
-                activity.playbackState?.isPlaying
-        ) { _, newValue in
-
-            guard let newValue else { return }
-
-            uiIsPlaying = newValue
-        }
-
-        .onChange(
-            of:
-                trackKey
-        ) { _, _ in
-
-            uiIsPlaying =
-                activity.playbackState?.isPlaying ?? uiIsPlaying
         }
 
         // MARK: Track Change
@@ -2601,13 +2584,10 @@ struct MusicIslandView: View {
             systemName:
 
                 uiIsPlaying
-
                 ? "pause.fill"
-
                 : "play.fill",
 
             action:
-
                 togglePlayPauseWithUI,
 
             size:
@@ -2668,11 +2648,22 @@ struct MusicIslandView: View {
 
     }
 
-    // MARK: - Playback
-
     private func togglePlayPauseWithUI() {
+
         uiIsPlaying.toggle()
+
         activity.togglePlayPause()
+
+        // MediaRemote can publish the new state slightly after the click.
+        // Reconcile shortly after so the UI stays responsive without getting
+        // stuck on a stale state.
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 0.30
+        ) {
+            uiIsPlaying =
+                activity.playbackState?.isPlaying
+                ?? uiIsPlaying
+        }
     }
 
     // MARK: - Next Button
@@ -2767,27 +2758,11 @@ struct MusicIslandView: View {
             .allowsHitTesting(isExpanded)
             .onTapGesture {
                 guard isExpanded else { return }
+
                 outputDeviceManager.refresh()
-                isOutputPickerPresented = true
-            }
-            .popover(
-                isPresented: $isOutputPickerPresented,
-                attachmentAnchor: .point(.bottomTrailing),
-                arrowEdge: .top
-            ) {
-                AudioOutputPicker(
-                    manager: outputDeviceManager,
-                    onDismiss: {
-                        isOutputPickerPresented = false
-                    }
-                )
-            }
-            .onChange(of: isOutputPickerPresented) { _, presented in
-                NotificationCenter.default.post(
-                    name: presented
-                        ? .islandOutputPickerWillPresent
-                        : .islandOutputPickerDidDismiss,
-                    object: nil
+
+                OutputDevicePanelController.shared.present(
+                    manager: outputDeviceManager
                 )
             }
     }
@@ -3068,27 +3043,3 @@ private struct FadeOnlyModifier:
 
 }
 
-// MARK: - AirPlay Notifications
-
-extension Notification.Name {
-    static let islandAirPlayWillPresent =
-        Notification.Name("IslandAirPlayWillPresent")
-
-    static let islandAirPlayDidEndPresenting =
-        Notification.Name("IslandAirPlayDidEndPresenting")
-}
-
-// MARK: - Output Picker Notifications
-
-extension Notification.Name {
-
-    static let islandOutputPickerWillPresent =
-        Notification.Name(
-            "IslandOutputPickerWillPresent"
-        )
-
-    static let islandOutputPickerDidDismiss =
-        Notification.Name(
-            "IslandOutputPickerDidDismiss"
-        )
-}

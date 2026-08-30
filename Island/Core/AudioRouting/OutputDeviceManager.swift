@@ -183,6 +183,7 @@ final class AudioOutputDeviceManager: ObservableObject {
         }
 
         switch transportType {
+
         case
             kAudioDeviceTransportTypeBuiltIn,
             kAudioDeviceTransportTypeUSB,
@@ -193,7 +194,9 @@ final class AudioOutputDeviceManager: ObservableObject {
             kAudioDeviceTransportTypeFireWire,
             kAudioDeviceTransportTypePCI,
             kAudioDeviceTransportTypeAVB:
+
             return true
+
         default:
             return false
         }

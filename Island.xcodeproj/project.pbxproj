@@ -33,6 +33,7 @@
 		00000000000000000010003F /* IslandNamespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000010003E /* IslandNamespace.swift */; };
 		A5326961303ED0D800EDDE1E /* MusicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5326960303ED0D800EDDE1E /* MusicIslandView.swift */; };
 		A532696A3040B21200EDDE1E /* MediaRemoteMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53269693040B21200EDDE1E /* MediaRemoteMusicService.swift */; };
+		A532698730440A5600EDDE1E /* OutputDevicePanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A532698630440A5000EDDE1E /* OutputDevicePanelController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +64,7 @@
 		00000000000000000010003E /* IslandNamespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandNamespace.swift; sourceTree = "<group>"; };
 		A5326960303ED0D800EDDE1E /* MusicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicIslandView.swift; sourceTree = "<group>"; };
 		A53269693040B21200EDDE1E /* MediaRemoteMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteMusicService.swift; sourceTree = "<group>"; };
+		A532698630440A5000EDDE1E /* OutputDevicePanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputDevicePanelController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -207,6 +209,7 @@
 		000000000000000000100047 /* WindowManager */ = {
 			isa = PBXGroup;
 			children = (
+				A532698630440A5000EDDE1E /* OutputDevicePanelController.swift */,
 				000000000000000000100022 /* IslandWindow.swift */,
 				000000000000000000100024 /* WindowManager.swift */,
 			);
@@ -337,6 +340,7 @@
 				00000000000000000010002F /* Waveform.swift in Sources */,
 				000000000000000000100031 /* AlbumArtView.swift in Sources */,
 				000000000000000000100033 /* PlaybackButton.swift in Sources */,
+				A532698730440A5600EDDE1E /* OutputDevicePanelController.swift in Sources */,
 				000000000000000000100035 /* ProgressBar.swift in Sources */,
 				000000000000000000100037 /* IslandShape.swift in Sources */,
 				000000000000000000100039 /* MusicCompactView.swift in Sources */,

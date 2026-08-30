@@ -35,6 +35,11 @@ struct IslandRootView: View {
     // Keeps the island expanded while the output-device picker is open.
     @State private var isOutputPickerOpen = false
 
+    // True only while the pointer is over the Island itself.
+    // This is separate from the picker state because moving into the
+    // picker necessarily makes the Island's hover region report false.
+    @State private var isPointerOverIsland = false
+
     // MARK: - Docking
 
     /// True while the island is tucked away at the top-center.
@@ -261,6 +266,29 @@ struct IslandRootView: View {
         ) { _ in
 
             isOutputPickerOpen = false
+
+            // The picker can disappear for two reasons:
+            // 1. the click was on the Island/menu interaction itself
+            // 2. the user clicked somewhere outside both surfaces.
+            //
+            // Only the second case should compact the Island.
+            guard !isPointerOverIsland else {
+                return
+            }
+
+            hoverWorkItem?.cancel()
+            hoverWorkItem = nil
+
+            isHovering = false
+            isPrimed = false
+
+            withAnimation(
+                AnimationTokens.shapeMorph(
+                    isExpanding: false
+                )
+            ) {
+                isExpanded = false
+            }
         }
 
         // ---------------------------------------------------------
@@ -479,6 +507,10 @@ struct IslandRootView: View {
         _ hovering: Bool
     ) {
 
+        // Always record whether the pointer is over the actual Island.
+        // This must happen before the picker guard below.
+        isPointerOverIsland = hovering
+
         // Never expand while docked.
         guard !isDocked else {
             return
@@ -487,7 +519,7 @@ struct IslandRootView: View {
         // The native/system-style output picker is a separate popover.
         // Moving the pointer into it temporarily leaves the island's
         // hover region, but the island must stay expanded.
-        if isOutputPickerOpen {
+        if isOutputPickerOpen && !hovering {
             return
         }
 
