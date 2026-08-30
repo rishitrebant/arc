@@ -232,8 +232,8 @@ struct MusicIslandView: View {
         // shrink of the same magnitude would just look like a glitch.
         let pausedShrink: CGFloat =
             isExpanded
-                ? 6
-                : 1
+                ? 10
+                : 2
 
         return uiIsPlaying
             ? base
@@ -2576,7 +2576,7 @@ struct MusicIslandView: View {
                 trigger: backwardSkipTrigger
             )
             .foregroundStyle(.white)
-            .frame(width: 40, height: 40)
+            .frame(width: 50, height: 50)
         }
         .buttonStyle(.plain)
         .contentShape(Circle())
@@ -2644,7 +2644,7 @@ struct MusicIslandView: View {
 
             size:
 
-                32
+                36
 
         )
 
@@ -2652,11 +2652,11 @@ struct MusicIslandView: View {
 
             width:
 
-                34,
+                38,
 
             height:
 
-                34
+                38
 
         )
 
@@ -2688,7 +2688,7 @@ struct MusicIslandView: View {
 
             duration:
 
-                0.25
+                0.14
 
         )
 
@@ -2741,7 +2741,7 @@ struct MusicIslandView: View {
                 trigger: forwardSkipTrigger
             )
             .foregroundStyle(.white)
-            .frame(width: 40, height: 40)
+            .frame(width: 50, height: 50)
         }
         .buttonStyle(.plain)
         .contentShape(Circle())
