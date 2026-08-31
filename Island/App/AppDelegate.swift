@@ -12,6 +12,9 @@ final class AppDelegate:
     private let windowManager =
         WindowManager()
 
+    private var menuBarController:
+        MenuBarController!
+
     private var musicActivity:
         MusicActivity!
 
@@ -30,39 +33,155 @@ final class AppDelegate:
             musicActivity
         )
 
-        createIslandOnMacBookScreen()
+        menuBarController =
+            MenuBarController()
+
+        menuBarController.onDisplayModeChanged =
+            { [weak self] in
+
+                self?.reconcileIslands()
+            }
+
+        windowManager.onScreensChanged =
+            { [weak self] in
+
+                self?.reconcileIslands()
+            }
+
+        reconcileIslands()
     }
 
-    private func createIslandOnMacBookScreen() {
+    // MARK: - Screen Selection
 
-        guard let macBookScreen =
-            NSScreen.screens.first(
-                where: { screen in
+    private var builtInScreen: NSScreen? {
 
-                    guard let screenNumber =
-                        screen.deviceDescription[
-                            NSDeviceDescriptionKey(
-                                "NSScreenNumber"
-                            )
-                        ] as? CGDirectDisplayID
+        NSScreen.screens.first { screen in
 
-                    else {
-                        return false
-                    }
+            guard let screenNumber =
+                screen.deviceDescription[
+                    NSDeviceDescriptionKey(
+                        "NSScreenNumber"
+                    )
+                ] as? CGDirectDisplayID
 
-                    return CGDisplayIsBuiltin(
-                        screenNumber
-                    ) != 0
-                }
+            else {
+                return false
+            }
+
+            return CGDisplayIsBuiltin(
+                screenNumber
+            ) != 0
+        }
+    }
+
+    private var externalScreens: [NSScreen] {
+
+        let builtInID =
+            builtInScreen.map(
+                ObjectIdentifier.init
             )
 
-        else {
-            return
+        return NSScreen.screens.filter { screen in
+
+            ObjectIdentifier(screen)
+                != builtInID
         }
+    }
+
+    /// Which physical screens should currently have an Island window,
+    /// per the user's `NotchDisplayMode` selection and whatever's
+    /// actually connected right now. A screen the user wants but that
+    /// isn't connected (e.g. `.externalOnly` with no external monitor
+    /// attached) simply contributes nothing — no window, no crash.
+    private func screensForCurrentMode() -> [NSScreen] {
+
+        switch NotchDisplayMode.current {
+
+        case .macBookOnly:
+
+            return builtInScreen.map { [$0] }
+                ?? []
+
+        case .externalOnly:
+
+            return externalScreens
+
+        case .both:
+
+            return (
+                builtInScreen.map { [$0] }
+                    ?? []
+            )
+                + externalScreens
+        }
+    }
+
+    // MARK: - Reconcile
+
+    /// Adds/removes Island windows so they exactly match
+    /// `screensForCurrentMode()`. Called at launch, whenever the user
+    /// changes `NotchDisplayMode` from the menu bar, and whenever macOS
+    /// reports a screen configuration change (monitor connected/
+    /// disconnected, lid closed/opened in clamshell mode, resolution
+    /// change).
+    ///
+    /// Deliberately diffs against a freshly computed desired set every
+    /// time, rather than trying to match old screens to new ones —
+    /// macOS can recreate `NSScreen` objects wholesale on a
+    /// reconfiguration, which would make stale `ObjectIdentifier`s
+    /// unreliable to compare directly. Anything not in the fresh
+    /// desired set gets torn down; anything in it that's missing gets
+    /// created. This is what actually fixes "the Island jumps to my
+    /// external monitor after closing the lid": previously, nothing
+    /// ever removed the window that used to belong to the (now
+    /// disconnected) built-in screen, so it just sat at its last known
+    /// coordinates — coordinates that can end up overlapping the
+    /// remaining external display once macOS recomputes the shared
+    /// screen coordinate space, and macOS's own "don't strand a window
+    /// fully offscreen" behavior was doing the rest.
+    private func reconcileIslands() {
+
+        let desiredScreens =
+            screensForCurrentMode()
+
+        let desiredIDs =
+            Set(
+                desiredScreens.map(
+                    ObjectIdentifier.init
+                )
+            )
+
+        for existingID in windowManager.presentedScreenIDs
+        where !desiredIDs.contains(existingID) {
+
+            windowManager.removeWindow(
+                for: existingID
+            )
+        }
+
+        for screen in desiredScreens {
+
+            let id =
+                ObjectIdentifier(screen)
+
+            guard !windowManager.presentedScreenIDs.contains(id)
+            else {
+                continue
+            }
+
+            presentIsland(
+                on: screen
+            )
+        }
+    }
+
+    private func presentIsland(
+        on screen: NSScreen
+    ) {
 
         let screenID =
             ObjectIdentifier(
-                macBookScreen
+                screen
             )
 
         let root =
@@ -101,7 +220,7 @@ final class AppDelegate:
         windowManager.present(
             root,
             for:
-                macBookScreen
+                screen
         )
     }
 }

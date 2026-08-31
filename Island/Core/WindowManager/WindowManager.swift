@@ -10,6 +10,12 @@ final class WindowManager {
     private var localMouseMonitor: Any?
     private var globalMouseMonitor: Any?
 
+    /// Fired after `screenParametersChanged` repositions surviving
+    /// windows — lets `AppDelegate` reconcile which screens should have
+    /// an Island window at all (a screen can disconnect, or the user's
+    /// `NotchDisplayMode` selection can change which ones are wanted).
+    var onScreensChanged: (() -> Void)?
+
     private var activeScreenID:
         ObjectIdentifier?
 
@@ -160,6 +166,14 @@ final class WindowManager {
 
     // MARK: - Monitor Changes
 
+    /// Screens that currently have a live Island window. `AppDelegate`
+    /// diffs its desired screen set against this to decide what to add
+    /// or remove — see `AppDelegate.reconcileIslands`.
+    var presentedScreenIDs: Set<ObjectIdentifier> {
+
+        Set(windows.keys)
+    }
+
     func removeAllWindows() {
 
         for window in windows.values {
@@ -173,6 +187,38 @@ final class WindowManager {
 
         activeScreenID =
             nil
+    }
+
+    /// Tears down the Island window for a single screen — the screen
+    /// disconnected, or the user's `NotchDisplayMode` no longer wants an
+    /// Island there.
+    func removeWindow(
+        for screenID: ObjectIdentifier
+    ) {
+
+        guard let window =
+            windows[screenID]
+        else {
+            return
+        }
+
+        window.orderOut(nil)
+
+        windows.removeValue(
+            forKey: screenID
+        )
+
+        dockedScreens.remove(
+            screenID
+        )
+
+        if activeScreenID == screenID {
+
+            activeScreenID =
+                nil
+        }
+
+        updateAllClickThroughStates()
     }
 
     func repositionAllWindows() {
@@ -318,6 +364,15 @@ final class WindowManager {
     private func screenParametersChanged() {
 
         repositionAllWindows()
+
+        // A screen may have connected/disconnected (e.g. the lid just
+        // closed and the built-in display dropped out of
+        // `NSScreen.screens` entirely). `repositionAllWindows()` only
+        // repositions windows that already exist — it never adds or
+        // removes any. `AppDelegate` owns that decision (it knows the
+        // user's `NotchDisplayMode`), so just let it know something
+        // changed.
+        onScreensChanged?()
     }
 
     // MARK: - Click Through
