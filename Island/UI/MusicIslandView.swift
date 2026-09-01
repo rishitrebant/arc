@@ -899,6 +899,50 @@ struct MusicIslandView: View {
 
             }
 
+            // ---------------------------------------------------------
+
+            // Same fix, for playback state.
+
+            //
+            // Without this, if music was already playing when the view
+            // mounted, `uiIsPlaying` stayed stuck at its `false`
+            // default — the icon showed paused, the waveform sat
+            // frozen, and the album art rendered at its paused size/
+            // opacity, all despite the song actually playing. It only
+            // self-corrected once `isPlaying` genuinely changed, or the
+            // user tapped play/pause — which is why toggling it once
+            // "fixed" everything.
+            // ---------------------------------------------------------
+
+            uiIsPlaying =
+
+                activity.playbackState?.isPlaying
+                    ?? false
+
+            // ---------------------------------------------------------
+
+            // Same fix again, for track identity.
+
+            //
+            // Without this, `lastTrackKey` stayed `""` past the first
+            // song, so the very next real track change — including the
+            // first forward/back tap — hit the "this must be the very
+            // first track" branch in the track-change handler below
+            // instead of the normal one. That branch sets the new
+            // artwork directly with no flip, and never arms
+            // `pendingTrackKey`, so the flip animation never had a
+            // chance to start.
+            // ---------------------------------------------------------
+
+            if lastTrackKey.isEmpty,
+               !trackKey.isEmpty {
+
+                lastTrackKey =
+
+                    trackKey
+
+            }
+
         }
 
         // MARK: Playback State
