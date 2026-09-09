@@ -18,49 +18,89 @@ struct DragCatchLayer: View {
 
     var body: some View {
 
-        Color.clear
-            .frame(
-                width: DesignTokens.FileDropMetrics.dragCatchZoneWidth,
-                height: DesignTokens.FileDropMetrics.dragCatchZoneHeight
-            )
-            .contentShape(Rectangle())
-            .onDrop(
-                of: [.fileURL],
-                isTargeted: Binding(
-                    get: { activity.isDragHovering },
-                    set: { hovering in
-                        if hovering {
-                            // Item count arrives async per-provider below;
-                            // start with what we know now so the panel
-                            // appears immediately rather than waiting.
-                            if !activity.isDragHovering {
-                                activity.dragEntered(itemCount: 1)
-                            }
-                        } else {
-                            activity.dragExited()
-                        }
-                    }
-                )
-            ) { providers in
+        ZStack {
 
-                loadURLs(from: providers) { urls in
-                    guard !urls.isEmpty else { return }
-                    // A plain drop on the catch zone (not on either tile
-                    // inside the expanded panel) defaults to the shelf —
-                    // the lower-commitment of the two actions.
-                    activity.dropOnShelf(urls: urls)
-                }
-
-                return true
+            // Per direct request: "a glow should appear near the notch
+            // as soon as the file is brought to it" — immediate, before
+            // the full panel commits to showing half a second later.
+            // Lives here rather than in `FileDropIslandView` for the
+            // same reason the drop target itself does: this layer is
+            // always present, even while Music still owns the island.
+            if activity.isDragNear {
+                notchGlow
+                    .transition(.opacity)
             }
+
+            Color.clear
+                .frame(
+                    width: DesignTokens.FileDropMetrics.dragCatchZoneWidth,
+                    height: DesignTokens.FileDropMetrics.dragCatchZoneHeight
+                )
+                .contentShape(Rectangle())
+                .onDrop(
+                    of: [.fileURL],
+                    isTargeted: Binding(
+                        get: { activity.isDragNear },
+                        set: { near in
+                            if near {
+                                if !activity.isDragNear {
+                                    // Item count arrives async per-provider
+                                    // below; start with what we know now so
+                                    // the glow appears immediately rather
+                                    // than waiting.
+                                    activity.dragEntered(itemCount: 1)
+                                }
+                            } else {
+                                activity.dragExited()
+                            }
+                        }
+                    )
+                ) { providers in
+
+                    resolveDroppedFiles(from: providers) { files in
+                        guard !files.isEmpty else { return }
+                        activity.dropOnShelf(files: files)
+                    }
+
+                    return true
+                }
+        }
+        .animation(.easeOut(duration: 0.2), value: activity.isDragNear)
+    }
+
+    private var notchGlow: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [
+                        Color.white.opacity(0.35),
+                        Color.white.opacity(0)
+                    ],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 70
+                )
+            )
+            .frame(width: 140, height: 140)
+            .blur(radius: 8)
+            .allowsHitTesting(false)
     }
 }
 
+/// One file resolved from a drag session — its now-persisted URL
+/// (see `ShelfFileStore`) alongside its real display name.
+struct DroppedFile {
+    let url: URL
+    let displayName: String
+}
+
 /// Shared by `DragCatchLayer` and the two tiles inside the expanded
-/// drag-choice panel — resolves `NSItemProvider`s to file `URL`s.
-func loadURLs(
+/// drag-choice panel — resolves `NSItemProvider`s to file URLs AND
+/// copies each into `ShelfFileStore`'s managed temp directory (see
+/// `ShelfItem`'s doc comment for why a bare reference isn't enough).
+func resolveDroppedFiles(
     from providers: [NSItemProvider],
-    completion: @escaping ([URL]) -> Void
+    completion: @escaping ([DroppedFile]) -> Void
 ) {
 
     guard !providers.isEmpty else {
@@ -68,7 +108,7 @@ func loadURLs(
         return
     }
 
-    var resolved: [URL] = []
+    var resolved: [DroppedFile] = []
     let group = DispatchGroup()
 
     for provider in providers {
@@ -78,6 +118,8 @@ func loadURLs(
 
         group.enter()
 
+        let suggestedName = provider.suggestedName
+
         provider.loadItem(
             forTypeIdentifier: UTType.fileURL.identifier
         ) { item, _ in
@@ -86,8 +128,9 @@ func loadURLs(
             // queue, and can do so for multiple providers concurrently —
             // mutating `resolved` from more than one thread at once would
             // be a real data race, not just untidy. Funnel every mutation
-            // through the main queue so appends are always serialized.
-            let url: URL? = {
+            // (and the copy itself) through the main queue so it's always
+            // serialized.
+            let sourceURL: URL? = {
                 if let data = item as? Data {
                     return URL(dataRepresentation: data, relativeTo: nil)
                 } else if let url = item as? URL {
@@ -97,8 +140,17 @@ func loadURLs(
             }()
 
             DispatchQueue.main.async {
-                if let url {
-                    resolved.append(url)
+                if let sourceURL,
+                   let persisted = ShelfFileStore.persist(
+                       sourceURL: sourceURL,
+                       suggestedName: suggestedName
+                   ) {
+                    resolved.append(
+                        DroppedFile(
+                            url: persisted.url,
+                            displayName: persisted.displayName
+                        )
+                    )
                 }
                 group.leave()
             }

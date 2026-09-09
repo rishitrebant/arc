@@ -17,6 +17,8 @@ final class AnyActivity: Identifiable {
     private let _islandView: (Bool) -> AnyView
     private let _didBecomeActive: () -> Void
     private let _didResignActive: () -> Void
+    private let _compactSize: () -> CGSize
+    private let _expandedSize: () -> CGSize
 
     init<A: Activity>(_ activity: A) {
         self.kind = A.kind
@@ -25,6 +27,8 @@ final class AnyActivity: Identifiable {
         self._islandView = { isExpanded in AnyView(activity.islandView(isExpanded: isExpanded)) }
         self._didBecomeActive = { activity.didBecomeActive() }
         self._didResignActive = { activity.didResignActive() }
+        self._compactSize = { activity.compactSize }
+        self._expandedSize = { activity.expandedSize }
     }
 
     var isActive: Bool { _isActive() }
@@ -37,4 +41,6 @@ final class AnyActivity: Identifiable {
     func islandView(isExpanded: Bool) -> AnyView { _islandView(isExpanded) }
     func didBecomeActive() { _didBecomeActive() }
     func didResignActive() { _didResignActive() }
+    var compactSize: CGSize { _compactSize() }
+    var expandedSize: CGSize { _expandedSize() }
 }

@@ -160,4 +160,12 @@ extension Notification.Name {
         Notification.Name(
             "IslandOutputPickerDidDismiss"
         )
+
+    /// Posted by `WindowManager` when the user clicks anywhere outside
+    /// every screen's expanded island rect while something is
+    /// currently expanded — see `WindowManager.handlePotentialOutsideClick`.
+    static let islandRequestCollapse =
+        Notification.Name(
+            "IslandRequestCollapse"
+        )
 }

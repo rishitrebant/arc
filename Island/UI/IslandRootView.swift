@@ -291,6 +291,31 @@ struct IslandRootView: View {
             }
         }
 
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .islandRequestCollapse
+            )
+        ) { _ in
+
+            // Per direct request: clicking anywhere else on screen
+            // should collapse the expanded island. Reuses the exact
+            // same collapse logic as the output-picker-dismiss case
+            // right above — same reasoning applies here too.
+            hoverWorkItem?.cancel()
+            hoverWorkItem = nil
+
+            isHovering = false
+            isPrimed = false
+
+            withAnimation(
+                AnimationTokens.shapeMorph(
+                    isExpanding: false
+                )
+            ) {
+                isExpanded = false
+            }
+        }
+
         // ---------------------------------------------------------
         // CLICK TO EXPAND / UNDOCK
         // ---------------------------------------------------------

@@ -14,12 +14,23 @@ import Foundation
 enum ActivityKind: Int, Comparable, CaseIterable {
     case incomingCall = 0
     case activeCall = 1
-    case music = 2
-    case bluetooth = 3
-    case airDrop = 4
-    case downloads = 5
-    case focus = 6
-    case timer = 7
+
+    /// The "bring a file to the notch" shelf/AirDrop-sending activity.
+    /// Deliberately placed above `music` — dragging a file to the notch
+    /// (or having items sitting in the shelf) should take the island away
+    /// from whatever Music is showing, and hand it back automatically
+    /// once the shelf/drag interaction ends, per `ActivityManager`'s
+    /// existing "activities return naturally" arbitration. Everything
+    /// below shifted down by one to make room; nothing else about their
+    /// relative order changed.
+    case fileDrop = 2
+
+    case music = 3
+    case bluetooth = 4
+    case airDrop = 5
+    case downloads = 6
+    case focus = 7
+    case timer = 8
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

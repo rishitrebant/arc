@@ -37,6 +37,7 @@
 		A53269893044144900EDDE1E /* SkipChevronsIcon_NEW.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53269883044144900EDDE1E /* SkipChevronsIcon_NEW.swift */; };
 		A532698B3045C7F600EDDE1E /* NotchDisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A532698A3045C7F600EDDE1E /* NotchDisplayMode.swift */; };
 		A532698D3045C81500EDDE1E /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A532698C3045C81500EDDE1E /* MenuBarController.swift */; };
+		A59D587A30489E0800C9C957 /* DragCatchLayer_NEW.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59D587930489E0800C9C957 /* DragCatchLayer_NEW.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +72,7 @@
 		A53269883044144900EDDE1E /* SkipChevronsIcon_NEW.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipChevronsIcon_NEW.swift; sourceTree = "<group>"; };
 		A532698A3045C7F600EDDE1E /* NotchDisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchDisplayMode.swift; sourceTree = "<group>"; };
 		A532698C3045C81500EDDE1E /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		A59D587930489E0800C9C957 /* DragCatchLayer_NEW.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragCatchLayer_NEW.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -98,6 +100,7 @@
 		A532696B3040B9F700EDDE1E /* Vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A53269733040BCBC00EDDE1E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, A53269753041639F00EDDE1E /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Vendor; sourceTree = "<group>"; };
 		A5326977304309F600EDDE1E /* AudioRouting */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AudioRouting; sourceTree = "<group>"; };
 		A532698230430A5100EDDE1E /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
+		A59D587B30489F0800C9C957 /* FileDrop */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FileDrop; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -179,6 +182,7 @@
 		000000000000000000100043 /* Activities */ = {
 			isa = PBXGroup;
 			children = (
+				A59D587B30489F0800C9C957 /* FileDrop */,
 				000000000000000000100049 /* Music */,
 			);
 			path = Activities;
@@ -221,6 +225,7 @@
 				A532698630440A5000EDDE1E /* OutputDevicePanelController.swift */,
 				000000000000000000100022 /* IslandWindow.swift */,
 				000000000000000000100024 /* WindowManager.swift */,
+				A59D587930489E0800C9C957 /* DragCatchLayer_NEW.swift */,
 			);
 			path = WindowManager;
 			sourceTree = "<group>";
@@ -276,6 +281,7 @@
 				A532696B3040B9F700EDDE1E /* Vendor */,
 				A5326977304309F600EDDE1E /* AudioRouting */,
 				A532698230430A5100EDDE1E /* Views */,
+				A59D587B30489F0800C9C957 /* FileDrop */,
 			);
 			name = Island;
 			productName = Island;
@@ -349,6 +355,7 @@
 				000000000000000000100029 /* MusicService.swift in Sources */,
 				00000000000000000010002B /* HardcodedMusicService.swift in Sources */,
 				00000000000000000010002D /* MusicActivity.swift in Sources */,
+				A59D587A30489E0800C9C957 /* DragCatchLayer_NEW.swift in Sources */,
 				00000000000000000010002F /* Waveform.swift in Sources */,
 				000000000000000000100031 /* AlbumArtView.swift in Sources */,
 				000000000000000000100033 /* PlaybackButton.swift in Sources */,

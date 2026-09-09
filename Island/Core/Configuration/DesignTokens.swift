@@ -15,6 +15,35 @@ import SwiftUI
 /// for real design values the moment they exist.
 enum DesignTokens {
 
+    // MARK: - Shared Canvas Size
+    //
+    // Every activity's outer view reports THIS size, always, regardless
+    // of its own actual content size — never its own compact/expanded
+    // size directly. That's deliberate: the underlying AppKit window is
+    // fixed and never resizes (resizing it live is where the
+    // parent-recentering flakiness came from, fixed earlier for Music's
+    // own compact↔expanded morph specifically). Each activity instead
+    // self-positions its actual visible content within this unchanging
+    // frame — same technique, just now shared across activities instead
+    // of hardcoded per-activity.
+    //
+    // Must be at least as large as the largest content any activity
+    // will ever show. Currently: Music's expanded size (390×200) sets
+    // the width; FileDrop's "has items" expanded size (367×225, added
+    // for the Shelf/AirDrop button reveal) sets the height.
+    static var sharedCanvasSize: CGSize {
+        CGSize(
+            width: max(
+                MusicMetrics.expandedWidth,
+                FileDropMetrics.expandedWithItemsWidth
+            ),
+            height: max(
+                MusicMetrics.expandedHeight,
+                FileDropMetrics.expandedWithItemsHeight
+            )
+        )
+    }
+
     // MARK: - Color (derived — no hex values were provided in the source files)
 
     enum Color {
@@ -75,7 +104,7 @@ enum DesignTokens {
         static let waveformBarSpacing: CGFloat = 1.83
 
         // Expanded
-        static let expandedWidth: CGFloat = 390 
+        static let expandedWidth: CGFloat = 390
         static let expandedHeight: CGFloat = 200 // was 188
 
         static let expandedEdgePadding: CGFloat = 22
@@ -120,6 +149,81 @@ enum DesignTokens {
         static let expandedHeight: CGFloat = 158        // measured
         static let avatarSize: CGFloat = 50             // measured
         static let controlSpacing: CGFloat = 25         // measured
+    }
+
+    // MARK: - File drop metrics (shelf + AirDrop-sending)
+    //
+    // The drag-hover panel (two side-by-side tiles — shelf on the left,
+    // AirDrop on the right) is measured, from the "file drop
+    // shelf-airdrop.png" export. The persistent shelf compact/expanded
+    // sizes have no Figma yet — derived, deliberately kept close to
+    // MusicMetrics' own proportions so the island doesn't visibly change
+    // "weight" switching between activities. Swap for real measurements
+    // the moment they exist.
+
+    enum FileDropMetrics {
+
+        /// How generous the AppKit-level drag-catch hit-region is,
+        /// independent of (and much wider than) the visible pill —
+        /// dragging a file doesn't need pixel-precision the way clicking
+        /// the pill does. Per direct request: "generous." Height bumped
+        /// from an earlier, tighter 60 — a narrow strip made the
+        /// half-second "hold near the notch" glow phase genuinely hard
+        /// to complete without a brief wobble resetting it (see
+        /// `FileDropActivity.dragExited`'s debounce for the other half
+        /// of that fix).
+        static let dragCatchZoneWidth: CGFloat = 600       // derived
+        static let dragCatchZoneHeight: CGFloat = 90       // derived
+
+        // Compact — deliberately NOT independent constants. Per direct
+        // question ("why doesn't the compact size match Music's?"): the
+        // two were always numerically equal (263×29 both), but sharing
+        // `MusicMetrics`' actual constants directly — rather than two
+        // separate constants that merely happened to agree — is what
+        // keeps that true by construction instead of by coincidence.
+        static var compactWidth: CGFloat { DesignTokens.MusicMetrics.compactWidth }
+        static var compactHeight: CGFloat = 33
+
+        /// Before anything's been dropped yet (drag is hovering, or
+        /// nothing's happened at all) — no Shelf/AirDrop buttons at this
+        /// size, just the plain drop target. Measured, from the earlier
+        /// "file drop shelf-airdrop.png" export.
+        static let expandedEmptyWidth: CGFloat = 315
+        static let expandedEmptyHeight: CGFloat = 158
+
+        /// Once at least one file has actually been dropped — taller,
+        /// to fit the Shelf/AirDrop button row at the bottom. Per direct
+        /// request: buttons aren't visible until this point, and the
+        /// island grows smoothly into this size when they appear.
+        /// Measured, from the newer reference image.
+        static let expandedWithItemsWidth: CGFloat = 367
+        static let expandedWithItemsHeight: CGFloat = 225
+
+        static let dropZoneCornerRadius: CGFloat = 24       // derived
+
+        /// Nothing should render inside this rectangle, centered
+        /// horizontally at the top of the expanded panel — it's where
+        /// the physical notch cutout actually sits. Per direct
+        /// measurement. Note this doesn't match `compactWidth`'s own
+        /// notch-derivation above (179) — that's Music's compact-pill
+        /// measurement, a different context/scale than this expanded
+        /// panel's; using the number given for THIS panel specifically
+        /// rather than assuming the two should agree.
+        static let notchKeepClearWidth: CGFloat = 210
+        static let notchKeepClearHeight: CGFloat = 32
+
+        static let shelfItemSize: CGFloat = 64              // same as MusicMetrics.albumArtSize
+        static let shelfItemCornerRadius: CGFloat = 16
+        static let shelfGridSpacing: CGFloat = 14
+        static let shelfGridPadding: CGFloat = 22           // matches MusicMetrics.expandedEdgePadding
+
+        // Bottom Shelf/AirDrop button row — only shown once the shelf
+        // has items, per direct reference image. Colors are my own
+        // approximation of that reference (a plain gray pill and a
+        // navy-tinted one with light-blue text), not measured hex
+        // values — swap if they're off.
+        static let bottomButtonHeight: CGFloat = 40         // derived
+        static let bottomButtonSpacing: CGFloat = 10        // derived
     }
 
     // MARK: - Hover affordance shadow (new — additive only, nothing above

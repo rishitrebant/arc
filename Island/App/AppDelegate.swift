@@ -18,6 +18,17 @@ final class AppDelegate:
     private var musicActivity:
         MusicActivity!
 
+    private var fileDropActivity:
+        FileDropActivity!
+
+    /// Held onto only because `NSSharingServicePicker` doesn't manage
+    /// its own lifetime the way a normal Cocoa control does — nothing
+    /// else references it once `show(relativeTo:of:preferredEdge:)`
+    /// returns, so a local variable would deallocate before the user
+    /// gets to interact with it.
+    private var activeSharingPicker:
+        NSSharingServicePicker?
+
     func applicationDidFinishLaunching(
         _ notification: Notification
     ) {
@@ -32,6 +43,68 @@ final class AppDelegate:
         activityManager.register(
             musicActivity
         )
+
+        fileDropActivity =
+            FileDropActivity()
+
+        fileDropActivity.presentAirDropPicker =
+            { [weak self] urls in
+
+                self?.presentAirDropSharingPicker(
+                    for: urls
+                )
+            }
+
+        activityManager.register(
+            fileDropActivity
+        )
+
+        windowManager.currentContentSize =
+            { [weak self] in
+
+                let owned =
+                    self?.activityManager.ownedActivity
+
+                let fallbackCompact =
+                    CGSize(
+                        width: DesignTokens.MusicMetrics.compactWidth,
+                        height: DesignTokens.MusicMetrics.compactHeight
+                    )
+
+                let fallbackExpanded =
+                    CGSize(
+                        width: DesignTokens.MusicMetrics.expandedWidth,
+                        height: DesignTokens.MusicMetrics.expandedHeight
+                    )
+
+                return (
+                    owned?.compactSize ?? fallbackCompact,
+                    owned?.expandedSize ?? fallbackExpanded
+                )
+            }
+
+        // Fixes the panel-disappears-mid-drag and unclickable-reveal
+        // bugs — see `WindowManager.currentActivityIsForcingExpanded`'s
+        // doc comment for the full explanation.
+        windowManager.currentActivityIsForcingExpanded =
+            { [weak self] in
+
+                guard let self else { return false }
+
+                return self.fileDropActivity.isDragHovering
+                    || self.fileDropActivity.isShowingFreshReveal
+            }
+
+        // Per direct request: clicking anywhere else on screen should
+        // collapse the expanded island. `IslandRootView` handles its
+        // own hover-driven `isExpanded` via the `.islandRequestCollapse`
+        // notification `WindowManager` posts; `FileDropActivity` isn't
+        // a SwiftUI view, so it needs this direct call instead.
+        windowManager.onOutsideClickWhileFileDropExpanded =
+            { [weak self] in
+
+                self?.fileDropActivity.dismissExpandedState()
+            }
 
         menuBarController =
             MenuBarController()
@@ -49,6 +122,31 @@ final class AppDelegate:
             }
 
         reconcileIslands()
+    }
+
+    private func presentAirDropSharingPicker(
+        for urls: [URL]
+    ) {
+
+        guard let anchor =
+            windowManager.airDropAnchor()
+        else {
+            return
+        }
+
+        let picker =
+            NSSharingServicePicker(
+                items: urls
+            )
+
+        activeSharingPicker =
+            picker
+
+        picker.show(
+            relativeTo: anchor.rect,
+            of: anchor.view,
+            preferredEdge: .minY
+        )
     }
 
     // MARK: - Screen Selection
@@ -217,8 +315,24 @@ final class AppDelegate:
                     }
             )
 
+        // `DragCatchLayer` is what actually promotes `fileDropActivity`
+        // to ownership in the first place, so it has to exist here,
+        // alongside `root`, always — not inside whatever `root` happens
+        // to be rendering via `activityManager.ownedActivity` at any
+        // given moment (which, before a drag starts, is Music). See
+        // `DragCatchLayer`'s own doc comment.
+        let combined =
+            ZStack(alignment: .top) {
+
+                DragCatchLayer(
+                    activity: fileDropActivity
+                )
+
+                root
+            }
+
         windowManager.present(
-            root,
+            combined,
             for:
                 screen
         )
