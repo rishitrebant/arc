@@ -131,16 +131,20 @@ struct FileDropIslandView: View {
     // FileDrop ones — per direct request, this is what keeps left/right
     // placement identical to Music's compact layout by construction.
 
-    private var compactHorizontalInset: CGFloat {
-        (canvasSize.width - DesignTokens.FileDropMetrics.compactWidth) / 2
-    }
-
     private var compactRow: some View {
 
         ZStack {
 
             // LEFT — most recently added file's preview, where Music
-            // shows album art.
+            // shows album art. Local coordinates only, no extra
+            // centering offset — `compactRow` already renders inside a
+            // frame that's exactly `visibleSize` (263 wide) and is
+            // already centered within the shared 390-wide canvas by the
+            // `.offset(x: horizontalInset)` wrapper around it in `body`.
+            // Adding a SECOND centering offset here (the removed
+            // `compactHorizontalInset` term) double-counted that shift —
+            // which is exactly what put this icon under the notch
+            // instead of to its left.
             if let item = activity.shelfItems.last {
                 fileIcon(for: item.url)
                     .frame(
@@ -152,20 +156,19 @@ struct FileDropIslandView: View {
                         NSItemProvider(contentsOf: item.url) ?? NSItemProvider()
                     }
                     .position(
-                        x: compactHorizontalInset
-                            + DesignTokens.MusicMetrics.compactEdgePadding
+                        x: DesignTokens.MusicMetrics.compactEdgePadding
                             + DesignTokens.MusicMetrics.compactIconSize / 2,
                         y: DesignTokens.MusicMetrics.compactContentCenterY
                     )
             }
 
             // RIGHT — static shelf logo, where Music shows the waveform.
+            // Same fix — local coordinates only.
             Image(systemName: "tray.fill")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(DesignTokens.Color.secondaryText)
                 .position(
-                    x: compactHorizontalInset
-                        + DesignTokens.FileDropMetrics.compactWidth
+                    x: DesignTokens.FileDropMetrics.compactWidth
                         - DesignTokens.MusicMetrics.compactEdgePadding
                         - DesignTokens.MusicMetrics.compactIconSize / 2,
                     y: DesignTokens.MusicMetrics.compactContentCenterY
