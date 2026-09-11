@@ -163,6 +163,15 @@ enum DesignTokens {
 
     enum FileDropMetrics {
 
+        /// The physical notch itself — per direct measurement. Used for
+        /// the glow's positioning (it should visually originate from
+        /// the notch's own bottom edge), distinct from
+        /// `notchKeepClearWidth/Height` below (that one includes extra
+        /// margin for the expanded panel's content layout; this is the
+        /// bare, exact hardware dimension).
+        static let notchWidth: CGFloat = 179
+        static let notchHeight: CGFloat = 27
+
         /// How generous the AppKit-level drag-catch hit-region is,
         /// independent of (and much wider than) the visible pill —
         /// dragging a file doesn't need pixel-precision the way clicking
@@ -216,6 +225,15 @@ enum DesignTokens {
         static let shelfItemCornerRadius: CGFloat = 16
         static let shelfGridSpacing: CGFloat = 14
         static let shelfGridPadding: CGFloat = 22           // matches MusicMetrics.expandedEdgePadding
+
+        /// True vertical center of the compact pill (29pt tall), used
+        /// instead of `MusicMetrics.compactContentCenterY` (20) — that
+        /// constant isn't actually a geometric center, it's a value
+        /// tuned specifically for how Music's album art (with its own
+        /// shadow/visual weight) reads best; reusing it here is what
+        /// made these plain icons sit visibly low. This activity's own
+        /// icons get true center instead.
+        static var compactContentCenterY: CGFloat { compactHeight / 2 }
 
         // Bottom Shelf/AirDrop button row — only shown once the shelf
         // has items, per direct reference image. Colors are my own

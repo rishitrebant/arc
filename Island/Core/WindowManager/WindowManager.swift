@@ -588,7 +588,7 @@ final class WindowManager {
             // the two real bugs that came from relying on hover alone.
             // ---------------------------------------------------------
 
-            let activeRect =
+            var activeRect =
                 activeRectOnScreen(
                     for:
                         window,
@@ -597,6 +597,48 @@ final class WindowManager {
                         activeScreenID == id
                         || currentActivityIsForcingExpanded()
                 )
+
+            // ---------------------------------------------------------
+            // FIX: compact hover area inflating to the expanded size.
+            //
+            // `IslandRootView`'s own SwiftUI `.onHover` covers its full
+            // reported size — the fixed shared canvas (390×225), NOT
+            // just the small true compact pill (263×29) sitting inside
+            // it. That's normally harmless, because `ignoresMouseEvents`
+            // only ever goes false within the small `activeRect` anyway
+            // — SwiftUI never gets a chance to notice the cursor at all
+            // outside it. But the drag-catch zone widens
+            // `ignoresMouseEvents` across a much bigger area (600×90)
+            // while dragging, which DOES give `IslandRootView`'s
+            // full-canvas hover a chance to fire for cursor positions
+            // that are within the drag-catch zone but outside the true
+            // compact pill — setting `activeScreenID`. That can then
+            // get stuck: once the drag ends and `ignoresMouseEvents`
+            // reverts to true, the OS may stop delivering events to the
+            // window before SwiftUI ever gets a matching hover-EXIT
+            // callback, leaving `activeScreenID` permanently set and
+            // the hover area permanently expanded-sized.
+            //
+            // Self-heals here: if `activeScreenID` claims this screen
+            // is hovered, but that's not backed by a genuine forced
+            // expansion AND the cursor isn't actually inside the
+            // resulting rect, it's stale — clear it and recompute
+            // compact. Runs on every mouse-move, so this corrects
+            // itself within one movement after a drag ends.
+            // ---------------------------------------------------------
+
+            if activeScreenID == id,
+               !currentActivityIsForcingExpanded(),
+               !activeRect.contains(cursor) {
+
+                activeScreenID = nil
+
+                activeRect =
+                    activeRectOnScreen(
+                        for: window,
+                        isExpanded: currentActivityIsForcingExpanded()
+                    )
+            }
 
             let shouldInteract =
                 activeRect.contains(cursor)

@@ -18,7 +18,7 @@ struct DragCatchLayer: View {
 
     var body: some View {
 
-        ZStack {
+        ZStack(alignment: .top) {
 
             // Per direct request: "a glow should appear near the notch
             // as soon as the file is brought to it" — immediate, before
@@ -34,6 +34,19 @@ struct DragCatchLayer: View {
             Color.clear
                 .frame(
                     width: DesignTokens.FileDropMetrics.dragCatchZoneWidth,
+                    // Deliberately kept at the narrow initial height
+                    // (90pt), not grown to the full panel size — an
+                    // earlier attempt at that caused a real regression:
+                    // this view is always present in the window,
+                    // including while Music owns the island, and
+                    // growing its own interactive footprint that much
+                    // risked interfering with Music's own controls
+                    // sitting in the same window. The "loses tracking
+                    // once the panel is deeper than 90pt" bug this was
+                    // trying to fix is handled in `FileDropIslandView`
+                    // instead — that view (and its own `.onDrop`) only
+                    // exists at all while FileDrop already owns the
+                    // island, so it can never overlap with Music.
                     height: DesignTokens.FileDropMetrics.dragCatchZoneHeight
                 )
                 .contentShape(Rectangle())
@@ -68,21 +81,28 @@ struct DragCatchLayer: View {
         .animation(.easeOut(duration: 0.2), value: activity.isDragNear)
     }
 
+    // "Projected from the notch, below" — per direct request, not a
+    // plain symmetric glow. A soft, top-to-bottom fading shape whose
+    // TOP edge sits flush against the notch's own bottom edge (27pt,
+    // per direct measurement), extending downward from there and
+    // fading out — reads as light spilling down FROM the notch, rather
+    // than a blob that happens to surround it on all sides (including
+    // above, where there's nothing to glow from).
     private var notchGlow: some View {
-        Circle()
+        Ellipse()
             .fill(
-                RadialGradient(
+                LinearGradient(
                     colors: [
-                        Color.white.opacity(0.35),
+                        Color.white.opacity(0.45),
                         Color.white.opacity(0)
                     ],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: 70
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
             )
-            .frame(width: 140, height: 140)
-            .blur(radius: 8)
+            .frame(width: 230, height: 100)
+            .blur(radius: 12)
+            .offset(y: DesignTokens.FileDropMetrics.notchHeight - 40)
             .allowsHitTesting(false)
     }
 }

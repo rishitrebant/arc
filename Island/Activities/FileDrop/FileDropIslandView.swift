@@ -110,11 +110,45 @@ struct FileDropIslandView: View {
         // bool), so it needs its own animation trigger to actually
         // animate smoothly rather than snap. Per direct request: "the
         // island expanding smoothly" when the buttons appear.
-        .animation(AnimationTokens.shapeMorph(isExpanding: true), value: activity.shelfItems.isEmpty)
+        //
+        // FIX: this used to hardcode `isExpanding: true` regardless of
+        // the actual direction — correct for the empty→has-items growth
+        // this was built for, but wrong for the reverse (e.g. hitting
+        // the trash button while the panel's open empties the shelf,
+        // which is a SHRINK, not a grow). Using the wrong direction's
+        // curve/timing (`AnimationTokens.shapeMorph` uses genuinely
+        // different timing for each) on the same underlying geometry
+        // that the trigger above is ALSO animating is exactly the kind
+        // of mismatch that produces glitchy, inconsistent-looking
+        // motion — a very plausible contributor to the reported
+        // "closes/opens on the X axis only" symptom. Using
+        // `effectiveExpanded` here too keeps both triggers pointed at
+        // the same, correct direction always.
+        .animation(AnimationTokens.shapeMorph(isExpanding: effectiveExpanded), value: activity.shelfItems.isEmpty)
         .animation(.easeOut(duration: 0.15), value: isTargetedForDrop)
         .onDrop(
             of: [.fileURL],
-            isTargeted: $isTargetedForDrop
+            isTargeted: Binding(
+                get: { isTargetedForDrop },
+                set: { targeted in
+                    isTargetedForDrop = targeted
+                    if targeted {
+                        // Keeps the drag state alive while the cursor is
+                        // anywhere within this (much taller, once
+                        // expanded) panel. Safe to do here specifically
+                        // — this view only exists at all while FileDrop
+                        // already owns the island, so it can never
+                        // overlap with Music. Without this,
+                        // `DragCatchLayer`'s own much smaller 90pt catch
+                        // strip would lose the drag the moment the
+                        // cursor moved deeper into the panel, even
+                        // though it never actually left the visible,
+                        // interactive area — that's what was causing
+                        // the panel to repeatedly collapse mid-drag.
+                        activity.dragEntered(itemCount: activity.draggedItemCount)
+                    }
+                }
+            )
         ) { providers in
             resolveDroppedFiles(from: providers) { files in
                 guard !files.isEmpty else { return }
@@ -126,10 +160,12 @@ struct FileDropIslandView: View {
 
     // MARK: - Compact
     //
-    // Positioned with Music's OWN constants (`compactEdgePadding`,
-    // `compactIconSize`, `compactContentCenterY`), not independent
-    // FileDrop ones — per direct request, this is what keeps left/right
-    // placement identical to Music's compact layout by construction.
+    // X positions use Music's OWN constants (`compactEdgePadding`,
+    // `compactIconSize`) — per direct request, this keeps left/right
+    // placement identical to Music's compact layout by construction. Y
+    // uses THIS activity's own `compactContentCenterY` (true geometric
+    // center) instead — see that constant's doc comment for why
+    // reusing Music's own Y value doesn't apply here.
 
     private var compactRow: some View {
 
@@ -158,7 +194,7 @@ struct FileDropIslandView: View {
                     .position(
                         x: DesignTokens.MusicMetrics.compactEdgePadding
                             + DesignTokens.MusicMetrics.compactIconSize / 2,
-                        y: DesignTokens.MusicMetrics.compactContentCenterY
+                        y: DesignTokens.FileDropMetrics.compactContentCenterY
                     )
             }
 
@@ -171,7 +207,7 @@ struct FileDropIslandView: View {
                     x: DesignTokens.FileDropMetrics.compactWidth
                         - DesignTokens.MusicMetrics.compactEdgePadding
                         - DesignTokens.MusicMetrics.compactIconSize / 2,
-                    y: DesignTokens.MusicMetrics.compactContentCenterY
+                    y: DesignTokens.FileDropMetrics.compactContentCenterY
                 )
         }
     }
@@ -301,6 +337,11 @@ struct FileDropIslandView: View {
             }
             .padding(DesignTokens.FileDropMetrics.shelfGridPadding)
         }
+        // Only actually scrolls once the grid genuinely overflows the
+        // available space — no bounce/rubber-band feel for a handful
+        // of items that already fit, which is what made this feel
+        // "unnecessarily scrollable."
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     private func shelfItemView(_ item: ShelfItem) -> some View {
