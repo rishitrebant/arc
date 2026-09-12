@@ -582,63 +582,73 @@ final class WindowManager {
             // ---------------------------------------------------------
             // NORMAL
             //
-            // `isExpanded` here is deliberately NOT just
-            // `activeScreenID == id` (plain SwiftUI hover) anymore —
-            // see `currentActivityIsForcingExpanded`'s doc comment for
-            // the two real bugs that came from relying on hover alone.
-            // ---------------------------------------------------------
-
-            var activeRect =
-                activeRectOnScreen(
-                    for:
-                        window,
-
-                    isExpanded:
-                        activeScreenID == id
-                        || currentActivityIsForcingExpanded()
-                )
-
-            // ---------------------------------------------------------
-            // FIX: compact hover area inflating to the expanded size.
+            // FIX: hover area inflating and getting stuck oversized.
             //
             // `IslandRootView`'s own SwiftUI `.onHover` covers its full
             // reported size — the fixed shared canvas (390×225), NOT
             // just the small true compact pill (263×29) sitting inside
-            // it. That's normally harmless, because `ignoresMouseEvents`
-            // only ever goes false within the small `activeRect` anyway
-            // — SwiftUI never gets a chance to notice the cursor at all
-            // outside it. But the drag-catch zone widens
-            // `ignoresMouseEvents` across a much bigger area (600×90)
-            // while dragging, which DOES give `IslandRootView`'s
-            // full-canvas hover a chance to fire for cursor positions
-            // that are within the drag-catch zone but outside the true
-            // compact pill — setting `activeScreenID`. That can then
-            // get stuck: once the drag ends and `ignoresMouseEvents`
-            // reverts to true, the OS may stop delivering events to the
-            // window before SwiftUI ever gets a matching hover-EXIT
-            // callback, leaving `activeScreenID` permanently set and
-            // the hover area permanently expanded-sized.
+            // it. The drag-catch zone widens `ignoresMouseEvents` across
+            // a much bigger area (600×90) while dragging, which can give
+            // that oversized `.onHover` a chance to fire and set
+            // `activeScreenID` from a cursor position nowhere near the
+            // true pill. A PREVIOUS fix here only cleared that
+            // afterward, once the cursor moved outside the resulting
+            // (still-too-large) rect — but if the cursor just stays
+            // anywhere within that wider area, which is quite likely
+            // near the notch, that check never fires and the hover
+            // stays stuck oversized indefinitely.
             //
-            // Self-heals here: if `activeScreenID` claims this screen
-            // is hovered, but that's not backed by a genuine forced
-            // expansion AND the cursor isn't actually inside the
-            // resulting rect, it's stale — clear it and recompute
-            // compact. Runs on every mouse-move, so this corrects
-            // itself within one movement after a drag ends.
+            // Replaced with something authoritative instead: computed
+            // fresh from geometry on every single mouse-move, never
+            // trusting whatever `activeScreenID` was set to by anything
+            // else beforehand. "Start" hovering requires the cursor to
+            // genuinely be inside the small compact rect — never the
+            // wider drag-catch or full-canvas areas. Once genuinely
+            // started, it's allowed to "stay" expanded as long as the
+            // cursor remains inside the resulting larger rect (so
+            // moving into the expanded controls to interact with them
+            // still works normally) — but it can never be ENTERED any
+            // other way. Since this runs every movement, it also
+            // instantly overrides any stale/spurious value `setHoverActive`
+            // may have set moments earlier, rather than just reacting
+            // to it after the fact.
             // ---------------------------------------------------------
 
-            if activeScreenID == id,
-               !currentActivityIsForcingExpanded(),
-               !activeRect.contains(cursor) {
+            let compactRect =
+                activeRectOnScreen(for: window, isExpanded: false)
+
+            let wasAlreadyHoverExpanded =
+                activeScreenID == id
+
+            let previouslyExpandedRect =
+                wasAlreadyHoverExpanded
+                    ? activeRectOnScreen(for: window, isExpanded: true)
+                    : .zero
+
+            if compactRect.contains(cursor) {
+
+                activeScreenID = id
+
+            } else if wasAlreadyHoverExpanded,
+                      previouslyExpandedRect.contains(cursor) {
+
+                // Stay expanded — cursor is still within the larger
+                // "peek" area. `activeScreenID` is already `id`;
+                // nothing to change.
+
+            } else if activeScreenID == id,
+                      !currentActivityIsForcingExpanded() {
 
                 activeScreenID = nil
-
-                activeRect =
-                    activeRectOnScreen(
-                        for: window,
-                        isExpanded: currentActivityIsForcingExpanded()
-                    )
             }
+
+            let activeRect =
+                activeRectOnScreen(
+                    for: window,
+                    isExpanded:
+                        activeScreenID == id
+                        || currentActivityIsForcingExpanded()
+                )
 
             let shouldInteract =
                 activeRect.contains(cursor)
