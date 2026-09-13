@@ -47,7 +47,7 @@ final class MusicActivity: ObservableObject {
     // is new; nothing else in this file changed.
     // ---------------------------------------------------------------
     private var pauseGraceTimer: DispatchWorkItem?
-    private static let pauseGracePeriod: TimeInterval = 8
+    private static let pauseGracePeriod: TimeInterval = 20
 
     /// Set by `AppDelegate` — lets the pause-hide timer check whether
     /// the island is currently being hovered before actually hiding.

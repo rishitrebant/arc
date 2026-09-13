@@ -143,8 +143,9 @@ struct IslandRootView: View {
         //
         // This is the ONLY animation added for the new feature.
         //
-        // The island grows/shrinks horizontally around its exact
-        // centre.
+        // The island grows/shrinks from the notch (top-center),
+        // matching the compact<->expand morph's anchor, instead of
+        // popping in at full height from the center of the screen.
         //
         // No opacity animation.
         // No layout animation.
@@ -161,10 +162,12 @@ struct IslandRootView: View {
                     : 0.001,
 
             y:
-                1,
+                isPresentationVisible
+                    ? 1
+                    : 0.001,
 
             anchor:
-                .center
+                .top
         )
 
         .animation(
@@ -734,11 +737,15 @@ struct IslandRootView: View {
         // ---------------------------------------------------------
         // EXISTING DOCK BEHAVIOUR.
         //
-        // NO ENTER/EXIT ANIMATION HERE.
-        //
-        // Docking is deliberately kept separate from activity
-        // ownership animation.
+        // Collapse the presentation scale back down to the notch
+        // (opacity is already snapping to 0 via `isDocked`, so this
+        // isn't visible) so that undocking has a collapsed state to
+        // grow back out from, matching ownership enter/exit and
+        // startup.
         // ---------------------------------------------------------
+
+        isPresentationVisible =
+            false
 
         isDocked =
             true
@@ -780,14 +787,30 @@ struct IslandRootView: View {
             false
 
         // ---------------------------------------------------------
-        // The island was still rendered while docked.
+        // The island was still rendered while docked, collapsed
+        // to the notch (see `dock()`).
         //
-        // Bring it back at full size exactly as before.
-        //
-        // No new entrance animation is applied to undocking.
+        // Reveal it (opacity/offset become visible immediately),
+        // then grow it back out from the notch on the next
+        // main-loop turn — same as ownership ENTER and startup —
+        // so undocking reads as one continuous surface attached
+        // to the notch rather than a separate snap-into-place.
         // ---------------------------------------------------------
 
-        isPresentationVisible =
-            true
+        presentationWorkItem?.cancel()
+        presentationWorkItem = nil
+
+        DispatchQueue.main.async {
+
+            guard
+                !isDocked,
+                renderedActivity != nil
+            else {
+                return
+            }
+
+            isPresentationVisible =
+                true
+        }
     }
 }

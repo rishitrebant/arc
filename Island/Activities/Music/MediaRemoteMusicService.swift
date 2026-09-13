@@ -79,7 +79,88 @@ final class MediaRemoteMusicService:
         return path
     }
 
+    /// Time of the last successfully-parsed adapter event that was
+    /// actually applied to `currentState`.
+    ///
+    /// Added to fix a play/pause desync: MediaRemote's private stream
+    /// can occasionally deliver an event LATE (e.g. right after you
+    /// pause in Apple Music directly). If that late "still playing"
+    /// message arrives after we've already applied a newer, correct
+    /// "paused" message, it silently clobbers the display back to the
+    /// wrong state. Each payload carries its own `timestamp`, so we
+    /// use it to drop out-of-order messages instead of trusting
+    /// arrival order.
+    private var lastAppliedEventDate:
+        Date?
+
+    /// A handful of known timestamp shapes the adapter might emit for
+    /// the (non-`--micros`) `timestamp` field. We don't control the
+    /// compiled framework's exact format, so we try each in turn and
+    /// simply skip the staleness check if none match — never block a
+    /// real update just because we couldn't parse its time.
+    private static let adapterTimestampFormatters:
+        [DateFormatter] = {
+
+        let cocoaStyle =
+            DateFormatter()
+        cocoaStyle.dateFormat =
+            "yyyy-MM-dd HH:mm:ss Z"
+        cocoaStyle.locale =
+            Locale(identifier: "en_US_POSIX")
+
+        let cocoaStyleFractional =
+            DateFormatter()
+        cocoaStyleFractional.dateFormat =
+            "yyyy-MM-dd HH:mm:ss.SSS Z"
+        cocoaStyleFractional.locale =
+            Locale(identifier: "en_US_POSIX")
+
+        return [
+            cocoaStyleFractional,
+            cocoaStyle
+        ]
+    }()
+
+    private static let adapterISO8601Formatter:
+        ISO8601DateFormatter = {
+
+        let formatter =
+            ISO8601DateFormatter()
+        formatter.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds
+        ]
+        return formatter
+    }()
+
+    private func parseAdapterTimestamp(
+        _ raw: String?
+    ) -> Date? {
+
+        guard
+            let raw,
+            !raw.isEmpty
+        else {
+            return nil
+        }
+
+        if let date =
+            Self.adapterISO8601Formatter.date(from: raw) {
+            return date
+        }
+
+        for formatter in Self.adapterTimestampFormatters {
+
+            if let date = formatter.date(from: raw) {
+                return date
+            }
+        }
+
+        return nil
+    }
+
     // MARK: - Playback State
+
 
     /// Current supported music state shown by the island.
     private var currentState:
@@ -198,6 +279,9 @@ final class MediaRemoteMusicService:
 
         playbackRate =
             0
+
+        lastAppliedEventDate =
+            nil
 
         stateSubject.send(
             nil
@@ -740,6 +824,47 @@ final class MediaRemoteMusicService:
         app:
             MusicApp
     ) {
+
+        // -------------------------------------------------------------
+        // STALE EVENT GUARD
+        //
+        // MediaRemote's private stream can occasionally deliver an
+        // event late — e.g. the "still playing" notification arriving
+        // just after we've already processed a newer "paused" one
+        // from a direct pause in Apple Music. Applying it anyway would
+        // silently snap the display back to the wrong state until the
+        // next real change corrects it.
+        //
+        // If we can parse this payload's own timestamp and it's
+        // OLDER than the last event we actually applied, skip it.
+        // Unparseable timestamps fail open (checked as before) rather
+        // than risk blocking a legitimate update.
+        // -------------------------------------------------------------
+
+        let eventDate =
+            parseAdapterTimestamp(
+                payload.timestamp
+            )
+
+        if
+            let eventDate,
+            let lastAppliedEventDate,
+            eventDate < lastAppliedEventDate
+        {
+
+            print(
+                "⏮️ Ignoring stale/out-of-order music event"
+                + " (\(eventDate) before \(lastAppliedEventDate))."
+            )
+
+            return
+        }
+
+        if let eventDate {
+
+            lastAppliedEventDate =
+                eventDate
+        }
 
         let duration =
             max(
