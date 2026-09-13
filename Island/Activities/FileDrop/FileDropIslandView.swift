@@ -26,27 +26,11 @@ struct FileDropIslandView: View {
 
     @State private var isTargetedForDrop = false
 
-    /// A gentler morph than `AnimationTokens.shapeMorph` — that one is
-    /// tuned for Music's own compact↔expanded swing (263×29 ↔ 390×200).
-    /// FileDrop's is more dramatic (263×29 ↔ up to 367×225 — nearly
-    /// 200pt of height alone), and a spring tuned for Music's smaller
-    /// swing covers FileDrop's much larger one in the same nominal time
-    /// — which means covering more visual distance per second, reading
-    /// as an abrupt snap ("closing like a door") rather than a smooth
-    /// retraction back into the notch. Same spring shape (damping),
-    /// just a longer response so the larger distance still feels
-    /// settled rather than rushed. Scoped to this file only — Music's
-    /// own morph is untouched.
-    private static let morphSpring =
-        Animation.spring(response: 0.34, dampingFraction: 0.88)
-
-    private static let collapseDelay: TimeInterval = 0.06
-
-    private func fileDropMorph(isExpanding: Bool) -> Animation {
-        isExpanding
-            ? Self.morphSpring
-            : Self.morphSpring.delay(Self.collapseDelay)
-    }
+    /// Per direct request: use the exact same morph as Music's own
+    /// compact↔expanded transition, rather than a custom-tuned variant
+    /// — a previous attempt at a "gentler" spring for FileDrop's larger
+    /// size swing is reverted here in favor of literally matching
+    /// `AnimationTokens.shapeMorph`, used directly below.
 
     /// `isExpanded` alone only reflects hover — IslandRootView has no
     /// idea a drop just happened, or that a drag has committed to
@@ -124,7 +108,7 @@ struct FileDropIslandView: View {
             .offset(x: horizontalInset, y: 0)
         }
         .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
-        .animation(fileDropMorph(isExpanding: effectiveExpanded), value: effectiveExpanded)
+        .animation(AnimationTokens.shapeMorph(isExpanding: effectiveExpanded), value: effectiveExpanded)
         // Separate trigger, deliberately — the empty→has-items size
         // change (315×158 → 367×225, revealing the Shelf/AirDrop
         // buttons) can happen while `effectiveExpanded` is ALREADY true
@@ -146,7 +130,7 @@ struct FileDropIslandView: View {
         // "closes/opens on the X axis only" symptom. Using
         // `effectiveExpanded` here too keeps both triggers pointed at
         // the same, correct direction always.
-        .animation(fileDropMorph(isExpanding: effectiveExpanded), value: activity.shelfItems.isEmpty)
+        .animation(AnimationTokens.shapeMorph(isExpanding: effectiveExpanded), value: activity.shelfItems.isEmpty)
         .animation(.easeOut(duration: 0.15), value: isTargetedForDrop)
         .onDrop(
             of: [.fileURL],

@@ -65,6 +65,15 @@ final class WindowManager {
     private var activeScreenID:
         ObjectIdentifier?
 
+    /// Whether any screen currently has genuine hover-driven expansion
+    /// active. Exposed so activities (via `AppDelegate`) can check
+    /// whether the island is currently being interacted with before
+    /// auto-hiding themselves — e.g. `MusicActivity`'s pause-hide timer,
+    /// per direct request: never close while the cursor is on it.
+    var isAnyScreenCurrentlyHovered: Bool {
+        activeScreenID != nil
+    }
+
     /// Screens whose island is currently docked.
     ///
     /// The window remains alive, but its visible island is hidden.

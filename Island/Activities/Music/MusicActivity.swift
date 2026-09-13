@@ -49,6 +49,15 @@ final class MusicActivity: ObservableObject {
     private var pauseGraceTimer: DispatchWorkItem?
     private static let pauseGracePeriod: TimeInterval = 8
 
+    /// Set by `AppDelegate` — lets the pause-hide timer check whether
+    /// the island is currently being hovered before actually hiding.
+    /// Per direct request: never close while the cursor is on it, even
+    /// paused. Defaults to `false` so nothing changes if this is never
+    /// wired up.
+    var isIslandCurrentlyHovered: () -> Bool = { false }
+
+    private static let hoverRecheckInterval: TimeInterval = 1
+
     init(
         service:
             MusicService =
@@ -111,19 +120,37 @@ final class MusicActivity: ObservableObject {
             // is loaded — but a short grace period first, so a quick
             // pause/skip/scrub doesn't cause a visible flash of hiding
             // and immediately reappearing.
-            let work =
-                DispatchWorkItem { [weak self] in
-                    self?.setActive(false)
-                }
-
-            pauseGraceTimer =
-                work
-
-            DispatchQueue.main.asyncAfter(
-                deadline: .now() + Self.pauseGracePeriod,
-                execute: work
-            )
+            scheduleHideCheck(after: Self.pauseGracePeriod)
         }
+    }
+
+    /// Separate from `handle(_:)` so it can call itself — per direct
+    /// request, the island should never close while the cursor is on
+    /// it, even paused. Once the initial grace period elapses, if
+    /// still hovered, this just checks again shortly instead of hiding
+    /// — repeating until either hover ends (hides right away) or a
+    /// real state change cancels this entirely (e.g. play resumes,
+    /// which `handle(_:)` already cancels `pauseGraceTimer` for).
+    private func scheduleHideCheck(after delay: TimeInterval) {
+
+        let work =
+            DispatchWorkItem { [weak self] in
+                guard let self else { return }
+
+                if self.isIslandCurrentlyHovered() {
+                    self.scheduleHideCheck(after: Self.hoverRecheckInterval)
+                } else {
+                    self.setActive(false)
+                }
+            }
+
+        pauseGraceTimer =
+            work
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + delay,
+            execute: work
+        )
     }
 
     private func setActive(

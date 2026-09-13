@@ -40,6 +40,14 @@ final class AppDelegate:
         musicActivity =
             MusicActivity()
 
+        // Per direct request: never auto-hide the paused island while
+        // the cursor is on it.
+        musicActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
         activityManager.register(
             musicActivity
         )
