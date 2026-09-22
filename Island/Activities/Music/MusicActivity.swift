@@ -113,6 +113,7 @@ final class MusicActivity: ObservableObject {
             // way, no need to wait.
             setActive(false)
 
+    
         } else {
 
             // Paused, but a track is still loaded. Per direct request:

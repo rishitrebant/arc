@@ -53,6 +53,8 @@ enum DesignTokens {
         static let callAccent = SwiftUI.Color(red: 0.20, green: 0.84, blue: 0.29)      // derived — green
         static let downloadsAccent = SwiftUI.Color.white                               // measured (white icon in DND/AirDrop crumb)
         static let focusAccent = SwiftUI.Color(red: 0.58, green: 0.44, blue: 0.86)     // derived — purple
+        static let airDropAccent = SwiftUI.Color(red: 0.29, green: 0.62, blue: 0.98)   // derived — matches the reference screenshots' blue; not a measured hex value
+        static let shelfWellBackground = SwiftUI.Color(red: 0.22, green: 0.22, blue: 0.23)  // derived — eyeballed from the shelf reference screenshot, not a measured hex value
 
         static let islandBackground = SwiftUI.Color.black                              // measured — pure black surface
         static let primaryText = SwiftUI.Color(white: 1.0)                             // measured — #FFFFFF
@@ -225,6 +227,7 @@ enum DesignTokens {
         static let shelfItemCornerRadius: CGFloat = 16
         static let shelfGridSpacing: CGFloat = 14
         static let shelfGridPadding: CGFloat = 22           // matches MusicMetrics.expandedEdgePadding
+        static let shelfWellCornerRadius: CGFloat = 22       // derived — eyeballed from the shelf reference screenshot
 
         /// True vertical center of the compact pill (29pt tall), used
         /// instead of `MusicMetrics.compactContentCenterY` (20) — that
@@ -242,6 +245,46 @@ enum DesignTokens {
         // values — swap if they're off.
         static let bottomButtonHeight: CGFloat = 40         // derived
         static let bottomButtonSpacing: CGFloat = 10        // derived
+    }
+
+    // MARK: - AirDrop metrics (measured, from the three AirDrop reference
+    // screenshots — compact pill, expanded panel, completion checkmark)
+    //
+    // Both states are their own directly-measured numbers, not
+    // derived/reused from Music or FileDrop's own constants — AirDrop's
+    // proportions genuinely differ (259 compact width vs Music's 263, 33
+    // compact height vs Music's 29).
+
+    enum AirDropMetrics {
+
+        /// Icon + ring are both 20pt, 10pt in from the pill's outer edge
+        /// and 10pt in from the notch on the inner side — per direct
+        /// measurement (10 + 20 + 10 = 40 per flank; 40 + notchWidth(179)
+        /// + 40 = 259).
+        static let compactWidth: CGFloat = 259
+        static let compactHeight: CGFloat = 33
+        static let compactIconSize: CGFloat = 20
+        static let compactEdgePadding: CGFloat = 10
+        static var compactContentCenterY: CGFloat { compactHeight / 2 }
+
+        /// Icons are 42pt, 16pt in from the outer edge, 19pt from the
+        /// middle title/subtitle block — per direct measurement
+        /// (16 + 42 + 19 = 77 per flank).
+        static let expandedWidth: CGFloat = 312
+        static let expandedHeight: CGFloat = 74
+        static let expandedIconSize: CGFloat = 42
+        static let expandedEdgePadding: CGFloat = 16
+        static let expandedIconToTextGap: CGFloat = 19
+
+        /// Progress ring stroke — derived, not present in the reference
+        /// exports; proportioned to read clearly at both the 20pt
+        /// compact and 42pt expanded ring sizes.
+        static let ringLineWidth: CGFloat = 2.5
+
+        /// Completion checkmark — matches the third reference image (a
+        /// solid black circle, thin light stroke, white checkmark).
+        /// Shown only at compact size, per direct confirmation.
+        static let checkmarkStrokeOpacity: Double = 0.9
     }
 
     // MARK: - Hover affordance shadow (new — additive only, nothing above

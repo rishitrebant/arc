@@ -108,10 +108,12 @@ struct DragCatchLayer: View {
 }
 
 /// One file resolved from a drag session — its now-persisted URL
-/// (see `ShelfFileStore`) alongside its real display name.
+/// (see `ShelfFileStore`) alongside its real display name and where it
+/// lived before being moved onto the shelf.
 struct DroppedFile {
     let url: URL
     let displayName: String
+    let originalURL: URL
 }
 
 /// Shared by `DragCatchLayer` and the two tiles inside the expanded
@@ -168,7 +170,8 @@ func resolveDroppedFiles(
                     resolved.append(
                         DroppedFile(
                             url: persisted.url,
-                            displayName: persisted.displayName
+                            displayName: persisted.displayName,
+                            originalURL: persisted.originalURL
                         )
                     )
                 }

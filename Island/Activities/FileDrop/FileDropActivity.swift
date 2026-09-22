@@ -151,6 +151,7 @@ final class FileDropActivity: ObservableObject {
         let newItems = files.map {
             ShelfItem(
                 url: $0.url,
+                originalURL: $0.originalURL,
                 displayName: $0.displayName,
                 addedAt: now,
                 expiresAt: expiresAt
@@ -181,7 +182,40 @@ final class FileDropActivity: ObservableObject {
         presentAirDropPicker?(shelfItems.map(\.url))
     }
 
+    /// Discards an item WITHOUT it ever being exported elsewhere — the
+    /// X button on an individual item, the trash button (via
+    /// `clearShelf`), and natural expiry (`scheduleExpiry`) all end up
+    /// here. Per direct request: this restores the file to wherever it
+    /// came from rather than deleting it outright — the shelf holds
+    /// files, it doesn't consume them, unless you actually drag one out
+    /// somewhere new (`completeExport`, below). Falls back to a plain
+    /// delete only if the restore itself can't succeed.
     func removeShelfItem(_ id: UUID) {
+
+        guard let item = shelfItems.first(where: { $0.id == id }) else {
+            return
+        }
+
+        shelfItems.removeAll { $0.id == id }
+
+        expiryTimers[id]?.invalidate()
+        expiryTimers[id] = nil
+
+        if !ShelfFileStore.restore(shelfURL: item.url, to: item.originalURL) {
+            ShelfFileStore.remove(item.url)
+        }
+
+        publishActive()
+    }
+
+    /// Called once a shelf item has actually been delivered somewhere
+    /// NEW via drag-out (see `ShelfItemDragSource`'s completion
+    /// callback). Deliberately separate from `removeShelfItem` — that
+    /// one restores the file to its original spot, which would be
+    /// wrong here: the whole point of a successful drag-out was moving
+    /// the file to wherever it just landed, so this only cleans up the
+    /// now-redundant shelf copy.
+    func completeExport(_ id: UUID) {
 
         guard let item = shelfItems.first(where: { $0.id == id }) else {
             return
@@ -198,12 +232,16 @@ final class FileDropActivity: ObservableObject {
     }
 
     /// The red trash button — "discard the shelf." Clears everything at
-    /// once, distinct from `removeShelfItem`'s one-at-a-time delete.
+    /// once, distinct from `removeShelfItem`'s one-at-a-time delete —
+    /// but the same restore-don't-just-delete behavior applies to each
+    /// item, per direct request.
     func clearShelf() {
 
         for item in shelfItems {
             expiryTimers[item.id]?.invalidate()
-            ShelfFileStore.remove(item.url)
+            if !ShelfFileStore.restore(shelfURL: item.url, to: item.originalURL) {
+                ShelfFileStore.remove(item.url)
+            }
         }
 
         expiryTimers.removeAll()

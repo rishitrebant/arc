@@ -3,7 +3,12 @@ import Foundation
 /// One file currently sitting in the shelf.
 ///
 /// Holds a COPY of the dropped file, in `ShelfFileStore`'s managed temp
-/// directory — not just a reference to wherever it was dragged from.
+/// directory — not just a reference to wherever it was dragged from. Per
+/// direct request, `ShelfFileStore.persist` also deletes the original
+/// source after this copy succeeds, so in practice the file MOVES onto
+/// the shelf rather than being duplicated — but the shelf's own copy
+/// remains the thing this type actually points at either way, which is
+/// what the rest of this doc comment is about.
 ///
 /// That's a reversal from the original plan (a bare `URL` reference,
 /// matching how NotchDrop does it) — worth being upfront about why.
@@ -17,12 +22,22 @@ import Foundation
 /// and garbled "f546...g.jpeg"-style filename this was built to avoid.
 /// Copying costs a moment of disk I/O and briefly duplicates the file,
 /// but the copy is cleaned up automatically (`ShelfFileStore.remove`)
-/// the moment the item expires or is deleted, so it's never a real leak.
+/// the moment the item is exported elsewhere, so it's never a real leak.
 struct ShelfItem: Identifiable, Equatable {
     let id = UUID()
 
     /// Our own persisted copy — see `ShelfFileStore.persist`.
     let url: URL
+
+    /// Where this file lived before it was moved onto the shelf. Per
+    /// direct request: discarding an item (the trash button, the X on
+    /// an individual item, or it simply expiring) without ever
+    /// dragging it out somewhere restores it HERE instead of deleting
+    /// it outright — see `FileDropActivity.removeShelfItem`. Only a
+    /// genuine drag-out to a new destination (`FileDropActivity.
+    /// completeExport`) skips the restore, since the whole point of
+    /// that action was moving the file there instead.
+    let originalURL: URL
 
     /// Captured at drop time, from the drag's own suggested name where
     /// available — NOT derived from `url`'s filename, which carries a
@@ -41,8 +56,9 @@ struct ShelfItem: Identifiable, Equatable {
 }
 
 /// Where dropped files actually live while they're in the shelf, and
-/// the copy/cleanup logic around that — see `ShelfItem`'s doc comment
-/// for why this copies rather than just keeping a reference.
+/// the copy/cleanup/restore logic around that — see `ShelfItem`'s doc
+/// comment for why this copies (then deletes the original) rather than
+/// just keeping a reference.
 enum ShelfFileStore {
 
     static let directory: URL = {
@@ -55,14 +71,17 @@ enum ShelfFileStore {
     }()
 
     /// Copies `sourceURL` into our managed temp directory, returning
-    /// the new stable URL alongside a display name. `suggestedName`
-    /// (from the drag's `NSItemProvider`, when available) is preferred
-    /// over `sourceURL`'s own filename, since for promise-based drags
-    /// that filename is usually the garbled temp one, not the original.
+    /// the new stable URL alongside a display name AND `sourceURL`
+    /// itself (as `originalURL`) — callers keep that around so a later
+    /// discard can restore the file there instead of deleting it. See
+    /// `ShelfItem.originalURL`'s doc comment. `suggestedName` (from the
+    /// drag's `NSItemProvider`, when available) is preferred over
+    /// `sourceURL`'s own filename, since for promise-based drags that
+    /// filename is usually the garbled temp one, not the original.
     static func persist(
         sourceURL: URL,
         suggestedName: String?
-    ) -> (url: URL, displayName: String)? {
+    ) -> (url: URL, displayName: String, originalURL: URL)? {
 
         let displayName = suggestedName ?? sourceURL.lastPathComponent
         let destination = directory.appendingPathComponent(
@@ -74,9 +93,80 @@ enum ShelfFileStore {
                 try FileManager.default.removeItem(at: destination)
             }
             try FileManager.default.copyItem(at: sourceURL, to: destination)
-            return (destination, displayName)
+
+            // Per direct request: dropping a file onto the shelf now
+            // REMOVES it from wherever it was dragged from, rather than
+            // leaving a duplicate behind — the shelf becomes its only
+            // home while it's there. Best-effort and silent on failure
+            // by design: for a promise-backed drag (screenshots, browser
+            // images — see `ShelfItem`'s doc comment above)
+            // `sourceURL` is Cocoa's own disposable temp file, so
+            // deleting it is harmless either way; for a real Finder file
+            // this is the actual intended removal. If it can't be
+            // deleted for any reason (permissions, already gone), the
+            // shelf still has its own copy — this never blocks or fails
+            // the drop itself. Note `sourceURL` is still returned as
+            // `originalURL` regardless of whether this delete actually
+            // succeeded — `restore` below re-creates the parent folder
+            // if needed, so a later restore can still work even if this
+            // particular delete failed (silently) or the folder gets
+            // removed and recreated in the meantime.
+            try? FileManager.default.removeItem(at: sourceURL)
+
+            return (destination, displayName, sourceURL)
         } catch {
             return nil
+        }
+    }
+
+    /// Moves the shelf's copy BACK to `originalURL` — used when an item
+    /// is discarded (trashed, individually deleted, or expired) without
+    /// ever being exported elsewhere. Best-effort: recreates the
+    /// original parent folder if it's gone, and falls back to a
+    /// "(restored)" suffix once if something already occupies the exact
+    /// original path (never overwrites an unrelated file that's since
+    /// taken that name). Returns whether the restore actually
+    /// succeeded — callers should fall back to `remove(_:)` if not, so
+    /// a shelf item is never left stuck with nowhere to go.
+    static func restore(
+        shelfURL: URL,
+        to originalURL: URL
+    ) -> Bool {
+
+        let fileManager = FileManager.default
+
+        try? fileManager.createDirectory(
+            at: originalURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        var destination = originalURL
+
+        if fileManager.fileExists(atPath: destination.path) {
+
+            let ext = originalURL.pathExtension
+            let base = originalURL.deletingPathExtension().lastPathComponent
+            let fallbackName = ext.isEmpty
+                ? "\(base) (restored)"
+                : "\(base) (restored).\(ext)"
+
+            destination = originalURL
+                .deletingLastPathComponent()
+                .appendingPathComponent(fallbackName)
+
+            guard !fileManager.fileExists(atPath: destination.path) else {
+                // Even the fallback name is taken — give up rather than
+                // overwrite something unrelated. Caller falls back to
+                // deleting the shelf copy instead.
+                return false
+            }
+        }
+
+        do {
+            try fileManager.moveItem(at: shelfURL, to: destination)
+            return true
+        } catch {
+            return false
         }
     }
 

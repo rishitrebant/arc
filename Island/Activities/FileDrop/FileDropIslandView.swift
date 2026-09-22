@@ -194,9 +194,11 @@ struct FileDropIslandView: View {
                         height: DesignTokens.MusicMetrics.compactIconSize
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    .onDrag {
-                        NSItemProvider(contentsOf: item.url) ?? NSItemProvider()
-                    }
+                    .overlay(
+                        ShelfItemDragSource(item: item) { id in
+                            activity.completeExport(id)
+                        }
+                    )
                     .position(
                         x: DesignTokens.MusicMetrics.compactEdgePadding
                             + DesignTokens.MusicMetrics.compactIconSize / 2,
@@ -230,10 +232,7 @@ struct FileDropIslandView: View {
                 .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
 
             // Top-right trash — "discard the shelf" — only shown once
-            // there's something TO discard. No header text anymore
-            // (matches the newer reference image, which has no title
-            // row at all — just the notch gap, content area, then the
-            // button row at the very bottom).
+            // there's something TO discard.
             if !activity.shelfItems.isEmpty {
                 HStack {
                     Spacer()
@@ -248,11 +247,37 @@ struct FileDropIslandView: View {
                 }
                 .padding(.horizontal, DesignTokens.FileDropMetrics.shelfGridPadding)
                 .padding(.top, 6)
+                .padding(.bottom, 6)
             }
 
-            if activity.shelfItems.isEmpty {
+            // The inset "well" — per direct request, gives the
+            // content area its own distinct rounded surface instead of
+            // sitting flush against the panel's own black background.
+            // Wraps BOTH the empty-state placeholder and the populated
+            // grid, so the panel always has this same chrome regardless
+            // of content.
+            wellContent
+                .padding(.horizontal, DesignTokens.FileDropMetrics.shelfGridPadding)
+                .padding(.top, activity.shelfItems.isEmpty ? 6 : 0)
+                .padding(.bottom, activity.shelfItems.isEmpty ? 16 : 0)
 
-                Spacer()
+            if !activity.shelfItems.isEmpty {
+
+                // Per direct request, not visible at all until this
+                // point; this whole branch only exists once there's at
+                // least one item, and the smooth grow into the taller
+                // canvas size that makes room for it is handled by the
+                // `.animation` keyed to `shelfItems.isEmpty` up in
+                // `body`.
+                bottomActionRow
+            }
+        }
+    }
+
+    private var wellContent: some View {
+
+        Group {
+            if activity.shelfItems.isEmpty {
 
                 VStack(spacing: 8) {
                     Image(systemName: "tray.and.arrow.down")
@@ -261,22 +286,21 @@ struct FileDropIslandView: View {
                         .font(.system(size: 12))
                 }
                 .foregroundStyle(DesignTokens.Color.secondaryText)
-
-                Spacer()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             } else {
 
                 shelfGrid
-
-                // The Shelf/AirDrop button row — per direct request,
-                // not visible at all until this point; this whole
-                // branch only exists once there's at least one item,
-                // and the smooth grow into the taller canvas size that
-                // makes room for it is handled by the `.animation`
-                // keyed to `shelfItems.isEmpty` up in `body`.
-                bottomActionRow
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(
+                cornerRadius: DesignTokens.FileDropMetrics.shelfWellCornerRadius,
+                style: .continuous
+            )
+            .fill(DesignTokens.Color.shelfWellBackground)
+        )
     }
 
     private var bottomActionRow: some View {
@@ -298,7 +322,7 @@ struct FileDropIslandView: View {
                     .frame(height: DesignTokens.FileDropMetrics.bottomButtonHeight)
                     .background(
                         Capsule()
-                            .fill(Color.white.opacity(0.12))
+                            .fill(Color(red: 0.27, green: 0.27, blue: 0.28))  // derived — eyeballed from the shelf reference screenshot
                     )
             }
             .buttonStyle(.plain)
@@ -369,15 +393,18 @@ struct FileDropIslandView: View {
                         .fill(Color.white.opacity(0.08))
                     )
                     // Drag back OUT to anywhere — Finder, another app,
-                    // the Desktop. `NSItemProvider(contentsOf:)` hands
-                    // over our own persisted copy (see `ShelfFileStore`),
-                    // which is exactly what makes this safe to do even
-                    // after the shelf later expires and deletes its
-                    // copy — that's a separate, later event, not this
-                    // drag.
-                    .onDrag {
-                        NSItemProvider(contentsOf: item.url) ?? NSItemProvider()
-                    }
+                    // the Desktop. Backed by a real AppKit drag source
+                    // (see `ShelfItemDragSource`) rather than SwiftUI's
+                    // `.onDrag`, which can't drive a file promise. Uses
+                    // `completeExport`, NOT `removeShelfItem` — the file
+                    // was actually delivered to this new destination, so
+                    // it shouldn't also be restored to where it
+                    // originally came from.
+                    .overlay(
+                        ShelfItemDragSource(item: item) { id in
+                            activity.completeExport(id)
+                        }
+                    )
 
                 // Delete affordance — removes our own copy from the
                 // shelf (see `ShelfFileStore`); has no effect on
