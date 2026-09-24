@@ -88,11 +88,28 @@ enum ShelfFileStore {
             UUID().uuidString + "-" + displayName
         )
 
+        // Captured BEFORE the copy/delete below — `copyItem` doesn't
+        // reliably carry these over on its own (creation date in
+        // particular is usually reset to "now" by the copy itself).
+        // Per direct request: a file shouldn't jump to the top of a
+        // date-sorted folder just because it spent time on the shelf,
+        // so these get explicitly re-applied to our shelf copy right
+        // after the copy, and read back off that same copy later to
+        // re-apply again on restore (see `restore`, below).
+        let originalAttributes =
+            try? FileManager.default.attributesOfItem(atPath: sourceURL.path)
+
         do {
             if FileManager.default.fileExists(atPath: destination.path) {
                 try FileManager.default.removeItem(at: destination)
             }
             try FileManager.default.copyItem(at: sourceURL, to: destination)
+
+            if let dates = dateAttributes(from: originalAttributes) {
+                try? FileManager.default.setAttributes(
+                    dates, ofItemAtPath: destination.path
+                )
+            }
 
             // Per direct request: dropping a file onto the shelf now
             // REMOVES it from wherever it was dragged from, rather than
@@ -164,10 +181,55 @@ enum ShelfFileStore {
 
         do {
             try fileManager.moveItem(at: shelfURL, to: destination)
+
+            // `moveItem` on the same volume is normally just a rename
+            // and should carry the shelf copy's dates straight through
+            // (which by this point already match the original — see
+            // `persist`, above) — but a cross-volume fallback inside
+            // `moveItem` re-copies instead, so this re-applies them
+            // explicitly rather than assuming that held.
+            if let dates = dateAttributes(
+                from: try? fileManager.attributesOfItem(atPath: destination.path)
+            ) {
+                try? fileManager.setAttributes(dates, ofItemAtPath: destination.path)
+            }
+
             return true
         } catch {
             return false
         }
+    }
+
+    /// Pulls just `.creationDate`/`.modificationDate` out of a raw
+    /// attributes dictionary, for re-applying to a copy/move that
+    /// didn't carry them over on its own. Returns `nil` if neither was
+    /// present, so callers can skip the `setAttributes` call entirely
+    /// rather than pointlessly calling it with an empty dictionary.
+    ///
+    /// NOTE, so this isn't mistaken for covering more than it does:
+    /// this can't do anything about Finder's separate "Date Added"
+    /// column if that's what a folder happens to be sorted by — that's
+    /// tracked by the filesystem/Spotlight as a real add event, with no
+    /// public API to set it to an arbitrary value. "Date Created" and
+    /// "Date Modified" (the far more common sort choices) are exactly
+    /// preserved by this; "Date Added" isn't and can't be.
+    private static func dateAttributes(
+        from attributes: [FileAttributeKey: Any]?
+    ) -> [FileAttributeKey: Any]? {
+
+        guard let attributes else { return nil }
+
+        var dates: [FileAttributeKey: Any] = [:]
+
+        if let creationDate = attributes[.creationDate] as? Date {
+            dates[.creationDate] = creationDate
+        }
+
+        if let modificationDate = attributes[.modificationDate] as? Date {
+            dates[.modificationDate] = modificationDate
+        }
+
+        return dates.isEmpty ? nil : dates
     }
 
     static func remove(_ url: URL) {
