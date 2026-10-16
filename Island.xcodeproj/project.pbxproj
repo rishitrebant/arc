@@ -83,6 +83,15 @@
 			);
 			target = 000000000000000000100006 /* Island */;
 		};
+		A5C527AB30820C0F00FA8114 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppSettings.swift,
+				SettingsView.swift,
+				SettingsWindowController.swift,
+			);
+			target = 000000000000000000100006 /* Island */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -101,6 +110,7 @@
 		A5326977304309F600EDDE1E /* AudioRouting */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AudioRouting; sourceTree = "<group>"; };
 		A532698230430A5100EDDE1E /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 		A59D587B30489F0800C9C957 /* FileDrop */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FileDrop; sourceTree = "<group>"; };
+		A5C527A630820BCD00FA8114 /* Settings */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A5C527AB30820C0F00FA8114 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Settings; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +129,7 @@
 			children = (
 				000000000000000000100003 /* Island */,
 				000000000000000000100004 /* Products */,
+				A5C527A630820BCD00FA8114 /* Settings */,
 			);
 			sourceTree = "<group>";
 		};

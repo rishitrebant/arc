@@ -10,6 +10,19 @@ final class MenuBarController: NSObject {
     private let statusItem =
         NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
+    /// Whether the menu bar icon is shown. Driven from
+    /// `AppDelegate.reconcileIslands()` (external display connected, or
+    /// the "Always show menu bar icon" setting).
+    var isVisible: Bool {
+        get { statusItem.isVisible }
+        set { statusItem.isVisible = newValue }
+    }
+
+    /// Opens the Settings window (see `SettingsWindowController`).
+    static func openSettings() {
+        SettingsWindowController.shared.show()
+    }
+
     /// Fired after the user picks a different display mode, so
     /// `AppDelegate` can reconcile which screens currently have an
     /// Island window.
@@ -47,6 +60,16 @@ final class MenuBarController: NSObject {
 
         menu.addItem(.separator())
 
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
+
         menu.addItem(
             NSMenuItem(
                 title: "Quit",
@@ -56,6 +79,10 @@ final class MenuBarController: NSObject {
         )
 
         return menu
+    }
+
+    @objc private func openSettings() {
+        Self.openSettings()
     }
 
     @objc private func selectDisplayMode(_ sender: NSMenuItem) {
