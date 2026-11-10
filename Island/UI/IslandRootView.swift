@@ -161,8 +161,17 @@ struct IslandRootView: View {
                     ? 1
                     : 0.001,
 
+            // Charging grows sideways from the centre at full height
+            // (like the iPhone's charging pill), so its Y scale never
+            // collapses. Every other activity keeps the original
+            // grow-from-the-notch behaviour. To make ALL activities
+            // use the sideways version, replace this expression
+            // with just `1`.
             y:
-                isPresentationVisible
+                (
+                    isPresentationVisible
+                        || renderedActivity?.kind == .charging
+                )
                     ? 1
                     : 0.001,
 
@@ -248,21 +257,6 @@ struct IslandRootView: View {
 
             handleHover(
                 hovering
-            )
-        }
-
-        // Tells `WindowManager` what's actually on screen, so the
-        // hover/click region is compact-sized whenever the island is
-        // compact (see `WindowManager.expandedScreens`).
-        .onChange(of: isExpanded) { _, expanded in
-
-            NotificationCenter.default.post(
-                name: .islandExpandedStateChanged,
-                object: nil,
-                userInfo: [
-                    "screenID": screenID,
-                    "expanded": expanded
-                ]
             )
         }
 
