@@ -251,6 +251,21 @@ struct IslandRootView: View {
             )
         }
 
+        // Tells `WindowManager` what's actually on screen, so the
+        // hover/click region is compact-sized whenever the island is
+        // compact (see `WindowManager.expandedScreens`).
+        .onChange(of: isExpanded) { _, expanded in
+
+            NotificationCenter.default.post(
+                name: .islandExpandedStateChanged,
+                object: nil,
+                userInfo: [
+                    "screenID": screenID,
+                    "expanded": expanded
+                ]
+            )
+        }
+
         .onReceive(
             NotificationCenter.default.publisher(
                 for: .islandOutputPickerWillPresent

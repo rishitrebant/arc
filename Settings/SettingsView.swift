@@ -61,6 +61,8 @@ struct GeneralSettingsTab: View {
     @State private var launchAtLogin = AppSettings.launchAtLoginEnabled
     @AppStorage(AppSettings.Key.alwaysShowMenuBarIcon)
     private var alwaysShowIcon = AppSettings.Default.alwaysShowMenuBarIcon
+    @AppStorage(AppSettings.Key.showChargingIndicator)
+    private var showCharging = AppSettings.Default.showChargingIndicator
 
     var body: some View {
         TabContainer {
@@ -80,6 +82,13 @@ struct GeneralSettingsTab: View {
                     .onChange(of: alwaysShowIcon) { _, _ in
                         NotificationCenter.default.post(name: AppSettings.didChange, object: nil)
                     }
+            }
+
+            SettingsRow(
+                "Charging:",
+                detail: "Briefly shows the battery level in the notch when you plug in your charger."
+            ) {
+                Toggle("Show when charger is connected", isOn: $showCharging)
             }
         }
     }

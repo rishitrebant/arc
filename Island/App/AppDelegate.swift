@@ -21,6 +21,9 @@ final class AppDelegate:
     private var fileDropActivity:
         FileDropActivity!
 
+    private var chargingActivity:
+        ChargingActivity!
+
     /// Held onto only because `NSSharingServicePicker` doesn't manage
     /// its own lifetime the way a normal Cocoa control does — nothing
     /// else references it once `show(relativeTo:of:preferredEdge:)`
@@ -50,6 +53,21 @@ final class AppDelegate:
 
         activityManager.register(
             musicActivity
+        )
+
+        chargingActivity =
+            ChargingActivity()
+
+        // Same rule as Music: never auto-close while the cursor is on
+        // the island.
+        chargingActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            chargingActivity
         )
 
         fileDropActivity =

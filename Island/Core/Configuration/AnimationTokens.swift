@@ -76,6 +76,13 @@ enum AnimationTokens {
     /// visible before returning to the previous activity or disappearing.
     static let transientDisplayDuration: TimeInterval = 1.6
     
+    /// How long the "charger plugged in" pill stays before returning
+    /// the island to whatever was there. Longer than
+    /// `transientDisplayDuration` because it carries a sentence and a
+    /// number the user has to actually read — closer to how long the
+    /// iPhone holds its charging moment.
+    static let chargingDisplayDuration: TimeInterval = 3.0
+
     struct SpringPhysics {
         let mass: CGFloat
         let stiffness: CGFloat

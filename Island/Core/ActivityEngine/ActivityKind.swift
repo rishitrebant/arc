@@ -25,12 +25,20 @@ enum ActivityKind: Int, Comparable, CaseIterable {
     /// relative order changed.
     case fileDrop = 2
 
-    case music = 3
-    case bluetooth = 4
-    case airDrop = 5
-    case downloads = 6
-    case focus = 7
-    case timer = 8
+    /// "Charger just plugged in" — a short-lived moment (see
+    /// `ChargingActivity`). Above `music` so it can briefly take the
+    /// island from whatever is playing and hand it straight back, but
+    /// below calls and file drops, which it should never interrupt.
+    /// Everything below shifted down by one; their relative order is
+    /// unchanged.
+    case charging = 3
+
+    case music = 4
+    case bluetooth = 5
+    case airDrop = 6
+    case downloads = 7
+    case focus = 8
+    case timer = 9
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

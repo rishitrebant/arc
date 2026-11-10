@@ -14,12 +14,14 @@ enum AppSettings {
         static let alwaysShowMenuBarIcon = "alwaysShowMenuBarIcon"
         static let shelfDurationSeconds = "shelfDurationSeconds"
         static let musicLingerSeconds = "musicLingerSeconds"
+        static let showChargingIndicator = "showChargingIndicator"
     }
 
     enum Default {
         static let alwaysShowMenuBarIcon = false
         static let shelfDurationSeconds: Double = 60
         static let musicLingerSeconds: Double = 20
+        static let showChargingIndicator = true
     }
 
     // MARK: - Static accessors (for non-SwiftUI code)
@@ -32,6 +34,13 @@ enum AppSettings {
 
     static var musicLingerDuration: TimeInterval {
         value(Key.musicLingerSeconds, fallback: Default.musicLingerSeconds)
+    }
+
+    /// Read fresh at the moment of each plug-in, so toggling it in
+    /// Settings applies to the very next time the charger is connected.
+    static var showChargingIndicator: Bool {
+        UserDefaults.standard.object(forKey: Key.showChargingIndicator) as? Bool
+            ?? Default.showChargingIndicator
     }
 
     static var alwaysShowMenuBarIcon: Bool {

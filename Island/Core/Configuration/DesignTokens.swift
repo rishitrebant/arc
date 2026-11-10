@@ -56,6 +56,9 @@ enum DesignTokens {
         static let airDropAccent = SwiftUI.Color(red: 0.29, green: 0.62, blue: 0.98)   // derived — matches the reference screenshots' blue; not a measured hex value
         static let shelfWellBackground = SwiftUI.Color(red: 0.22, green: 0.22, blue: 0.23)  // derived — eyeballed from the shelf reference screenshot, not a measured hex value
 
+        static let chargingAccent = SwiftUI.Color(red: 48/255, green: 209/255, blue: 88/255)   // derived — iOS system green (dark appearance), as used by the iPhone charging indicator
+        static let chargingBatteryOutline = SwiftUI.Color(white: 1.0).opacity(0.35)            // derived — the dim battery shell/terminal around the green fill
+
         static let islandBackground = SwiftUI.Color.black                              // measured — pure black surface
         static let primaryText = SwiftUI.Color(white: 1.0)                             // measured — #FFFFFF
         static let secondaryText = SwiftUI.Color(white: 0.6)                           // measured — #999999
@@ -285,6 +288,49 @@ enum DesignTokens {
         /// solid black circle, thin light stroke, white checkmark).
         /// Shown only at compact size, per direct confirmation.
         static let checkmarkStrokeOpacity: Double = 0.9
+    }
+
+    // MARK: - Charging metrics
+    //
+    // Compact-only pill, shown for a few seconds when the charger is
+    // plugged in. Follows the same construction as the other compact
+    // pills — fixed notch in the middle, a flank on each side, 10pt
+    // edge padding, 33pt tall like the AirDrop/FileDrop pills — just
+    // with wider flanks, because "Charging" and "100%" + battery need
+    // more room than a 20pt icon.
+    //
+    // Flank widths are DERIVED, not measured: 10 edge + content + 10 gap
+    // to the notch. Left content ("Charging", 12pt semibold) is ~50pt;
+    // right content (percentage + battery) is ~59pt. Both flanks use the
+    // larger so the pill stays visually centered on the notch.
+
+    enum ChargingMetrics {
+
+        static let compactEdgePadding: CGFloat = 10
+        static let flankWidth: CGFloat = 80
+        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidth * 2   // 179 + 160 = 339
+        static let compactHeight: CGFloat = 33
+
+        // Typography — SF Pro (system), semibold, same family as every
+        // other string in the island.
+        static let labelFont = Font.system(size: 12, weight: .semibold)
+        static let percentFont = Font.system(size: 12, weight: .semibold)
+        static let percentToBatterySpacing: CGFloat = 5
+
+        // Battery glyph (iPhone status-bar proportions, ~25×12 overall)
+        static let batteryBodyWidth: CGFloat = 22
+        static let batteryBodyHeight: CGFloat = 12
+        static let batteryBodyCornerRadius: CGFloat = 3.5
+        static let batteryOutlineWidth: CGFloat = 1
+        static let batteryFillInset: CGFloat = 1.5
+        static let batteryFillCornerRadius: CGFloat = 2
+        static let batteryFillMinWidth: CGFloat = 2
+        /// Inner width available to the fill: body minus outline/inset on both sides.
+        static let batteryFillMaxWidth: CGFloat = batteryBodyWidth - batteryFillInset * 2
+        static let batteryCapWidth: CGFloat = 1.5
+        static let batteryCapHeight: CGFloat = 4.5
+        static let batteryCapSpacing: CGFloat = 0.5
+        static let batteryBoltSize: CGFloat = 7
     }
 
     // MARK: - Hover affordance shadow (new — additive only, nothing above

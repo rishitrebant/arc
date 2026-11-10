@@ -110,6 +110,7 @@
 		A5326977304309F600EDDE1E /* AudioRouting */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AudioRouting; sourceTree = "<group>"; };
 		A532698230430A5100EDDE1E /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 		A59D587B30489F0800C9C957 /* FileDrop */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FileDrop; sourceTree = "<group>"; };
+		A5B6EA7B30A3127100F22126 /* Charging */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Charging; sourceTree = "<group>"; };
 		A5C527A630820BCD00FA8114 /* Settings */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A5C527AB30820C0F00FA8114 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Settings; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -193,6 +194,7 @@
 		000000000000000000100043 /* Activities */ = {
 			isa = PBXGroup;
 			children = (
+				A5B6EA7B30A3127100F22126 /* Charging */,
 				A59D587B30489F0800C9C957 /* FileDrop */,
 				000000000000000000100049 /* Music */,
 			);
@@ -293,6 +295,7 @@
 				A5326977304309F600EDDE1E /* AudioRouting */,
 				A532698230430A5100EDDE1E /* Views */,
 				A59D587B30489F0800C9C957 /* FileDrop */,
+				A5B6EA7B30A3127100F22126 /* Charging */,
 			);
 			name = Island;
 			productName = Island;
