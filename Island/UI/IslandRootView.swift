@@ -161,7 +161,7 @@ struct IslandRootView: View {
                     ? 1
                     : 0.001,
 
-            // Charging grows sideways from the centre at full height
+            // Charging and low-battery grow sideways from the centre at full height
             // (like the iPhone's charging pill), so its Y scale never
             // collapses. Every other activity keeps the original
             // grow-from-the-notch behaviour. To make ALL activities
@@ -171,6 +171,7 @@ struct IslandRootView: View {
                 (
                     isPresentationVisible
                         || renderedActivity?.kind == .charging
+                        || renderedActivity?.kind == .lowBattery
                 )
                     ? 1
                     : 0.001,

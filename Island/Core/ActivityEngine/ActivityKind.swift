@@ -25,20 +25,26 @@ enum ActivityKind: Int, Comparable, CaseIterable {
     /// relative order changed.
     case fileDrop = 2
 
+    /// "Battery is low — turn on Low Power Mode?" (see
+    /// `LowBatteryActivity`). An alert the user can act on, so it ranks
+    /// above everything battery- or media-related, but still below
+    /// calls and file drops.
+    case lowBattery = 3
+
     /// "Charger just plugged in" — a short-lived moment (see
     /// `ChargingActivity`). Above `music` so it can briefly take the
     /// island from whatever is playing and hand it straight back, but
     /// below calls and file drops, which it should never interrupt.
     /// Everything below shifted down by one; their relative order is
     /// unchanged.
-    case charging = 3
+    case charging = 4
 
-    case music = 4
-    case bluetooth = 5
-    case airDrop = 6
-    case downloads = 7
-    case focus = 8
-    case timer = 9
+    case music = 5
+    case bluetooth = 6
+    case airDrop = 7
+    case downloads = 8
+    case focus = 9
+    case timer = 10
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

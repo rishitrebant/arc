@@ -15,6 +15,8 @@ enum AppSettings {
         static let shelfDurationSeconds = "shelfDurationSeconds"
         static let musicLingerSeconds = "musicLingerSeconds"
         static let showChargingIndicator = "showChargingIndicator"
+        static let showLowBatteryAlert = "showLowBatteryAlert"
+        static let lowBatteryTriggerPercent = "lowBatteryTriggerPercent"
     }
 
     enum Default {
@@ -22,6 +24,8 @@ enum AppSettings {
         static let shelfDurationSeconds: Double = 60
         static let musicLingerSeconds: Double = 20
         static let showChargingIndicator = true
+        static let showLowBatteryAlert = true
+        static let lowBatteryTriggerPercent = 20
     }
 
     // MARK: - Static accessors (for non-SwiftUI code)
@@ -41,6 +45,23 @@ enum AppSettings {
     static var showChargingIndicator: Bool {
         UserDefaults.standard.object(forKey: Key.showChargingIndicator) as? Bool
             ?? Default.showChargingIndicator
+    }
+
+    /// Battery percentage at or below which the low-battery alert
+    /// fires. Read fresh on every battery update, so a change in
+    /// Settings applies immediately.
+    static var lowBatteryTriggerPercent: Int {
+        let stored = UserDefaults.standard.integer(forKey: Key.lowBatteryTriggerPercent)
+        guard stored > 0 else { return Default.lowBatteryTriggerPercent }
+        return min(max(stored, lowBatteryTriggerRange.lowerBound), lowBatteryTriggerRange.upperBound)
+    }
+
+    /// Allowed custom values for the low-battery alert level.
+    static let lowBatteryTriggerRange = 1...99
+
+    static var showLowBatteryAlert: Bool {
+        UserDefaults.standard.object(forKey: Key.showLowBatteryAlert) as? Bool
+            ?? Default.showLowBatteryAlert
     }
 
     static var alwaysShowMenuBarIcon: Bool {

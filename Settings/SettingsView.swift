@@ -61,8 +61,6 @@ struct GeneralSettingsTab: View {
     @State private var launchAtLogin = AppSettings.launchAtLoginEnabled
     @AppStorage(AppSettings.Key.alwaysShowMenuBarIcon)
     private var alwaysShowIcon = AppSettings.Default.alwaysShowMenuBarIcon
-    @AppStorage(AppSettings.Key.showChargingIndicator)
-    private var showCharging = AppSettings.Default.showChargingIndicator
 
     var body: some View {
         TabContainer {
@@ -83,13 +81,71 @@ struct GeneralSettingsTab: View {
                         NotificationCenter.default.post(name: AppSettings.didChange, object: nil)
                     }
             }
+        }
+    }
+}
 
+// MARK: - Battery
+
+struct BatterySettingsTab: View {
+
+    @AppStorage(AppSettings.Key.showChargingIndicator)
+    private var showCharging = AppSettings.Default.showChargingIndicator
+    @AppStorage(AppSettings.Key.showLowBatteryAlert)
+    private var showLowBattery = AppSettings.Default.showLowBatteryAlert
+    @AppStorage(AppSettings.Key.lowBatteryTriggerPercent)
+    private var lowBatteryPercent = AppSettings.Default.lowBatteryTriggerPercent
+
+    var body: some View {
+        TabContainer {
             SettingsRow(
                 "Charging:",
                 detail: "Briefly shows the battery level in the notch when you plug in your charger."
             ) {
                 Toggle("Show when charger is connected", isOn: $showCharging)
             }
+
+            SettingsRow(
+                "Low battery:",
+                detail: "When the battery drops low on battery power, shows an alert in the notch. Click it to turn on Low Power Mode (macOS will ask for your password)."
+            ) {
+                Toggle("Offer Low Power Mode when battery is low", isOn: $showLowBattery)
+            }
+
+            SettingsRow(
+                "Alert at:",
+                detail: "Type any battery level from \(AppSettings.lowBatteryTriggerRange.lowerBound) to \(AppSettings.lowBatteryTriggerRange.upperBound)%, or use the arrows. The alert appears when the battery drops to this level."
+            ) {
+                HStack(spacing: 6) {
+                    TextField("", value: $lowBatteryPercent, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 56)
+                        .onSubmit { clamp() }
+
+                    Stepper(
+                        "",
+                        value: $lowBatteryPercent,
+                        in: AppSettings.lowBatteryTriggerRange
+                    )
+                    .labelsHidden()
+
+                    Text("%")
+                        .foregroundStyle(.secondary)
+                }
+                .disabled(!showLowBattery)
+                // Also clamp whenever the value changes, so a typed 150
+                // or 0 snaps back into range instead of being stored.
+                .onChange(of: lowBatteryPercent) { _, _ in clamp() }
+            }
+        }
+    }
+
+    private func clamp() {
+        let range = AppSettings.lowBatteryTriggerRange
+        let clamped = min(max(lowBatteryPercent, range.lowerBound), range.upperBound)
+        if clamped != lowBatteryPercent {
+            lowBatteryPercent = clamped
         }
     }
 }

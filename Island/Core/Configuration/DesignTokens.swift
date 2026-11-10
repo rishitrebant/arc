@@ -35,7 +35,8 @@ enum DesignTokens {
         CGSize(
             width: max(
                 MusicMetrics.expandedWidth,
-                FileDropMetrics.expandedWithItemsWidth
+                FileDropMetrics.expandedWithItemsWidth,
+                LowBatteryMetrics.compactWidth
             ),
             height: max(
                 MusicMetrics.expandedHeight,
@@ -57,6 +58,8 @@ enum DesignTokens {
         static let shelfWellBackground = SwiftUI.Color(red: 0.22, green: 0.22, blue: 0.23)  // derived — eyeballed from the shelf reference screenshot, not a measured hex value
 
         static let chargingAccent = SwiftUI.Color(red: 48/255, green: 209/255, blue: 88/255)   // derived — iOS system green (dark appearance), as used by the iPhone charging indicator
+        static let lowBatteryAccent = SwiftUI.Color(red: 255/255, green: 69/255, blue: 58/255)   // derived — iOS system red (dark appearance), the colour of a battery at or below 20%
+        static let lowPowerModeAccent = SwiftUI.Color(red: 255/255, green: 214/255, blue: 10/255) // derived — iOS system yellow, the colour of the battery while Low Power Mode is on
         static let chargingBatteryOutline = SwiftUI.Color(white: 1.0).opacity(0.35)            // derived — the dim battery shell/terminal around the green fill
 
         static let islandBackground = SwiftUI.Color.black                              // measured — pure black surface
@@ -331,6 +334,32 @@ enum DesignTokens {
         static let batteryCapHeight: CGFloat = 4.5
         static let batteryCapSpacing: CGFloat = 0.5
         static let batteryBoltSize: CGFloat = 7
+    }
+
+    // MARK: - Low battery metrics
+    //
+    // Same construction as the charging pill (notch in the middle, a
+    // flank each side, 10pt edge padding, 33pt tall), but wider: the
+    // right flank holds a "Low Power Mode" button (~98pt incl. padding),
+    // which "Charging"'s flank never had to fit. Flank width is DERIVED:
+    // 10 edge + ~98 button + a few points of breathing room to the notch.
+    // Also feeds `sharedCanvasSize` above, since this is now the widest
+    // content any activity shows.
+
+    enum LowBatteryMetrics {
+
+        static let compactEdgePadding: CGFloat = 10
+        static let flankWidth: CGFloat = 116
+        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidth * 2   // 179 + 232 = 411
+        static let compactHeight: CGFloat = 33
+
+        static let percentFont = Font.system(size: 12, weight: .semibold)
+        static let buttonFont = Font.system(size: 11, weight: .semibold)
+        static let percentToBatterySpacing: CGFloat = 5
+
+        static let buttonHorizontalPadding: CGFloat = 9
+        static let buttonHeight: CGFloat = 22
+        static let confirmationIconSpacing: CGFloat = 4
     }
 
     // MARK: - Hover affordance shadow (new — additive only, nothing above

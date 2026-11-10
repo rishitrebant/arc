@@ -35,6 +35,7 @@ final class SettingsWindowController {
 
         add(to: tabs, title: "General", symbol: "switch.2", view: GeneralSettingsTab())
         add(to: tabs, title: "Display", symbol: "display", view: DisplaySettingsTab())
+        add(to: tabs, title: "Battery", symbol: "battery.100", view: BatterySettingsTab())
         add(to: tabs, title: "Shelf", symbol: "tray.full", view: ShelfSettingsTab())
         add(to: tabs, title: "Music", symbol: "music.note", view: MusicSettingsTab())
         add(to: tabs, title: "About", symbol: "info.circle", view: AboutSettingsTab())

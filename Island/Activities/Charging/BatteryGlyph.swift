@@ -12,6 +12,13 @@ struct BatteryGlyph: View {
     /// 0...100
     let percent: Int
 
+    /// Fill colour. Green while charging, red when low, yellow in
+    /// Low Power Mode.
+    var tint: Color = DesignTokens.Color.chargingAccent
+
+    /// The bolt is only for the charging state.
+    var showsBolt: Bool = true
+
     private typealias Metrics = DesignTokens.ChargingMetrics
 
     private var fillFraction: CGFloat {
@@ -39,7 +46,7 @@ struct BatteryGlyph: View {
                     cornerRadius: Metrics.batteryFillCornerRadius,
                     style: .continuous
                 )
-                .fill(DesignTokens.Color.chargingAccent)
+                .fill(tint)
                 .frame(
                     width: max(
                         Metrics.batteryFillMinWidth,
@@ -49,16 +56,18 @@ struct BatteryGlyph: View {
                 .padding(Metrics.batteryFillInset)
 
                 // Bolt
-                Image(systemName: "bolt.fill")
-                    .font(.system(
-                        size: Metrics.batteryBoltSize,
-                        weight: .bold
-                    ))
-                    .foregroundStyle(.white)
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity
-                    )
+                if showsBolt {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(
+                            size: Metrics.batteryBoltSize,
+                            weight: .bold
+                        ))
+                        .foregroundStyle(.white)
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: .infinity
+                        )
+                }
             }
             .frame(
                 width: Metrics.batteryBodyWidth,

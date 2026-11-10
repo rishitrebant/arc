@@ -83,6 +83,12 @@ enum AnimationTokens {
     /// iPhone holds its charging moment.
     static let chargingDisplayDuration: TimeInterval = 3.0
 
+    /// How long the low-battery alert waits for a click before going
+    /// away. Long on purpose — it's asking the user to do something,
+    /// and the cursor has to travel to the notch first. (It also never
+    /// closes while the cursor is on it.)
+    static let lowBatteryDisplayDuration: TimeInterval = 8.0
+
     struct SpringPhysics {
         let mass: CGFloat
         let stiffness: CGFloat
