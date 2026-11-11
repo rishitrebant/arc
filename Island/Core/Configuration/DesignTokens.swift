@@ -304,14 +304,16 @@ enum DesignTokens {
     //
     // Flank widths are DERIVED, not measured: 10 edge + content + 10 gap
     // to the notch. Left content ("Charging", 12pt semibold) is ~50pt;
-    // right content (percentage + battery) is ~59pt. Both flanks use the
-    // larger so the pill stays visually centered on the notch.
+    // right content (percentage + battery) is ~59pt. The "Not Charging"
+    // label shown on unplug is ~72pt, so the flank is sized for that
+    // (10 + 72 + 6). Both flanks use the same width so the pill stays
+    // visually centered on the notch.
 
     enum ChargingMetrics {
 
         static let compactEdgePadding: CGFloat = 10
-        static let flankWidth: CGFloat = 80
-        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidth * 2   // 179 + 160 = 339
+        static let flankWidth: CGFloat = 88
+        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidth * 2   // 179 + 176 = 355
         static let compactHeight: CGFloat = 33
 
         // Typography — SF Pro (system), semibold, same family as every

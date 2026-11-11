@@ -1,11 +1,11 @@
 import SwiftUI
 import Combine
 
-/// "Charger plugged in" — the Mac equivalent of the iPhone's Dynamic
-/// Island charging moment.
+/// "Charger plugged in / unplugged" — the Mac equivalent of the iPhone's
+/// Dynamic Island charging moment.
 ///
 /// Transient, like a notification that lives in the notch: it takes the
-/// island when the power adapter is connected, stays for
+/// island when the power adapter is connected or removed, stays for
 /// `AnimationTokens.chargingDisplayDuration`, then releases ownership so
 /// whatever was there before (Music, usually) comes straight back.
 ///
@@ -21,6 +21,14 @@ final class ChargingActivity: ObservableObject {
 
     /// 0...100, kept live while the island is showing.
     @Published private(set) var batteryPercent: Int = 0
+
+    /// What just happened — decides the label and colours.
+    enum Event: Equatable {
+        case connected
+        case disconnected
+    }
+
+    @Published private(set) var event: Event = .connected
 
     /// Battery is full with the adapter connected — the label changes
     /// from "Charging" to "Charged".
@@ -94,13 +102,22 @@ final class ChargingActivity: ObservableObject {
 
             // Just plugged in.
             if AppSettings.showChargingIndicator {
+                event = .connected
                 show()
+            } else {
+                hide()
             }
 
-        } else if !snapshot.isPluggedIn {
+        } else if !snapshot.isPluggedIn && previouslyPluggedIn {
 
-            // Unplugged — nothing to say about charging any more.
-            hide()
+            // Just unplugged — say so (replaces "Charging" if that was
+            // still on screen).
+            if AppSettings.showChargerDisconnectedAlert {
+                event = .disconnected
+                show()
+            } else {
+                hide()
+            }
         }
     }
 
@@ -158,8 +175,9 @@ final class ChargingActivity: ObservableObject {
 
     func didBecomeActive() {}
 
-    /// A higher-priority activity (call, file drop) took the island.
-    /// The charging moment is over — don't come back to it later.
+    /// A higher-priority activity (call, file drop, low battery) took
+    /// the island. The charging moment is over — don't come back to it
+    /// later.
     func didResignActive() {
         hide()
     }

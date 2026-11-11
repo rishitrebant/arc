@@ -91,6 +91,8 @@ struct BatterySettingsTab: View {
 
     @AppStorage(AppSettings.Key.showChargingIndicator)
     private var showCharging = AppSettings.Default.showChargingIndicator
+    @AppStorage(AppSettings.Key.showChargerDisconnectedAlert)
+    private var showDisconnected = AppSettings.Default.showChargerDisconnectedAlert
     @AppStorage(AppSettings.Key.showLowBatteryAlert)
     private var showLowBattery = AppSettings.Default.showLowBatteryAlert
     @AppStorage(AppSettings.Key.lowBatteryTriggerPercent)
@@ -100,9 +102,12 @@ struct BatterySettingsTab: View {
         TabContainer {
             SettingsRow(
                 "Charging:",
-                detail: "Briefly shows the battery level in the notch when you plug in your charger."
+                detail: "Briefly shows the battery level in the notch when you plug in or unplug your charger."
             ) {
-                Toggle("Show when charger is connected", isOn: $showCharging)
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Show when charger is connected", isOn: $showCharging)
+                    Toggle("Show when charger is disconnected", isOn: $showDisconnected)
+                }
             }
 
             SettingsRow(

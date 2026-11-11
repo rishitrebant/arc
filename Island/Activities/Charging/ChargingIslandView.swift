@@ -34,8 +34,21 @@ struct ChargingIslandView: View {
         (canvasSize.width - pillSize.width) / 2
     }
 
+    private var isDisconnected: Bool {
+        activity.event == .disconnected
+    }
+
     private var label: String {
-        activity.isFullyCharged ? "Charged" : "Charging"
+        if isDisconnected { return "Not Charging" }
+        return activity.isFullyCharged ? "Charged" : "Charging"
+    }
+
+    /// Green while charging; plain white once unplugged (like the
+    /// iPhone's battery when it isn't charging).
+    private var batteryTint: Color {
+        isDisconnected
+            ? DesignTokens.Color.primaryText
+            : DesignTokens.Color.chargingAccent
     }
 
     var body: some View {
@@ -61,6 +74,7 @@ struct ChargingIslandView: View {
         )
         .animation(AnimationTokens.stateUpdate, value: activity.batteryPercent)
         .animation(AnimationTokens.stateUpdate, value: activity.isFullyCharged)
+        .animation(AnimationTokens.stateUpdate, value: activity.event)
     }
 
     // MARK: - Content
@@ -85,11 +99,15 @@ struct ChargingIslandView: View {
                 Text("\(activity.batteryPercent)%")
                     .font(Metrics.percentFont)
                     .monospacedDigit()
-                    .foregroundStyle(DesignTokens.Color.chargingAccent)
+                    .foregroundStyle(batteryTint)
                     .lineLimit(1)
                     .fixedSize()
 
-                BatteryGlyph(percent: activity.batteryPercent)
+                BatteryGlyph(
+                    percent: activity.batteryPercent,
+                    tint: batteryTint,
+                    showsBolt: !isDisconnected
+                )
             }
         }
         .padding(.horizontal, Metrics.compactEdgePadding)

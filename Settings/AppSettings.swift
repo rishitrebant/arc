@@ -15,6 +15,7 @@ enum AppSettings {
         static let shelfDurationSeconds = "shelfDurationSeconds"
         static let musicLingerSeconds = "musicLingerSeconds"
         static let showChargingIndicator = "showChargingIndicator"
+        static let showChargerDisconnectedAlert = "showChargerDisconnectedAlert"
         static let showLowBatteryAlert = "showLowBatteryAlert"
         static let lowBatteryTriggerPercent = "lowBatteryTriggerPercent"
     }
@@ -24,6 +25,7 @@ enum AppSettings {
         static let shelfDurationSeconds: Double = 60
         static let musicLingerSeconds: Double = 20
         static let showChargingIndicator = true
+        static let showChargerDisconnectedAlert = true
         static let showLowBatteryAlert = true
         static let lowBatteryTriggerPercent = 20
     }
@@ -58,6 +60,11 @@ enum AppSettings {
 
     /// Allowed custom values for the low-battery alert level.
     static let lowBatteryTriggerRange = 1...99
+
+    static var showChargerDisconnectedAlert: Bool {
+        UserDefaults.standard.object(forKey: Key.showChargerDisconnectedAlert) as? Bool
+            ?? Default.showChargerDisconnectedAlert
+    }
 
     static var showLowBatteryAlert: Bool {
         UserDefaults.standard.object(forKey: Key.showLowBatteryAlert) as? Bool
