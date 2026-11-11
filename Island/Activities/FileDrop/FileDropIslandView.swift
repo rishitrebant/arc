@@ -1,4 +1,5 @@
 import SwiftUI
+import QuickLookThumbnailing
 import AppKit
 import UniformTypeIdentifiers
 
@@ -188,17 +189,8 @@ struct FileDropIslandView: View {
             // which is exactly what put this icon under the notch
             // instead of to its left.
             if let item = activity.shelfItems.last {
-                fileIcon(for: item.url)
-                    .frame(
-                        width: DesignTokens.MusicMetrics.compactIconSize,
-                        height: DesignTokens.MusicMetrics.compactIconSize
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    .overlay(
-                        ShelfItemDragSource(item: item) { id in
-                            activity.completeExport(id)
-                        }
-                    )
+
+                compactPreviewStack(front: item)
                     .position(
                         x: DesignTokens.MusicMetrics.compactEdgePadding
                             + DesignTokens.MusicMetrics.compactIconSize / 2,
@@ -208,9 +200,19 @@ struct FileDropIslandView: View {
 
             // RIGHT — static shelf logo, where Music shows the waveform.
             // Same fix — local coordinates only.
-            Image(systemName: "tray.fill")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(DesignTokens.Color.secondaryText)
+            Group {
+                if activity.shelfItems.count > 1 {
+                    Text("\(activity.shelfItems.count)")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .contentTransition(.numericText())
+                } else {
+                    Image(systemName: "tray.fill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                }
+            }
+            .animation(.easeOut(duration: 0.15), value: activity.shelfItems.count)
                 .position(
                     x: DesignTokens.FileDropMetrics.compactWidth
                         - DesignTokens.MusicMetrics.compactEdgePadding
@@ -218,6 +220,35 @@ struct FileDropIslandView: View {
                     y: DesignTokens.FileDropMetrics.compactContentCenterY
                 )
         }
+    }
+
+    /// Apple-style stack: the newest file's preview in front, up to two
+    /// older ones peeking out behind it, slightly rotated and dimmed.
+    /// Only the front card is draggable.
+    private func compactPreviewStack(front item: ShelfItem) -> some View {
+
+        let size = DesignTokens.MusicMetrics.compactIconSize
+        let items = activity.shelfItems
+        let behind = Array(items.dropLast().suffix(2).reversed())
+
+        return ZStack {
+
+            ForEach(Array(behind.enumerated()), id: \.element.id) { index, older in
+
+                ShelfThumbnail(url: older.url, size: size)
+                    .rotationEffect(.degrees(index == 0 ? -9 : 8))
+                    .offset(x: index == 0 ? -2.5 : 2.5, y: index == 0 ? -1.5 : -2.5)
+                    .opacity(index == 0 ? 0.75 : 0.5)
+            }
+
+            ShelfThumbnail(url: item.url, size: size)
+                .overlay(
+                    ShelfItemDragSource(item: item) { id in
+                        activity.completeExport(id)
+                    }
+                )
+        }
+        .frame(width: size, height: size)
     }
 
     // MARK: - Expanded (unified drop-zone + shelf grid)
@@ -376,57 +407,11 @@ struct FileDropIslandView: View {
 
     private func shelfItemView(_ item: ShelfItem) -> some View {
 
-        VStack(spacing: 4) {
-
-            ZStack(alignment: .topTrailing) {
-
-                fileIcon(for: item.url)
-                    .frame(
-                        width: DesignTokens.FileDropMetrics.shelfItemSize,
-                        height: DesignTokens.FileDropMetrics.shelfItemSize
-                    )
-                    .background(
-                        RoundedRectangle(
-                            cornerRadius: DesignTokens.FileDropMetrics.shelfItemCornerRadius,
-                            style: .continuous
-                        )
-                        .fill(Color.white.opacity(0.08))
-                    )
-                    // Drag back OUT to anywhere — Finder, another app,
-                    // the Desktop. Backed by a real AppKit drag source
-                    // (see `ShelfItemDragSource`) rather than SwiftUI's
-                    // `.onDrag`, which can't drive a file promise. Uses
-                    // `completeExport`, NOT `removeShelfItem` — the file
-                    // was actually delivered to this new destination, so
-                    // it shouldn't also be restored to where it
-                    // originally came from.
-                    .overlay(
-                        ShelfItemDragSource(item: item) { id in
-                            activity.completeExport(id)
-                        }
-                    )
-
-                // Delete affordance — removes our own copy from the
-                // shelf (see `ShelfFileStore`); has no effect on
-                // wherever the file was originally dragged from.
-                Button {
-                    activity.removeShelfItem(item.id)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white, .black.opacity(0.6))
-                }
-                .buttonStyle(.plain)
-                .offset(x: 6, y: -6)
-            }
-
-            Text(item.displayName)
-                .font(.system(size: 10))
-                .foregroundStyle(DesignTokens.Color.secondaryText)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(width: DesignTokens.FileDropMetrics.shelfItemSize)
-        }
+        ShelfItemTile(
+            item: item,
+            onRemove: { activity.removeShelfItem(item.id) },
+            onExport: { activity.completeExport($0) }
+        )
     }
 
     // MARK: - Shared
@@ -435,5 +420,183 @@ struct FileDropIslandView: View {
         Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
             .resizable()
             .scaledToFit()
+    }
+}
+
+// MARK: - Shelf item tile
+
+/// One file in the expanded shelf: a real content preview, the name
+/// underneath, and a remove button that only appears on hover (Apple's
+/// pattern) instead of sitting on every tile all the time.
+///
+/// Drag-out goes through `ShelfItemDragSource` (a real AppKit drag
+/// source) — see that type for why SwiftUI's `.onDrag` can't be used.
+private struct ShelfItemTile: View {
+
+    let item: ShelfItem
+    let onRemove: () -> Void
+    let onExport: (UUID) -> Void
+
+    @State private var isHovering = false
+
+    private var size: CGFloat {
+        DesignTokens.FileDropMetrics.shelfItemSize
+    }
+
+    var body: some View {
+
+        VStack(spacing: 6) {
+
+            ZStack(alignment: .topTrailing) {
+
+                ShelfThumbnail(url: item.url, size: size)
+                    .overlay(
+                        ShelfItemDragSource(item: item, onCompleted: onExport)
+                    )
+                    .scaleEffect(isHovering ? 1.04 : 1)
+
+                Button(action: onRemove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white, .black.opacity(0.65))
+                        .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovering ? 1 : 0)
+                .allowsHitTesting(isHovering)
+                .offset(x: 6, y: -6)
+            }
+            .frame(width: size, height: size)
+
+            Text(item.displayName)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(DesignTokens.Color.primaryText.opacity(0.85))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(width: size)
+        }
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.14), value: isHovering)
+    }
+}
+
+// MARK: - Thumbnail
+
+/// A real Quick Look preview of the file (the actual picture, PDF first
+/// page, document preview…), the same source Finder and the Dock use.
+/// Shows the file's system icon instantly and crossfades to the preview
+/// once it's generated. Content previews get Apple-style rounded
+/// corners, a hairline edge and a soft shadow; plain file icons are
+/// shown as-is, since they already have their own shape.
+struct ShelfThumbnail: View {
+
+    let url: URL
+    let size: CGFloat
+
+    @State private var loaded: ShelfThumbnailCache.Entry?
+
+    private var cornerRadius: CGFloat { max(4, size * 0.17) }
+
+    var body: some View {
+
+        ZStack {
+
+            if let loaded, loaded.isContentPreview {
+
+                Image(nsImage: loaded.image)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5)
+                    )
+                    .shadow(color: .black.opacity(0.35), radius: size * 0.06, y: size * 0.03)
+                    .transition(.opacity)
+
+            } else {
+
+                Image(nsImage: loaded?.image ?? NSWorkspace.shared.icon(forFile: url.path))
+                    .resizable()
+                    .scaledToFit()
+            }
+        }
+        .frame(width: size, height: size)
+        .task(id: url) {
+
+            if let cached = ShelfThumbnailCache.shared.cached(for: url, points: size) {
+                loaded = cached
+                return
+            }
+
+            let entry = await ShelfThumbnailCache.shared.load(for: url, points: size)
+
+            withAnimation(.easeOut(duration: 0.18)) {
+                loaded = entry
+            }
+        }
+    }
+}
+
+/// Generates and caches Quick Look thumbnails so a tile that re-renders
+/// (or the compact stack and the grid showing the same file) never
+/// regenerates one it already has.
+@MainActor
+final class ShelfThumbnailCache {
+
+    static let shared = ShelfThumbnailCache()
+
+    final class Entry {
+        let image: NSImage
+        let isContentPreview: Bool
+
+        init(image: NSImage, isContentPreview: Bool) {
+            self.image = image
+            self.isContentPreview = isContentPreview
+        }
+    }
+
+    private let cache = NSCache<NSString, Entry>()
+
+    private func key(_ url: URL, _ points: CGFloat) -> NSString {
+        "\(url.path)|\(Int(points))" as NSString
+    }
+
+    func cached(for url: URL, points: CGFloat) -> Entry? {
+        cache.object(forKey: key(url, points))
+    }
+
+    func load(for url: URL, points: CGFloat) async -> Entry? {
+
+        let scale = NSScreen.main?.backingScaleFactor ?? 2
+
+        let request = QLThumbnailGenerator.Request(
+            fileAt: url,
+            size: CGSize(width: points, height: points),
+            scale: scale,
+            representationTypes: .all
+        )
+
+        do {
+
+            let representation =
+                try await QLThumbnailGenerator.shared
+                    .generateBestRepresentation(for: request)
+
+            let entry = Entry(
+                image: representation.nsImage,
+                isContentPreview: representation.type != .icon
+            )
+
+            cache.setObject(entry, forKey: key(url, points))
+
+            return entry
+
+        } catch {
+
+            return nil
+        }
     }
 }

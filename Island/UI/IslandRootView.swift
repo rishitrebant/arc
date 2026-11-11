@@ -141,11 +141,13 @@ struct IslandRootView: View {
         // ---------------------------------------------------------
         // ENTER / EXIT SCALE
         //
-        // This is the ONLY animation added for the new feature.
+        // The island grows/shrinks HORIZONTALLY around its exact
+        // centre, at full height the whole time — it widens out from
+        // the middle of the notch, it never changes height. (Height
+        // changes belong only to the compact<->expand morph.)
         //
-        // The island grows/shrinks from the notch (top-center),
-        // matching the compact<->expand morph's anchor, instead of
-        // popping in at full height from the center of the screen.
+        // Every ownership change, dock and undock goes through this
+        // one modifier, so they all share this motion.
         //
         // No opacity animation.
         // No layout animation.
@@ -161,23 +163,11 @@ struct IslandRootView: View {
                     ? 1
                     : 0.001,
 
-            // Charging and low-battery grow sideways from the centre at full height
-            // (like the iPhone's charging pill), so its Y scale never
-            // collapses. Every other activity keeps the original
-            // grow-from-the-notch behaviour. To make ALL activities
-            // use the sideways version, replace this expression
-            // with just `1`.
             y:
-                (
-                    isPresentationVisible
-                        || renderedActivity?.kind == .charging
-                        || renderedActivity?.kind == .lowBattery
-                )
-                    ? 1
-                    : 0.001,
+                1,
 
             anchor:
-                .top
+                .center
         )
 
         .animation(
@@ -254,10 +244,40 @@ struct IslandRootView: View {
         // EXISTING HOVER
         // ---------------------------------------------------------
 
-        .onHover { hovering in
+        // Hover comes from `WindowManager` (cursor position vs. the
+        // visible pill's real size), not SwiftUI's `.onHover`, whose
+        // hit area is the entire shared canvas.
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .islandHoverChanged
+            )
+        ) { note in
+
+            guard
+                let id = note.userInfo?["screenID"] as? ObjectIdentifier,
+                id == screenID,
+                let hovered = note.userInfo?["hovered"] as? Bool
+            else {
+                return
+            }
 
             handleHover(
-                hovering
+                hovered
+            )
+        }
+
+        // Tells `WindowManager` what's actually on screen, so the
+        // hover/click region is compact-sized whenever the island is
+        // compact (see `WindowManager.expandedScreens`).
+        .onChange(of: isExpanded) { _, expanded in
+
+            NotificationCenter.default.post(
+                name: .islandExpandedStateChanged,
+                object: nil,
+                userInfo: [
+                    "screenID": screenID,
+                    "expanded": expanded
+                ]
             )
         }
 

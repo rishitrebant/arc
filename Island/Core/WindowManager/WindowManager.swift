@@ -85,6 +85,16 @@ final class WindowManager {
     private static let hoverGraceDuration: TimeInterval =
         AnimationTokens.hoverActivationDelay + 0.2
 
+    /// Last hover state reported to each island, so a notification is
+    /// only posted when it actually changes.
+    private var lastHovered: [ObjectIdentifier: Bool] = [:]
+
+    /// One pending recompute at the moment the grace period ends — the
+    /// click-through update is otherwise driven purely by mouse events,
+    /// so a cursor that stops moving would keep the grace-sized region
+    /// until its next movement.
+    private var graceRecheckScheduled = false
+
     /// Whether any screen currently has genuine hover-driven expansion
     /// active. Exposed so activities (via `AppDelegate`) can check
     /// whether the island is currently being interacted with before
@@ -190,6 +200,7 @@ final class WindowManager {
         // "expanded" report from a previous one.
         expandedScreens.remove(screenID)
         hoverGraceDeadline[screenID] = nil
+        lastHovered[screenID] = nil
 
         let origin =
             notchOrigin(
@@ -360,6 +371,7 @@ final class WindowManager {
 
         expandedScreens.remove(screenID)
         hoverGraceDeadline[screenID] = nil
+        lastHovered[screenID] = nil
 
         dockedScreens.remove(
             screenID
@@ -629,6 +641,8 @@ final class WindowManager {
                             window
                     )
 
+                postHover(false, for: id)
+
                 let shouldInteract =
                     dockRect.contains(cursor)
                     || dragCatchRect.contains(cursor)
@@ -706,6 +720,34 @@ final class WindowManager {
                 activeScreenID = nil
             }
 
+            // Hover is decided HERE, from the cursor's position against
+            // the region above, and pushed to `IslandRootView` — SwiftUI's
+            // own `.onHover` is no longer used, because its hit area is
+            // the whole shared canvas (up to 390×225), not the pill.
+            // A hover can't START in the middle of a drag (a drag
+            // passing over the pill isn't a hover) but one already
+            // under way continues (e.g. dragging a slider inside the
+            // expanded panel).
+            let wasHovered = lastHovered[id] ?? false
+
+            postHover(
+                isInsideInteractiveRect
+                    && (!lastKnownDragState || wasHovered),
+                for: id
+            )
+
+            if inGrace, !graceRecheckScheduled {
+
+                graceRecheckScheduled = true
+
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + Self.hoverGraceDuration + 0.05
+                ) { [weak self] in
+                    self?.graceRecheckScheduled = false
+                    self?.updateAllClickThroughStates()
+                }
+            }
+
             let shouldInteract =
                 isInsideInteractiveRect
                 || dragCatchRect.contains(cursor)
@@ -718,6 +760,25 @@ final class WindowManager {
                 window.ignoresMouseEvents = !shouldInteract
             }
         }
+    }
+
+    private func postHover(
+        _ hovered: Bool,
+        for id: ObjectIdentifier
+    ) {
+
+        guard (lastHovered[id] ?? false) != hovered else { return }
+
+        lastHovered[id] = hovered
+
+        NotificationCenter.default.post(
+            name: .islandHoverChanged,
+            object: nil,
+            userInfo: [
+                "screenID": id,
+                "hovered": hovered
+            ]
+        )
     }
 
     /// True whenever the currently-owned activity is rendering itself
@@ -1053,4 +1114,10 @@ extension Notification.Name {
     /// region from this, so the region always matches what's on screen.
     static let islandExpandedStateChanged =
         Notification.Name("islandExpandedStateChanged")
+
+    /// Posted by `WindowManager` when the cursor enters/leaves an
+    /// island's hover region. `userInfo`: `"screenID"` and
+    /// `"hovered"` (`Bool`). Replaces SwiftUI's `.onHover`.
+    static let islandHoverChanged =
+        Notification.Name("islandHoverChanged")
 }
