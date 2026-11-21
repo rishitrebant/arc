@@ -213,6 +213,12 @@ final class MediaRemoteMusicService:
 
     // MARK: - Start
 
+    /// Every tick publishes a new `MusicPlaybackState`, which re-renders
+    /// the music view. 10×/s (the old 0.1s) was pure overhead — the
+    /// progress bar is a couple of hundred points wide for a multi-minute
+    /// track, so a 0.25s step moves it by well under a point.
+    private static let progressTickInterval: TimeInterval = 0.25
+
     func start() {
 
         guard
@@ -229,7 +235,7 @@ final class MediaRemoteMusicService:
         progressTimer =
             Timer.scheduledTimer(
                 withTimeInterval:
-                    0.1,
+                    Self.progressTickInterval,
 
                 repeats:
                     true
@@ -1311,74 +1317,11 @@ final class MediaRemoteMusicService:
             return
         }
 
-        DispatchQueue.main.async {
-
-            var errorInfo:
-                NSDictionary?
-
-            guard
-                let appleScript =
-                    NSAppleScript(
-                        source:
-                            script
-                    )
-            else {
-
-                print(
-                    "❌ Could not create AppleScript."
-                )
-
-                return
-            }
-
-            let result =
-                appleScript
-                    .executeAndReturnError(
-                        &errorInfo
-                    )
-
-            if let errorInfo {
-
-                print(
-                    "❌ AppleScript command failed:"
-                )
-
-                print(
-                    errorInfo
-                )
-
-                if let number =
-                    errorInfo[
-                        NSAppleScript.errorNumber
-                    ] as? NSNumber,
-
-                    number.intValue ==
-                        -1743
-                {
-
-                    print(
-                        "⚠️ Automation permission required for:"
-                        + " \(app.rawValue)"
-                    )
-
-                    print(
-                        "Go to:"
-                        + " System Settings → Privacy & Security"
-                        + " → Automation"
-                    )
-                }
-
-            } else {
-
-                print(
-                    "✅ Direct music command sent:"
-                    + " \(app.rawValue)"
-                    + " | command \(command)"
-                )
-
-                _ = result
-            }
-        }
+        runAppleScript(
+            script,
+            label: "command \(command)",
+            app: app
+        )
     }
 
     // MARK: - AppleScript
@@ -1553,60 +1496,77 @@ final class MediaRemoteMusicService:
         end tell
         """
 
-        DispatchQueue.main.async {
+        runAppleScript(
+            script,
+            label: "seek",
+            app: app
+        )
+    }
 
-            var errorInfo:
-                NSDictionary?
+    // MARK: - AppleScript runner
 
-            guard
-                let appleScript =
-                    NSAppleScript(
-                        source:
-                            script
-                    )
-            else {
+    /// Runs an AppleScript WITHOUT touching the main thread.
+    ///
+    /// This used to be `NSAppleScript.executeAndReturnError` on the main
+    /// queue. That call is synchronous: the whole UI — every button,
+    /// every hover, every animation — freezes until the target app
+    /// answers, which can take hundreds of milliseconds (or seconds if
+    /// the app is busy or a permission prompt is up). That's the path
+    /// taken whenever ANOTHER app is the current Now Playing (a browser
+    /// tab, say) and a music button is pressed, which is exactly when
+    /// "the buttons just stopped working" for a moment.
+    ///
+    /// `osascript` as a child process keeps the Automation permission
+    /// attributed to this app and runs entirely off the main thread.
+    private func runAppleScript(
+        _ script: String,
+        label: String,
+        app: MusicApp
+    ) {
 
-                print(
-                    "❌ Could not create AppleScript for seek."
-                )
+        DispatchQueue.global(qos: .userInitiated).async {
 
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", script]
+            process.standardOutput = FileHandle.nullDevice
+
+            let errorPipe = Pipe()
+            process.standardError = errorPipe
+
+            do {
+
+                try process.run()
+
+            } catch {
+
+                print("❌ Could not run osascript: \(error)")
                 return
             }
 
-            _ =
-                appleScript
-                    .executeAndReturnError(
-                        &errorInfo
-                    )
+            process.waitUntilExit()
 
-            if let errorInfo {
+            let errorText = String(
+                data: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+                encoding: .utf8
+            ) ?? ""
 
-                print(
-                    "❌ AppleScript seek failed:"
-                )
+            if process.terminationStatus != 0 {
 
-                print(
-                    errorInfo
-                )
+                print("❌ AppleScript \(label) failed: \(errorText)")
 
-                if let number =
-                    errorInfo[
-                        NSAppleScript.errorNumber
-                    ] as? NSNumber,
-
-                    number.intValue ==
-                        -1743 {
+                if errorText.contains("-1743") {
 
                     print(
                         "⚠️ Automation permission required for:"
-                        + " \(app.rawValue)"
-                    )
-
-                    print(
-                        "Go to: System Settings → Privacy & Security"
-                        + " → Automation"
+                        + " \(app.rawValue) — System Settings →"
+                        + " Privacy & Security → Automation"
                     )
                 }
+
+            } else {
+
+                print("✅ Direct music \(label) sent: \(app.rawValue)")
             }
         }
     }

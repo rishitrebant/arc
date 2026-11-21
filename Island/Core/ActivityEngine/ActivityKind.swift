@@ -39,12 +39,25 @@ enum ActivityKind: Int, Comparable, CaseIterable {
     /// unchanged.
     case charging = 4
 
-    case music = 5
-    case bluetooth = 6
-    case airDrop = 7
-    case downloads = 8
-    case focus = 9
-    case timer = 10
+    /// "A Bluetooth device just connected" (see `BluetoothActivity`).
+    /// Above `music` for the same reason as `charging`: it's a brief
+    /// moment that should appear over whatever is playing and then
+    /// hand the island straight back.
+    case bluetooth = 5
+
+    /// A Caps Lock toggle moment (see `CapsLockActivity`) — brief, so it
+    /// sits above `music` like `bluetooth` and hands the island back.
+    case capsLock = 6
+
+    /// A running timer / stopwatch (see `TimerActivity`). Above `music`
+    /// so a countdown stays visible while something is playing, as on
+    /// the iPhone; moved up from its old slot below `focus`.
+    case timer = 7
+
+    case music = 8
+    case airDrop = 9
+    case downloads = 10
+    case focus = 11
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

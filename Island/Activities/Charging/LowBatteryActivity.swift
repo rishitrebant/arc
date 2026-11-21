@@ -48,6 +48,10 @@ final class LowBatteryActivity: ObservableObject {
     /// True when the next drop to the threshold should raise the alert.
     private var isArmed = true
 
+    #if DEBUG
+    private var lastLoggedSummary = ""
+    #endif
+
     private var cancellables: Set<AnyCancellable> = []
 
     /// Last settings values seen, so a change can be told apart from
@@ -58,7 +62,7 @@ final class LowBatteryActivity: ObservableObject {
     /// Safety net: re-reads the battery periodically in case a power
     /// notification is delayed or coalesced by macOS.
     private var pollTimer: Timer?
-    private static let pollInterval: TimeInterval = 30
+    private static let pollInterval: TimeInterval = 60
 
     /// `monitor` is optional (and created here) because a default
     /// argument can't construct a main-actor object.
@@ -86,7 +90,9 @@ final class LowBatteryActivity: ObservableObject {
         // immediately, instead of waiting for the next percentage tick.
         NotificationCenter.default
             .publisher(for: UserDefaults.didChangeNotification)
-            .receive(on: DispatchQueue.main)
+            // `UserDefaults` posts this for ANY write anywhere in the
+            // app — wait for the burst to settle before looking.
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.settingsMayHaveChanged()
             }
@@ -100,6 +106,10 @@ final class LowBatteryActivity: ObservableObject {
                 self?.refresh()
             }
         }
+
+        // Lets macOS batch this wake-up with others instead of waking
+        // the CPU on its own schedule.
+        pollTimer?.tolerance = Self.pollInterval / 2
     }
 
     private func refresh() {
@@ -140,16 +150,20 @@ final class LowBatteryActivity: ObservableObject {
 
         let trigger = AppSettings.lowBatteryTriggerPercent
 
-        // Shows in Xcode's console — handy for seeing why the alert
-        // did or didn't appear.
-        print(
-            "🔋 LowBattery check — battery: \(snapshot.percent)%,"
-            + " alert at: \(trigger)%,"
-            + " plugged in: \(snapshot.isPluggedIn),"
-            + " armed: \(isArmed),"
-            + " alert enabled: \(AppSettings.showLowBatteryAlert),"
-            + " Low Power Mode already on: \(LowPowerModeController.isEnabled)"
-        )
+        #if DEBUG
+        // Only logs when something decision-relevant actually changed —
+        // not on every battery notification.
+        let summary =
+            "battery \(snapshot.percent)%, alert at \(trigger)%,"
+            + " plugged in \(snapshot.isPluggedIn), armed \(isArmed),"
+            + " enabled \(AppSettings.showLowBatteryAlert),"
+            + " Low Power Mode on \(LowPowerModeController.isEnabled)"
+
+        if summary != lastLoggedSummary {
+            lastLoggedSummary = summary
+            print("🔋 LowBattery — " + summary)
+        }
+        #endif
 
         // Plugged in — the problem is solved, nothing to offer.
         if snapshot.isPluggedIn {

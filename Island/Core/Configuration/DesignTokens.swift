@@ -35,8 +35,7 @@ enum DesignTokens {
         CGSize(
             width: max(
                 MusicMetrics.expandedWidth,
-                FileDropMetrics.expandedWithItemsWidth,
-                LowBatteryMetrics.compactWidth
+                FileDropMetrics.expandedWithItemsWidth
             ),
             height: max(
                 MusicMetrics.expandedHeight,
@@ -60,7 +59,12 @@ enum DesignTokens {
         static let chargingAccent = SwiftUI.Color(red: 48/255, green: 209/255, blue: 88/255)   // derived — iOS system green (dark appearance), as used by the iPhone charging indicator
         static let lowBatteryAccent = SwiftUI.Color(red: 255/255, green: 69/255, blue: 58/255)   // derived — iOS system red (dark appearance), the colour of a battery at or below 20%
         static let lowPowerModeAccent = SwiftUI.Color(red: 255/255, green: 214/255, blue: 10/255) // derived — iOS system yellow, the colour of the battery while Low Power Mode is on
+        static let deviceIconBackground = SwiftUI.Color(white: 1.0).opacity(0.16)              // derived — the soft grey disc behind the device icon and the Disconnect button
         static let chargingBatteryOutline = SwiftUI.Color(white: 1.0).opacity(0.35)            // derived — the dim battery shell/terminal around the green fill
+
+        static let timerAccent = SwiftUI.Color(red: 255/255, green: 159/255, blue: 10/255)     // derived — iOS system orange, the colour of the iPhone's timer activity
+        static let capsLockAccent = SwiftUI.Color(red: 10/255, green: 132/255, blue: 255/255)  // derived — iOS system blue
+        static let controlDisc = SwiftUI.Color(white: 1.0).opacity(0.18)                       // derived — grey disc behind the timer's cancel button
 
         static let islandBackground = SwiftUI.Color.black                              // measured — pure black surface
         static let primaryText = SwiftUI.Color(white: 1.0)                             // measured — #FFFFFF
@@ -84,6 +88,10 @@ enum DesignTokens {
     enum Shape {
         static let compactTopRadius: CGFloat = 0
         static let compactBottomRadius: CGFloat = 12
+
+        /// Height the island collapses to when it leaves — the physical
+        /// notch's own height. Width is `FileDropMetrics.notchWidth`.
+        static let collapsedNotchHeight: CGFloat = 29
 
         static let expandedTopRadius: CGFloat = 36
         static let expandedBottomRadius: CGFloat = 36
@@ -345,8 +353,9 @@ enum DesignTokens {
     // right flank holds a "Low Power Mode" button (~98pt incl. padding),
     // which "Charging"'s flank never had to fit. Flank width is DERIVED:
     // 10 edge + ~98 button + a few points of breathing room to the notch.
-    // Also feeds `sharedCanvasSize` above, since this is now the widest
-    // content any activity shows.
+    // This is wider than the shared canvas (390), so `LowBatteryIslandView`
+    // sizes its own canvas instead of `sharedCanvasSize` — the shared
+    // constant is read by the shelf and must stay exactly as it was.
 
     enum LowBatteryMetrics {
 
@@ -362,6 +371,85 @@ enum DesignTokens {
         static let buttonHorizontalPadding: CGFloat = 9
         static let buttonHeight: CGFloat = 22
         static let confirmationIconSpacing: CGFloat = 4
+    }
+
+    // MARK: - Bluetooth metrics
+    //
+    // Compact uses AirDrop's measured pill (`AirDropMetrics`). Expanded
+    // follows AirDrop's expanded proportions (16pt edge, 42pt icon) but
+    // is wider and taller: wider because it holds a Disconnect button
+    // as well as the name, taller so the content sits entirely below
+    // the physical notch (32pt keep-clear) instead of behind it.
+    // Sizes below are DERIVED from those, not separately measured.
+
+    enum BluetoothMetrics {
+
+        static let expandedWidth: CGFloat = 380
+        static let expandedHeight: CGFloat = 88
+
+        static let edgePadding: CGFloat = 16
+        static let iconSize: CGFloat = 46
+        static let iconToTextGap: CGFloat = 14
+        static let bottomPadding: CGFloat = 6
+
+        static let buttonFont = Font.system(size: 12, weight: .semibold)
+        static let buttonHeight: CGFloat = 30
+        static let buttonHorizontalPadding: CGFloat = 14
+    }
+
+    // MARK: - Timer metrics
+    //
+    // Compact: notch in the middle, a wider right flank for "1:24:59".
+    // Expanded: big time on the left, cancel + pause/resume discs on the
+    // right, all below the physical notch. Sizes are DERIVED from the
+    // Bluetooth pill's proportions, not separately measured.
+
+    enum TimerMetrics {
+
+        static let compactEdgePadding: CGFloat = 10
+        /// Both flanks match so the notch stays centred; sized for the
+        /// widest label, "1:24:59". The dual layout (timer left,
+        /// stopwatch right) needs a glyph beside each time.
+        static let flankWidth: CGFloat = 66
+        static let flankWidthDual: CGFloat = 88
+        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidth * 2
+        static let compactWidthDual: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidthDual * 2
+        static let compactHeight: CGFloat = 33
+
+        /// Compact glyphs follow the other 33pt pills (AirDrop /
+        /// Bluetooth): a 20pt slot with the symbol drawn at 14pt, so it
+        /// reads at the same visual weight as the 13pt time beside it.
+        static let compactIconSlot: CGFloat = 20
+        static let compactGlyphSize: CGFloat = 14
+        static let compactTimeFont = Font.system(size: 13, weight: .semibold)
+        static let compactGlyphToTime: CGFloat = 5
+
+        static let expandedWidth: CGFloat = 360
+        static let expandedHeight: CGFloat = 112
+        static let expandedHeightDual: CGFloat = 172
+        static let expandedEdgePadding: CGFloat = 22
+        static let bottomPadding: CGFloat = 8
+        static let rowSpacing: CGFloat = 4
+
+        static let timeFont = Font.system(size: 38, weight: .light)
+        static let timeFontDual = Font.system(size: 28, weight: .light)
+        static let labelFont = Font.system(size: 12, weight: .semibold)
+        static let labelGlyphSize: CGFloat = 11
+
+        static let buttonSize: CGFloat = 44
+        static let buttonSizeDual: CGFloat = 36
+        static let buttonSpacing: CGFloat = 12
+        static let buttonGlyphSize: CGFloat = 17
+        static let buttonGlyphSizeDual: CGFloat = 14
+    }
+
+    // MARK: - Caps Lock metrics (same pill as AirDrop/Bluetooth compact)
+
+    enum CapsLockMetrics {
+        static let statusFont = Font.system(size: 13, weight: .semibold)
+        /// Symbol drawn inside the 20pt compact icon slot — same size as
+        /// the timer's glyphs so the two pills read alike.
+        static let glyphSize: CGFloat = 14
     }
 
     // MARK: - Hover affordance shadow (new — additive only, nothing above

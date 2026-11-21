@@ -61,6 +61,12 @@ struct GeneralSettingsTab: View {
     @State private var launchAtLogin = AppSettings.launchAtLoginEnabled
     @AppStorage(AppSettings.Key.alwaysShowMenuBarIcon)
     private var alwaysShowIcon = AppSettings.Default.alwaysShowMenuBarIcon
+    @AppStorage(AppSettings.Key.showBluetoothAlert)
+    private var showBluetooth = AppSettings.Default.showBluetoothAlert
+    @AppStorage(AppSettings.Key.showBluetoothInputDevices)
+    private var showBluetoothInputs = AppSettings.Default.showBluetoothInputDevices
+    @AppStorage(AppSettings.Key.showCapsLockIndicator)
+    private var showCapsLock = AppSettings.Default.showCapsLockIndicator
 
     var body: some View {
         TabContainer {
@@ -80,6 +86,24 @@ struct GeneralSettingsTab: View {
                     .onChange(of: alwaysShowIcon) { _, _ in
                         NotificationCenter.default.post(name: AppSettings.didChange, object: nil)
                     }
+            }
+
+            SettingsRow(
+                "Bluetooth:",
+                detail: "Briefly shows the device in the notch when it connects. Hover over it to see the name and disconnect. Keyboards, mice and trackpads reconnect whenever your Mac wakes, so you may want those off."
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Show when a device connects", isOn: $showBluetooth)
+                    Toggle("Include keyboards, mice and trackpads", isOn: $showBluetoothInputs)
+                        .disabled(!showBluetooth)
+                }
+            }
+
+            SettingsRow(
+                "Caps Lock:",
+                detail: "Briefly shows whether Caps Lock is on or off in the notch whenever you press it."
+            ) {
+                Toggle("Show when Caps Lock changes", isOn: $showCapsLock)
             }
         }
     }
@@ -237,6 +261,75 @@ struct MusicSettingsTab: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .fixedSize()
+            }
+        }
+    }
+}
+
+// MARK: - Timer
+
+/// The quick-start durations shared by the menu bar and the Timer tab.
+enum TimerPreset {
+
+    static let all: [(title: String, seconds: TimeInterval)] = [
+        ("1 minute", 60), ("5 minutes", 300), ("10 minutes", 600),
+        ("15 minutes", 900), ("25 minutes", 1500), ("30 minutes", 1800),
+        ("1 hour", 3600)
+    ]
+
+    /// `nil` starts a stopwatch. `TimerActivity` listens for this.
+    static func start(_ seconds: TimeInterval?) {
+        NotificationCenter.default.post(
+            name: .islandStartTimer,
+            object: nil,
+            userInfo: seconds.map { ["duration": $0] }
+        )
+    }
+}
+
+struct TimerSettingsTab: View {
+
+    @State private var customMinutes = 10
+
+    var body: some View {
+        TabContainer {
+            SettingsRow(
+                "Start a timer:",
+                detail: "The timer appears in the notch with the time left. Hover over it to pause or cancel. It also rings when it finishes."
+            ) {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
+                    alignment: .leading,
+                    spacing: 8
+                ) {
+                    ForEach(TimerPreset.all, id: \.seconds) { preset in
+                        Button(preset.title) { TimerPreset.start(preset.seconds) }
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+
+            SettingsRow("Custom:") {
+                HStack(spacing: 6) {
+                    TextField("", value: $customMinutes, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 56)
+
+                    Stepper("", value: $customMinutes, in: 1...999)
+                        .labelsHidden()
+
+                    Text("minutes")
+                        .foregroundStyle(.secondary)
+
+                    Button("Start") {
+                        TimerPreset.start(TimeInterval(min(max(customMinutes, 1), 999) * 60))
+                    }
+                }
+            }
+
+            SettingsRow("Stopwatch:") {
+                Button("Start Stopwatch") { TimerPreset.start(nil) }
             }
         }
     }

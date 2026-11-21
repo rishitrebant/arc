@@ -17,7 +17,10 @@ enum AppSettings {
         static let showChargingIndicator = "showChargingIndicator"
         static let showChargerDisconnectedAlert = "showChargerDisconnectedAlert"
         static let showLowBatteryAlert = "showLowBatteryAlert"
+        static let showBluetoothAlert = "showBluetoothAlert"
+        static let showBluetoothInputDevices = "showBluetoothInputDevices"
         static let lowBatteryTriggerPercent = "lowBatteryTriggerPercent"
+        static let showCapsLockIndicator = "showCapsLockIndicator"
     }
 
     enum Default {
@@ -27,7 +30,10 @@ enum AppSettings {
         static let showChargingIndicator = true
         static let showChargerDisconnectedAlert = true
         static let showLowBatteryAlert = true
+        static let showBluetoothAlert = true
+        static let showBluetoothInputDevices = true
         static let lowBatteryTriggerPercent = 20
+        static let showCapsLockIndicator = true
     }
 
     // MARK: - Static accessors (for non-SwiftUI code)
@@ -64,6 +70,21 @@ enum AppSettings {
     static var showChargerDisconnectedAlert: Bool {
         UserDefaults.standard.object(forKey: Key.showChargerDisconnectedAlert) as? Bool
             ?? Default.showChargerDisconnectedAlert
+    }
+
+    static var showBluetoothAlert: Bool {
+        UserDefaults.standard.object(forKey: Key.showBluetoothAlert) as? Bool
+            ?? Default.showBluetoothAlert
+    }
+
+    static var showBluetoothInputDevices: Bool {
+        UserDefaults.standard.object(forKey: Key.showBluetoothInputDevices) as? Bool
+            ?? Default.showBluetoothInputDevices
+    }
+
+    static var showCapsLockIndicator: Bool {
+        UserDefaults.standard.object(forKey: Key.showCapsLockIndicator) as? Bool
+            ?? Default.showCapsLockIndicator
     }
 
     static var showLowBatteryAlert: Bool {

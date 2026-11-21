@@ -100,14 +100,27 @@ final class MusicActivity: ObservableObject {
         playbackState =
             state
 
+        if state?.isPlaying == true {
+
+            // Fires every progress tick while playing — nothing below
+            // needs redoing unless a pause timer is actually pending or
+            // we aren't active yet.
+            if pauseGraceTimer != nil {
+                pauseGraceTimer?.cancel()
+                pauseGraceTimer = nil
+            }
+
+            if !isActive {
+                setActive(true)
+            }
+
+            return
+        }
+
         pauseGraceTimer?.cancel()
         pauseGraceTimer = nil
 
-        if state?.isPlaying == true {
-
-            setActive(true)
-
-        } else if state == nil {
+        if state == nil {
 
             // No track loaded at all — nothing to keep showing either
             // way, no need to wait.

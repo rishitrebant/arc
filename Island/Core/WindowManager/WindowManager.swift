@@ -65,36 +65,6 @@ final class WindowManager {
     private var activeScreenID:
         ObjectIdentifier?
 
-    /// Screens whose island is VISUALLY expanded right now, reported by
-    /// `IslandRootView` (see `.islandExpandedStateChanged`). This — not
-    /// `activeScreenID` — decides how big the interactive/hover region
-    /// is. `activeScreenID` can be set by SwiftUI's `.onHover` (which
-    /// covers the whole shared canvas, far bigger than the compact
-    /// pill) from a cursor position nowhere near the pill, so letting
-    /// it inflate the region is what made the hover area stay
-    /// expanded-sized while the island was visibly compact.
-    private var expandedScreens: Set<ObjectIdentifier> = []
-
-    /// Short grace after the cursor touches the compact pill during
-    /// which the region is already expanded-sized — covers the gap
-    /// between "hover started" and "island actually finished expanding"
-    /// (`AnimationTokens.hoverActivationDelay` + margin), so moving
-    /// from the pill toward the panel doesn't cancel the expand.
-    private var hoverGraceDeadline: [ObjectIdentifier: Date] = [:]
-
-    private static let hoverGraceDuration: TimeInterval =
-        AnimationTokens.hoverActivationDelay + 0.2
-
-    /// Last hover state reported to each island, so a notification is
-    /// only posted when it actually changes.
-    private var lastHovered: [ObjectIdentifier: Bool] = [:]
-
-    /// One pending recompute at the moment the grace period ends — the
-    /// click-through update is otherwise driven purely by mouse events,
-    /// so a cursor that stops moving would keep the grace-sized region
-    /// until its next movement.
-    private var graceRecheckScheduled = false
-
     /// Whether any screen currently has genuine hover-driven expansion
     /// active. Exposed so activities (via `AppDelegate`) can check
     /// whether the island is currently being interacted with before
@@ -103,6 +73,42 @@ final class WindowManager {
     var isAnyScreenCurrentlyHovered: Bool {
         activeScreenID != nil
     }
+
+    // MARK: - Hover region sized from the VISIBLE island
+    //
+    // `IslandRootView` reports whether its island is actually expanded
+    // on screen (`.islandExpandedStateChanged`). With that, the
+    // interactive / hover region is compact-sized whenever the island is
+    // compact — instead of being inflated by `activeScreenID`, which
+    // SwiftUI's canvas-wide `.onHover` can set from a cursor position
+    // nowhere near the pill.
+    //
+    // SAFETY: this only applies to screens whose `IslandRootView` has
+    // actually reported (`reportingScreens`). If the two files are ever
+    // out of sync (old `IslandRootView`, new `WindowManager`), nothing
+    // reports, and the original region logic below runs unchanged —
+    // buttons keep working, you just don't get the smaller region.
+
+    /// Screens whose `IslandRootView` is reporting its expanded state.
+    private var reportingScreens: Set<ObjectIdentifier> = []
+
+    /// Screens whose island is VISUALLY expanded right now.
+    private var expandedScreens: Set<ObjectIdentifier> = []
+
+    /// Short window after the cursor touches the compact pill during
+    /// which the region is already expanded-sized — covers the gap
+    /// between "hover started" and "island finished expanding"
+    /// (`AnimationTokens.hoverActivationDelay` + margin), so moving from
+    /// the pill toward the panel doesn't cancel the expand.
+    private var hoverGraceDeadline: [ObjectIdentifier: Date] = [:]
+
+    private static let hoverGraceDuration: TimeInterval =
+        AnimationTokens.hoverActivationDelay + 0.2
+
+    /// One recompute when the grace ends — the update is otherwise
+    /// driven only by mouse events, so a cursor that stops moving would
+    /// keep the grace-sized region until its next movement.
+    private var graceRecheckScheduled = false
 
     /// Screens whose island is currently docked.
     ///
@@ -196,11 +202,11 @@ final class WindowManager {
         let screenID =
             ObjectIdentifier(screen)
 
-        // A fresh hosting view starts compact — drop any stale
-        // "expanded" report from a previous one.
+        // A fresh hosting view hasn't reported yet (its `onAppear`
+        // will) — until then the original region logic applies.
+        reportingScreens.remove(screenID)
         expandedScreens.remove(screenID)
         hoverGraceDeadline[screenID] = nil
-        lastHovered[screenID] = nil
 
         let origin =
             notchOrigin(
@@ -369,9 +375,9 @@ final class WindowManager {
             forKey: screenID
         )
 
+        reportingScreens.remove(screenID)
         expandedScreens.remove(screenID)
         hoverGraceDeadline[screenID] = nil
-        lastHovered[screenID] = nil
 
         dockedScreens.remove(
             screenID
@@ -545,6 +551,8 @@ final class WindowManager {
 
                 guard let self, let screenID, let expanded else { return }
 
+                self.reportingScreens.insert(screenID)
+
                 if expanded {
                     self.expandedScreens.insert(screenID)
                 } else {
@@ -641,8 +649,6 @@ final class WindowManager {
                             window
                     )
 
-                postHover(false, for: id)
-
                 let shouldInteract =
                     dockRect.contains(cursor)
                     || dragCatchRect.contains(cursor)
@@ -657,128 +663,180 @@ final class WindowManager {
             // ---------------------------------------------------------
             // NORMAL
             //
-            // HOVER / CLICK REGION
+            // FIX: hover area inflating and getting stuck oversized.
             //
-            // Sized from what is VISUALLY on screen, never from
-            // `activeScreenID`. `IslandRootView`'s SwiftUI `.onHover`
-            // covers the whole shared canvas (up to 390×225), not just
-            // the small compact pill, and can call `setHoverActive`
-            // from a cursor position nowhere near the pill — so any
-            // region derived from that flag could stay expanded-sized
-            // while the island was visibly compact (most noticeable
-            // with the shelf holding a file, whose expanded size is
-            // the largest). Here: compact island → compact-sized
-            // region; the region only grows while the island really is
-            // expanded (reported by `IslandRootView` through
-            // `.islandExpandedStateChanged`), forced expanded by the
-            // activity, or inside the short grace after touching the
-            // pill. Recomputed from geometry on every mouse event.
+            // `IslandRootView`'s own SwiftUI `.onHover` covers its full
+            // reported size — the fixed shared canvas (390×225), NOT
+            // just the small true compact pill (263×29) sitting inside
+            // it. The drag-catch zone widens `ignoresMouseEvents` across
+            // a much bigger area (600×90) while dragging, which can give
+            // that oversized `.onHover` a chance to fire and set
+            // `activeScreenID` from a cursor position nowhere near the
+            // true pill. A PREVIOUS fix here only cleared that
+            // afterward, once the cursor moved outside the resulting
+            // (still-too-large) rect — but if the cursor just stays
+            // anywhere within that wider area, which is quite likely
+            // near the notch, that check never fires and the hover
+            // stays stuck oversized indefinitely.
+            //
+            // Replaced with something authoritative instead: computed
+            // fresh from geometry on every single mouse-move, never
+            // trusting whatever `activeScreenID` was set to by anything
+            // else beforehand. "Start" hovering requires the cursor to
+            // genuinely be inside the small compact rect — never the
+            // wider drag-catch or full-canvas areas. Once genuinely
+            // started, it's allowed to "stay" expanded as long as the
+            // cursor remains inside the resulting larger rect (so
+            // moving into the expanded controls to interact with them
+            // still works normally) — but it can never be ENTERED any
+            // other way. Since this runs every movement, it also
+            // instantly overrides any stale/spurious value `setHoverActive`
+            // may have set moments earlier, rather than just reacting
+            // to it after the fact.
             // ---------------------------------------------------------
 
-            let forcing =
-                currentActivityIsForcingExpanded()
+            let shouldInteract: Bool
 
-            let visuallyExpanded =
-                expandedScreens.contains(id) || forcing
+            if reportingScreens.contains(id) {
 
-            let compactRect =
-                activeRectOnScreen(for: window, isExpanded: false)
+                // HOVER / CLICK REGION — sized from what is VISUALLY
+                // on screen (see "Hover region sized from the VISIBLE
+                // island" above). Compact island → compact-sized
+                // region. It only grows while the island is really
+                // expanded, forced expanded by the activity, or inside
+                // the short grace after touching the pill. Recomputed
+                // from geometry on every mouse event.
+                let forcing =
+                    currentActivityIsForcingExpanded()
 
-            let expandedRect =
-                activeRectOnScreen(for: window, isExpanded: true)
+                let visuallyExpanded =
+                    expandedScreens.contains(id) || forcing
 
-            // Cursor touching the compact pill (while it's compact)
-            // starts / re-arms the short grace period — see
-            // `hoverGraceDeadline`.
-            if !visuallyExpanded, compactRect.contains(cursor) {
+                let compactRect =
+                    activeRectOnScreen(for: window, isExpanded: false)
 
-                hoverGraceDeadline[id] =
-                    Date().addingTimeInterval(Self.hoverGraceDuration)
-            }
+                let expandedRect =
+                    activeRectOnScreen(for: window, isExpanded: true)
 
-            let inGrace =
-                (hoverGraceDeadline[id] ?? .distantPast) > Date()
+                if !visuallyExpanded, compactRect.contains(cursor) {
 
-            // The interactive region is compact-sized whenever the
-            // island is compact. It's expanded-sized only while the
-            // island is genuinely expanded on screen (or forced
-            // expanded by the activity, or in the brief grace above).
-            let interactiveRect =
-                (visuallyExpanded || inGrace)
-                    ? expandedRect
-                    : compactRect
-
-            let isInsideInteractiveRect =
-                interactiveRect.contains(cursor)
-
-            if isInsideInteractiveRect {
-
-                activeScreenID = id
-
-            } else if activeScreenID == id, !forcing {
-
-                activeScreenID = nil
-            }
-
-            // Hover is decided HERE, from the cursor's position against
-            // the region above, and pushed to `IslandRootView` — SwiftUI's
-            // own `.onHover` is no longer used, because its hit area is
-            // the whole shared canvas (up to 390×225), not the pill.
-            // A hover can't START in the middle of a drag (a drag
-            // passing over the pill isn't a hover) but one already
-            // under way continues (e.g. dragging a slider inside the
-            // expanded panel).
-            let wasHovered = lastHovered[id] ?? false
-
-            postHover(
-                isInsideInteractiveRect
-                    && (!lastKnownDragState || wasHovered),
-                for: id
-            )
-
-            if inGrace, !graceRecheckScheduled {
-
-                graceRecheckScheduled = true
-
-                DispatchQueue.main.asyncAfter(
-                    deadline: .now() + Self.hoverGraceDuration + 0.05
-                ) { [weak self] in
-                    self?.graceRecheckScheduled = false
-                    self?.updateAllClickThroughStates()
+                    hoverGraceDeadline[id] =
+                        Date().addingTimeInterval(Self.hoverGraceDuration)
                 }
-            }
 
-            let shouldInteract =
-                isInsideInteractiveRect
-                || dragCatchRect.contains(cursor)
+                let inGrace =
+                    (hoverGraceDeadline[id] ?? .distantPast) > Date()
+
+                // Small margins so a cursor drifting a point or two past
+                // the panel edge on the way to a button there doesn't
+                // kill interactivity mid-click; the keep-alive margin
+                // (already hovering) is bigger than the start margin.
+                let alreadyActive = activeScreenID == id
+
+                let interactiveRect: CGRect
+
+                // The grace period no longer inflates the region to the
+                // full expanded rect: the hover area is only ever as
+                // big as the island that is actually visible.
+                if visuallyExpanded {
+
+                    let margin: CGFloat = alreadyActive ? 14 : 6
+
+                    interactiveRect =
+                        expandedRect.insetBy(dx: -margin, dy: -margin)
+
+                } else {
+
+                    interactiveRect =
+                        compactRect.insetBy(dx: -2, dy: -2)
+                }
+
+                let isInsideInteractiveRect =
+                    interactiveRect.contains(cursor)
+
+                if isInsideInteractiveRect {
+
+                    activeScreenID = id
+
+                } else if activeScreenID == id, !forcing {
+
+                    activeScreenID = nil
+                }
+
+                shouldInteract =
+                    isInsideInteractiveRect
+                    || dragCatchRect.contains(cursor)
+
+                if inGrace, !graceRecheckScheduled {
+
+                    graceRecheckScheduled = true
+
+                    DispatchQueue.main.asyncAfter(
+                        deadline: .now() + Self.hoverGraceDuration + 0.05
+                    ) { [weak self] in
+                        self?.graceRecheckScheduled = false
+                        self?.updateAllClickThroughStates()
+                    }
+                }
+
+            } else {
+
+                // ORIGINAL region logic, unchanged — used whenever this
+                // screen's `IslandRootView` isn't reporting.
+                let compactRect =
+                    activeRectOnScreen(for: window, isExpanded: false)
+
+                let wasAlreadyHoverExpanded =
+                    activeScreenID == id
+
+                let previouslyExpandedRect =
+                    wasAlreadyHoverExpanded
+                        ? activeRectOnScreen(for: window, isExpanded: true)
+                        : .zero
+
+                if compactRect.contains(cursor) {
+
+                    activeScreenID = id
+
+                } else if wasAlreadyHoverExpanded,
+                          previouslyExpandedRect.contains(cursor) {
+
+                    // Stay expanded — cursor is still within the larger
+                    // "peek" area. `activeScreenID` is already `id`;
+                    // nothing to change.
+
+                } else if activeScreenID == id,
+                          !currentActivityIsForcingExpanded() {
+
+                    activeScreenID = nil
+                }
+
+                let activeRect =
+                    activeRectOnScreen(
+                        for: window,
+                        isExpanded:
+                            activeScreenID == id
+                            || currentActivityIsForcingExpanded()
+                    )
+
+
+                shouldInteract =
+                    activeRect.contains(cursor)
+                    || dragCatchRect.contains(cursor)
+            }
 
             // Guard against writing the same value repeatedly — a real
             // drag can call this dozens of times a second even when
             // nothing has actually changed, and `ignoresMouseEvents`'s
             // setter is a real AppKit property change, not a free no-op.
+            // Setting it redundantly at that frequency, layered on top
+            // of SwiftUI simultaneously re-laying-out the same content
+            // in response to `@Published` changes, is a plausible
+            // contributor to the reported layout-recursion warning.
             if window.ignoresMouseEvents == shouldInteract {
                 window.ignoresMouseEvents = !shouldInteract
             }
         }
-    }
-
-    private func postHover(
-        _ hovered: Bool,
-        for id: ObjectIdentifier
-    ) {
-
-        guard (lastHovered[id] ?? false) != hovered else { return }
-
-        lastHovered[id] = hovered
-
-        NotificationCenter.default.post(
-            name: .islandHoverChanged,
-            object: nil,
-            userInfo: [
-                "screenID": id,
-                "hovered": hovered
-            ]
-        )
     }
 
     /// True whenever the currently-owned activity is rendering itself
@@ -1108,16 +1166,9 @@ final class WindowManager {
 
 extension Notification.Name {
 
-    /// Posted by `IslandRootView` whenever its VISUAL expanded state
-    /// changes. `userInfo`: `"screenID"` (`ObjectIdentifier`) and
-    /// `"expanded"` (`Bool`). `WindowManager` sizes the hover/click
-    /// region from this, so the region always matches what's on screen.
+    /// Posted by `IslandRootView` on appear and whenever its VISUAL
+    /// expanded state changes. `userInfo`: `"screenID"`
+    /// (`ObjectIdentifier`) and `"expanded"` (`Bool`).
     static let islandExpandedStateChanged =
         Notification.Name("islandExpandedStateChanged")
-
-    /// Posted by `WindowManager` when the cursor enters/leaves an
-    /// island's hover region. `userInfo`: `"screenID"` and
-    /// `"hovered"` (`Bool`). Replaces SwiftUI's `.onHover`.
-    static let islandHoverChanged =
-        Notification.Name("islandHoverChanged")
 }

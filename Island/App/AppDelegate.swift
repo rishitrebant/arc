@@ -27,6 +27,15 @@ final class AppDelegate:
     private var lowBatteryActivity:
         LowBatteryActivity!
 
+    private var bluetoothActivity:
+        BluetoothActivity!
+
+    private var timerActivity:
+        TimerActivity!
+
+    private var capsLockActivity:
+        CapsLockActivity!
+
     /// Held onto only because `NSSharingServicePicker` doesn't manage
     /// its own lifetime the way a normal Cocoa control does — nothing
     /// else references it once `show(relativeTo:of:preferredEdge:)`
@@ -84,6 +93,33 @@ final class AppDelegate:
 
         activityManager.register(
             lowBatteryActivity
+        )
+
+        bluetoothActivity =
+            BluetoothActivity()
+
+        bluetoothActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            bluetoothActivity
+        )
+
+        timerActivity =
+            TimerActivity()
+
+        activityManager.register(
+            timerActivity
+        )
+
+        capsLockActivity =
+            CapsLockActivity()
+
+        activityManager.register(
+            capsLockActivity
         )
 
         fileDropActivity =

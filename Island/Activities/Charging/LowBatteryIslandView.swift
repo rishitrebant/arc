@@ -15,8 +15,17 @@ struct LowBatteryIslandView: View {
 
     private typealias Metrics = DesignTokens.LowBatteryMetrics
 
+    /// Wider than the shared canvas (the pill is 411 wide), so this view
+    /// widens its own frame rather than changing the shared constant
+    /// other activities — the shelf included — depend on.
     private var canvasSize: CGSize {
-        DesignTokens.sharedCanvasSize
+        CGSize(
+            width: max(
+                DesignTokens.sharedCanvasSize.width,
+                Metrics.compactWidth
+            ),
+            height: DesignTokens.sharedCanvasSize.height
+        )
     }
 
     private var pillSize: CGSize {

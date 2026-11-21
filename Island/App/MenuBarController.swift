@@ -60,6 +60,33 @@ final class MenuBarController: NSObject {
 
         menu.addItem(.separator())
 
+        let timerItem = NSMenuItem(title: "Start Timer", action: nil, keyEquivalent: "")
+        let timerMenu = NSMenu()
+
+        for preset in TimerPreset.all {
+            let item = NSMenuItem(
+                title: preset.title,
+                action: #selector(startTimer(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = preset.seconds
+            timerMenu.addItem(item)
+        }
+
+        timerItem.submenu = timerMenu
+        menu.addItem(timerItem)
+
+        let stopwatchItem = NSMenuItem(
+            title: "Start Stopwatch",
+            action: #selector(startStopwatch),
+            keyEquivalent: ""
+        )
+        stopwatchItem.target = self
+        menu.addItem(stopwatchItem)
+
+        menu.addItem(.separator())
+
         let settingsItem = NSMenuItem(
             title: "Settings…",
             action: #selector(openSettings),
@@ -79,6 +106,15 @@ final class MenuBarController: NSObject {
         )
 
         return menu
+    }
+
+    @objc private func startTimer(_ sender: NSMenuItem) {
+        guard let seconds = sender.representedObject as? TimeInterval else { return }
+        TimerPreset.start(seconds)
+    }
+
+    @objc private func startStopwatch() {
+        TimerPreset.start(nil)
     }
 
     @objc private func openSettings() {

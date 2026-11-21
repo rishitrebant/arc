@@ -89,6 +89,18 @@ enum AnimationTokens {
     /// closes while the cursor is on it.)
     static let lowBatteryDisplayDuration: TimeInterval = 8.0
 
+    /// How long the "Bluetooth device connected" pill stays before
+    /// returning the island (never while the cursor is on it).
+    static let bluetoothDisplayDuration: TimeInterval = 4.0
+
+    /// How long the "Caps Lock On/Off" pill stays.
+    static let capsLockDisplayDuration: TimeInterval = 1.6
+
+    /// How long a finished timer keeps ringing the island before it
+    /// dismisses itself, and the gap between repeated chimes.
+    static let timerFinishedDuration: TimeInterval = 60
+    static let timerChimeInterval: TimeInterval = 3
+
     struct SpringPhysics {
         let mass: CGFloat
         let stiffness: CGFloat

@@ -66,6 +66,14 @@ struct IslandRootView: View {
     /// Cancels a pending exit if another activity arrives during it.
     @State private var presentationWorkItem: DispatchWorkItem?
 
+    /// While one activity hands the island straight to another, this
+    /// black pill sits underneath and morphs from the old pill's size to
+    /// the new one's, so the surface itself never disappears — only the
+    /// content on it cross-fades.
+    @State private var showHandoverBackdrop = false
+    @State private var handoverBackdropSize: CGSize = .zero
+    @State private var handoverWorkItem: DispatchWorkItem?
+
     /// Duration for the very small horizontal enter/exit animation.
     ///
     /// This is intentionally separate from the existing morph animation.
@@ -83,6 +91,37 @@ struct IslandRootView: View {
         )
     }
 
+    /// The size of the pill actually on screen right now.
+    private var visibleSize: CGSize {
+
+        guard let activity = renderedActivity else {
+            return compactSize
+        }
+
+        return isExpanded
+            ? activity.expandedSize
+            : activity.compactSize
+    }
+
+    /// Scale that squeezes the current pill down to the physical notch
+    /// (`notchWidth` × `collapsedNotchHeight`) — what every activity
+    /// grows out of and shrinks back into, whatever its own size.
+    private var notchScale: CGSize {
+
+        let size = visibleSize
+
+        return CGSize(
+            width: min(
+                1,
+                max(0.001, DesignTokens.FileDropMetrics.notchWidth / max(size.width, 1))
+            ),
+            height: min(
+                1,
+                max(0.001, DesignTokens.Shape.collapsedNotchHeight / max(size.height, 1))
+            )
+        )
+    }
+
     var body: some View {
 
         Group {
@@ -90,10 +129,29 @@ struct IslandRootView: View {
             if let activity =
                 renderedActivity {
 
-                activity.islandView(
-                    isExpanded:
-                        isExpanded
-                )
+                ZStack(alignment: .top) {
+
+                    if showHandoverBackdrop {
+
+                        IslandShape(
+                            topRadius: DesignTokens.Shape.compactTopRadius,
+                            bottomRadius: DesignTokens.Shape.compactBottomRadius
+                        )
+                        .fill(DesignTokens.Color.islandBackground)
+                        .frame(
+                            width: handoverBackdropSize.width,
+                            height: handoverBackdropSize.height
+                        )
+                        .allowsHitTesting(false)
+                    }
+
+                    activity.islandView(
+                        isExpanded:
+                            isExpanded
+                    )
+                    .id(activity.id)
+                    .transition(.opacity)
+                }
                 .offset(
                     y:
                         isDocked
@@ -141,13 +199,11 @@ struct IslandRootView: View {
         // ---------------------------------------------------------
         // ENTER / EXIT SCALE
         //
-        // The island grows/shrinks HORIZONTALLY around its exact
-        // centre, at full height the whole time — it widens out from
-        // the middle of the notch, it never changes height. (Height
-        // changes belong only to the compact<->expand morph.)
+        // This is the ONLY animation added for the new feature.
         //
-        // Every ownership change, dock and undock goes through this
-        // one modifier, so they all share this motion.
+        // The island grows/shrinks from the notch (top-center),
+        // matching the compact<->expand morph's anchor, instead of
+        // popping in at full height from the center of the screen.
         //
         // No opacity animation.
         // No layout animation.
@@ -161,13 +217,18 @@ struct IslandRootView: View {
             x:
                 isPresentationVisible
                     ? 1
-                    : 0.001,
+                    : notchScale.width,
 
+            // Every activity, compact or expanded, grows out of and
+            // shrinks back into the notch itself (179 wide, 29 tall) —
+            // not a flat line, and not just along one axis.
             y:
-                1,
+                isPresentationVisible
+                    ? 1
+                    : notchScale.height,
 
             anchor:
-                .center
+                .top
         )
 
         .animation(
@@ -206,8 +267,10 @@ struct IslandRootView: View {
         // CLICK THROUGH REGION
         // ---------------------------------------------------------
 
+        // Only the visible pill is hoverable/clickable — not the whole
+        // fixed canvas the activity views lay themselves out in.
         .contentShape(
-            Rectangle()
+            VisibleIslandShape(size: visibleSize)
         )
 
         // ---------------------------------------------------------
@@ -244,31 +307,30 @@ struct IslandRootView: View {
         // EXISTING HOVER
         // ---------------------------------------------------------
 
-        // Hover comes from `WindowManager` (cursor position vs. the
-        // visible pill's real size), not SwiftUI's `.onHover`, whose
-        // hit area is the entire shared canvas.
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: .islandHoverChanged
-            )
-        ) { note in
-
-            guard
-                let id = note.userInfo?["screenID"] as? ObjectIdentifier,
-                id == screenID,
-                let hovered = note.userInfo?["hovered"] as? Bool
-            else {
-                return
-            }
+        .onHover { hovering in
 
             handleHover(
-                hovered
+                hovering
             )
         }
 
-        // Tells `WindowManager` what's actually on screen, so the
+        // Tells `WindowManager` what's actually on screen, so its
         // hover/click region is compact-sized whenever the island is
-        // compact (see `WindowManager.expandedScreens`).
+        // compact. Also posts once on appear — that first post is how
+        // `WindowManager` knows this view reports at all (if it never
+        // does, `WindowManager` falls back to its original logic).
+        .onAppear {
+
+            NotificationCenter.default.post(
+                name: .islandExpandedStateChanged,
+                object: nil,
+                userInfo: [
+                    "screenID": screenID,
+                    "expanded": isExpanded
+                ]
+            )
+        }
+
         .onChange(of: isExpanded) { _, expanded in
 
             NotificationCenter.default.post(
@@ -520,6 +582,46 @@ struct IslandRootView: View {
         // ---------------------------------------------------------
         // NEW ACTIVITY
         // ---------------------------------------------------------
+
+        // ---------------------------------------------------------
+        // HANDOVER
+        //
+        // One activity taking the island straight from another never
+        // collapses into the notch and reopens: the pill morphs to the
+        // new size while the content cross-fades.
+        // ---------------------------------------------------------
+
+        if renderedActivity != nil,
+           isPresentationVisible,
+           !isDocked {
+
+            handoverWorkItem?.cancel()
+
+            handoverBackdropSize = visibleSize
+            showHandoverBackdrop = true
+
+            withAnimation(AnimationTokens.ownershipChange) {
+
+                renderedActivity = newActivity
+
+                handoverBackdropSize = isExpanded
+                    ? newActivity.expandedSize
+                    : newActivity.compactSize
+            }
+
+            let work = DispatchWorkItem {
+                showHandoverBackdrop = false
+            }
+
+            handoverWorkItem = work
+
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.5,
+                execute: work
+            )
+
+            return
+        }
 
         renderedActivity =
             newActivity
@@ -842,5 +944,23 @@ struct IslandRootView: View {
             isPresentationVisible =
                 true
         }
+    }
+}
+
+/// Hit-testing shape for the island: just the visible pill, centred at
+/// the top of whatever frame it's applied to.
+private struct VisibleIslandShape: Shape {
+
+    var size: CGSize
+
+    func path(in rect: CGRect) -> Path {
+        Path(
+            CGRect(
+                x: rect.midX - size.width / 2,
+                y: rect.minY,
+                width: size.width,
+                height: size.height
+            )
+        )
     }
 }
