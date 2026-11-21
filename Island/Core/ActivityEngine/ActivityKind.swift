@@ -59,6 +59,11 @@ enum ActivityKind: Int, Comparable, CaseIterable {
     case downloads = 10
     case focus = 11
 
+    /// The notch's click-to-open menu (see `LauncherActivity`). Lowest
+    /// priority: it only ever appears over an empty island, and anything
+    /// else that wants the island simply replaces it.
+    case launcher = 12
+
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue
     }

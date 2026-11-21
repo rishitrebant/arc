@@ -282,7 +282,16 @@ enum TimerPreset {
         NotificationCenter.default.post(
             name: .islandStartTimer,
             object: nil,
-            userInfo: seconds.map { ["duration": $0] }
+            userInfo: seconds.map { ["kind": "countdown", "duration": $0] }
+                ?? ["kind": "stopwatch"]
+        )
+    }
+
+    static func startPomodoro(focus: TimeInterval, rest: TimeInterval) {
+        NotificationCenter.default.post(
+            name: .islandStartTimer,
+            object: nil,
+            userInfo: ["kind": "pomodoro", "duration": focus, "breakDuration": rest]
         )
     }
 }

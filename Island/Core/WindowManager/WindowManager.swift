@@ -62,8 +62,43 @@ final class WindowManager {
         }
     }
 
+    /// The screen whose island the cursor is on. This is the SINGLE
+    /// source of hover truth: it's computed from geometry (the cursor
+    /// against the visible island's rect) and every change is
+    /// broadcast as `.islandHoverChanged`, which is what `IslandRootView`
+    /// reacts to. SwiftUI's own `.onHover` is no longer used — it fired
+    /// over the whole (much larger) canvas and was unreliable once the
+    /// window started ignoring mouse events.
     private var activeScreenID:
-        ObjectIdentifier?
+        ObjectIdentifier? {
+
+        didSet {
+
+            guard oldValue != activeScreenID else { return }
+
+            if let old = oldValue {
+                postHoverChange(old, hovering: false)
+            }
+
+            if let new = activeScreenID {
+                postHoverChange(new, hovering: true)
+            }
+        }
+    }
+
+    private func postHoverChange(
+        _ screenID: ObjectIdentifier,
+        hovering: Bool
+    ) {
+        NotificationCenter.default.post(
+            name: .islandHoverChanged,
+            object: nil,
+            userInfo: [
+                "screenID": screenID,
+                "hovering": hovering
+            ]
+        )
+    }
 
     /// Whether any screen currently has genuine hover-driven expansion
     /// active. Exposed so activities (via `AppDelegate`) can check
@@ -202,8 +237,11 @@ final class WindowManager {
         let screenID =
             ObjectIdentifier(screen)
 
-        // A fresh hosting view hasn't reported yet (its `onAppear`
-        // will) — until then the original region logic applies.
+        // The observer for the island's expanded-state reports must
+        // exist BEFORE the hosting view's first `onAppear` fires, or
+        // that first report is lost.
+        startMouseTracking()
+
         reportingScreens.remove(screenID)
         expandedScreens.remove(screenID)
         hoverGraceDeadline[screenID] = nil
@@ -697,7 +735,12 @@ final class WindowManager {
 
             let shouldInteract: Bool
 
-            if reportingScreens.contains(id) {
+            // Always the authoritative geometry-based region. The old
+            // fallback (used until a screen had "reported") grew the
+            // hover area to the full expanded size the moment the cursor
+            // touched the compact pill — exactly the oversized-hover
+            // bug. An island that hasn't reported is simply compact.
+            do {
 
                 // HOVER / CLICK REGION — sized from what is VISUALLY
                 // on screen (see "Hover region sized from the VISIBLE
@@ -740,7 +783,9 @@ final class WindowManager {
                 // big as the island that is actually visible.
                 if visuallyExpanded {
 
-                    let margin: CGFloat = alreadyActive ? 14 : 6
+                    // Tight on purpose: the hover area is only as big
+                    // as the island that is actually visible.
+                    let margin: CGFloat = alreadyActive ? 6 : 0
 
                     interactiveRect =
                         expandedRect.insetBy(dx: -margin, dy: -margin)
@@ -748,7 +793,7 @@ final class WindowManager {
                 } else {
 
                     interactiveRect =
-                        compactRect.insetBy(dx: -2, dy: -2)
+                        compactRect
                 }
 
                 let isInsideInteractiveRect =
@@ -779,50 +824,6 @@ final class WindowManager {
                     }
                 }
 
-            } else {
-
-                // ORIGINAL region logic, unchanged — used whenever this
-                // screen's `IslandRootView` isn't reporting.
-                let compactRect =
-                    activeRectOnScreen(for: window, isExpanded: false)
-
-                let wasAlreadyHoverExpanded =
-                    activeScreenID == id
-
-                let previouslyExpandedRect =
-                    wasAlreadyHoverExpanded
-                        ? activeRectOnScreen(for: window, isExpanded: true)
-                        : .zero
-
-                if compactRect.contains(cursor) {
-
-                    activeScreenID = id
-
-                } else if wasAlreadyHoverExpanded,
-                          previouslyExpandedRect.contains(cursor) {
-
-                    // Stay expanded — cursor is still within the larger
-                    // "peek" area. `activeScreenID` is already `id`;
-                    // nothing to change.
-
-                } else if activeScreenID == id,
-                          !currentActivityIsForcingExpanded() {
-
-                    activeScreenID = nil
-                }
-
-                let activeRect =
-                    activeRectOnScreen(
-                        for: window,
-                        isExpanded:
-                            activeScreenID == id
-                            || currentActivityIsForcingExpanded()
-                    )
-
-
-                shouldInteract =
-                    activeRect.contains(cursor)
-                    || dragCatchRect.contains(cursor)
             }
 
             // Guard against writing the same value repeatedly — a real
@@ -1171,4 +1172,10 @@ extension Notification.Name {
     /// (`ObjectIdentifier`) and `"expanded"` (`Bool`).
     static let islandExpandedStateChanged =
         Notification.Name("islandExpandedStateChanged")
+
+    /// Posted by `WindowManager` when the cursor enters/leaves a
+    /// screen's island. `userInfo`: `"screenID"` (`ObjectIdentifier`)
+    /// and `"hovering"` (`Bool`).
+    static let islandHoverChanged =
+        Notification.Name("islandHoverChanged")
 }

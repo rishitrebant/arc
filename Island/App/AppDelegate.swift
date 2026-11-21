@@ -33,6 +33,9 @@ final class AppDelegate:
     private var timerActivity:
         TimerActivity!
 
+    private var launcherActivity:
+        LauncherActivity!
+
     private var capsLockActivity:
         CapsLockActivity!
 
@@ -48,9 +51,15 @@ final class AppDelegate:
         _ notification: Notification
     ) {
 
+        // A regular app: shows in the Dock and the app switcher, and
+        // clicking its Dock icon opens Settings (see
+        // `applicationShouldHandleReopen`). The island itself is still
+        // a borderless overlay window, unaffected by this.
         NSApp.setActivationPolicy(
-            .accessory
+            .regular
         )
+
+        installMainMenu()
 
         musicActivity =
             MusicActivity()
@@ -120,6 +129,21 @@ final class AppDelegate:
 
         activityManager.register(
             capsLockActivity
+        )
+
+        launcherActivity =
+            LauncherActivity(
+                music: musicActivity
+            )
+
+        launcherActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            launcherActivity
         )
 
         fileDropActivity =
@@ -200,6 +224,99 @@ final class AppDelegate:
             }
 
         reconcileIslands()
+    }
+
+    // MARK: - Dock
+
+    /// Clicking the Dock icon (or relaunching from Finder/Spotlight)
+    /// opens Settings.
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
+
+        SettingsWindowController.shared.show()
+
+        return false
+    }
+
+    /// The island overlay is the app's only other window, so closing
+    /// Settings must never quit the app.
+    func applicationShouldTerminateAfterLastWindowClosed(
+        _ sender: NSApplication
+    ) -> Bool {
+        false
+    }
+
+    /// A minimal menu bar for a Dock app: the app menu with Settings
+    /// (⌘,) and Quit (⌘Q), plus the standard Window menu.
+    private func installMainMenu() {
+
+        let mainMenu = NSMenu()
+
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+
+        let settings = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettingsFromMenu),
+            keyEquivalent: ","
+        )
+        settings.target = self
+        appMenu.addItem(settings)
+
+        appMenu.addItem(.separator())
+
+        appMenu.addItem(
+            NSMenuItem(
+                title: "Hide Island",
+                action: #selector(NSApplication.hide(_:)),
+                keyEquivalent: "h"
+            )
+        )
+
+        appMenu.addItem(.separator())
+
+        appMenu.addItem(
+            NSMenuItem(
+                title: "Quit Island",
+                action: #selector(NSApplication.terminate(_:)),
+                keyEquivalent: "q"
+            )
+        )
+
+        let windowItem = NSMenuItem()
+        mainMenu.addItem(windowItem)
+
+        let windowMenu = NSMenu(title: "Window")
+        windowItem.submenu = windowMenu
+
+        windowMenu.addItem(
+            NSMenuItem(
+                title: "Close",
+                action: #selector(NSWindow.performClose(_:)),
+                keyEquivalent: "w"
+            )
+        )
+
+        windowMenu.addItem(
+            NSMenuItem(
+                title: "Minimize",
+                action: #selector(NSWindow.performMiniaturize(_:)),
+                keyEquivalent: "m"
+            )
+        )
+
+        NSApp.mainMenu = mainMenu
+        NSApp.windowsMenu = windowMenu
+    }
+
+    @objc
+    private func openSettingsFromMenu() {
+        SettingsWindowController.shared.show()
     }
 
     private func presentAirDropSharingPicker(

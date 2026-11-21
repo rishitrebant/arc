@@ -151,21 +151,11 @@ struct BluetoothIslandView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    HStack(spacing: 5) {
-
-                        Circle()
-                            .fill(
-                                isConnected
-                                    ? DesignTokens.Color.chargingAccent
-                                    : DesignTokens.Color.secondaryText
-                            )
-                            .frame(width: 6, height: 6)
-
-                        Text(isConnected ? "Connected" : "Disconnected")
-                            .font(DesignTokens.Typography.subtitle)
-                            .foregroundStyle(DesignTokens.Color.secondaryText)
-                            .lineLimit(1)
-                    }
+                    Text(isConnected ? "Connected" : "Disconnected")
+                        .font(Expanded.statusFont)
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                        .lineLimit(1)
+                        .contentTransition(.opacity)
                 }
 
                 Spacer(minLength: 0)

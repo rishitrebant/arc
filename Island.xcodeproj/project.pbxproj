@@ -42,6 +42,9 @@
 		A5B6EA9930B1EC9B00F22126 /* CapsLockActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EA9830B1EC9B00F22126 /* CapsLockActivity.swift */; };
 		A5B6EA9C30B1ECAA00F22126 /* TimerActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EA9B30B1ECAA00F22126 /* TimerActivity.swift */; };
 		A5B6EA9E30B1ECB600F22126 /* TimerIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EA9D30B1ECB600F22126 /* TimerIslandView.swift */; };
+		A5B6EAA130B1F21900F22126 /* LauncherActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EAA030B1F21900F22126 /* LauncherActivity.swift */; };
+		A5B6EAA330B1F22C00F22126 /* LauncherIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EAA230B1F22C00F22126 /* LauncherIslandView.swift */; };
+		A5B6EAA530B1F23800F22126 /* IslandIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EAA430B1F23800F22126 /* IslandIntents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,6 +84,9 @@
 		A5B6EA9830B1EC9B00F22126 /* CapsLockActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockActivity.swift; sourceTree = "<group>"; };
 		A5B6EA9B30B1ECAA00F22126 /* TimerActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerActivity.swift; sourceTree = "<group>"; };
 		A5B6EA9D30B1ECB600F22126 /* TimerIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerIslandView.swift; sourceTree = "<group>"; };
+		A5B6EAA030B1F21900F22126 /* LauncherActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherActivity.swift; sourceTree = "<group>"; };
+		A5B6EAA230B1F22C00F22126 /* LauncherIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherIslandView.swift; sourceTree = "<group>"; };
+		A5B6EAA430B1F23800F22126 /* IslandIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandIntents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -184,6 +190,7 @@
 				000000000000000000100014 /* AppDelegate.swift */,
 				000000000000000000100012 /* IslandApp.swift */,
 				A532698C3045C81500EDDE1E /* MenuBarController.swift */,
+				A5B6EAA430B1F23800F22126 /* IslandIntents.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -211,6 +218,7 @@
 				A5B6EA9430B1EC6D00F22126 /* CapsLock 2 */,
 				A5B6EA9530B1EC9200F22126 /* CapsLock */,
 				A5B6EA9A30B1EC9B00F22126 /* Timer */,
+				A5B6EA9F30B1F20E00F22126 /* Launcher */,
 			);
 			path = Activities;
 			sourceTree = "<group>";
@@ -320,6 +328,15 @@
 			path = Timer;
 			sourceTree = "<group>";
 		};
+		A5B6EA9F30B1F20E00F22126 /* Launcher */ = {
+			isa = PBXGroup;
+			children = (
+				A5B6EAA030B1F21900F22126 /* LauncherActivity.swift */,
+				A5B6EAA230B1F22C00F22126 /* LauncherIslandView.swift */,
+			);
+			path = Launcher;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -408,6 +425,7 @@
 				00000000000000000010001D /* Activity.swift in Sources */,
 				A532698B3045C7F600EDDE1E /* NotchDisplayMode.swift in Sources */,
 				00000000000000000010001F /* AnyActivity.swift in Sources */,
+				A5B6EAA530B1F23800F22126 /* IslandIntents.swift in Sources */,
 				A532698D3045C81500EDDE1E /* MenuBarController.swift in Sources */,
 				000000000000000000100021 /* ActivityManager.swift in Sources */,
 				000000000000000000100023 /* IslandWindow.swift in Sources */,
@@ -418,6 +436,7 @@
 				00000000000000000010002B /* HardcodedMusicService.swift in Sources */,
 				00000000000000000010002D /* MusicActivity.swift in Sources */,
 				A59D587A30489E0800C9C957 /* DragCatchLayer_NEW.swift in Sources */,
+				A5B6EAA330B1F22C00F22126 /* LauncherIslandView.swift in Sources */,
 				00000000000000000010002F /* Waveform.swift in Sources */,
 				000000000000000000100031 /* AlbumArtView.swift in Sources */,
 				000000000000000000100033 /* PlaybackButton.swift in Sources */,
@@ -428,6 +447,7 @@
 				A532696A3040B21200EDDE1E /* MediaRemoteMusicService.swift in Sources */,
 				A5B6EA9C30B1ECAA00F22126 /* TimerActivity.swift in Sources */,
 				A5B6EA9E30B1ECB600F22126 /* TimerIslandView.swift in Sources */,
+				A5B6EAA130B1F21900F22126 /* LauncherActivity.swift in Sources */,
 				00000000000000000010003B /* MusicExpandedView.swift in Sources */,
 				00000000000000000010003D /* IslandRootView.swift in Sources */,
 				A5B6EA9930B1EC9B00F22126 /* CapsLockActivity.swift in Sources */,
@@ -451,7 +471,7 @@
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Island needs permission to control Apple Music and Spotify for playback controls.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -484,7 +504,7 @@
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Island needs permission to control Apple Music and Spotify for playback controls.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

@@ -3,11 +3,19 @@ import Combine
 import AppKit
 
 extension Notification.Name {
-    /// Asks `TimerActivity` to start. `userInfo["duration"]` is a
-    /// `TimeInterval` for a countdown; absent means a stopwatch. Posted by
-    /// the menu bar and the Settings window so neither needs a reference
-    /// to the activity.
+    /// Asks `TimerActivity` to start a clock. `userInfo`:
+    ///   - `"kind"`: `"countdown"`, `"stopwatch"` or `"pomodoro"`
+    ///     (a bare `"duration"` with no kind means countdown; neither
+    ///     means stopwatch).
+    ///   - `"duration"`: seconds — the countdown, or the pomodoro's focus.
+    ///   - `"breakDuration"`: seconds of the pomodoro's break.
+    /// Posted by the launcher, menu bar, Settings and the Siri/Spotlight
+    /// intents, so none of them needs a reference to the activity.
     static let islandStartTimer = Notification.Name("IslandStartTimer")
+
+    /// Asks the island to open its launcher (now playing + timers) when
+    /// nothing else owns it.
+    static let islandOpenLauncher = Notification.Name("IslandOpenLauncher")
 }
 
 /// One running clock: either the countdown timer or the stopwatch.
@@ -19,8 +27,15 @@ extension Notification.Name {
 final class TimerSlot: ObservableObject {
 
     enum Kind: Equatable {
+        case pomodoro
         case countdown
         case stopwatch
+    }
+
+    /// Which half of a pomodoro cycle is running.
+    enum Stage: Equatable {
+        case focus
+        case rest
     }
 
     enum Phase: Equatable {
@@ -38,7 +53,18 @@ final class TimerSlot: ObservableObject {
     /// stopwatch. Only published when the whole second changes.
     @Published private(set) var displaySeconds: Int = 0
 
+    @Published private(set) var stage: Stage = .focus
+
+    /// Which focus session of the pomodoro this is, starting at 1.
+    @Published private(set) var session: Int = 1
+
     var isActive: Bool { phase != .idle }
+
+    /// Pomodoros and countdowns run down; the stopwatch runs up.
+    var countsDown: Bool { kind != .stopwatch }
+
+    private var focusDuration: TimeInterval = 0
+    private var restDuration: TimeInterval = 0
 
     // Countdown: `endDate` while running, `remainingWhenPaused` otherwise.
     // Stopwatch: `startDate` while running, `elapsedWhenPaused` otherwise.
@@ -64,6 +90,9 @@ final class TimerSlot: ObservableObject {
         reset()
 
         switch kind {
+        case .pomodoro:
+            // Use `startPomodoro` — a plain start can't know the break.
+            return
         case .countdown:
             lastDuration = duration
             endDate = Date().addingTimeInterval(duration)
@@ -78,13 +107,48 @@ final class TimerSlot: ObservableObject {
         startTicking()
     }
 
+    func startPomodoro(focus: TimeInterval, rest: TimeInterval) {
+
+        reset()
+
+        focusDuration = focus
+        restDuration = rest
+        stage = .focus
+        session = 1
+
+        endDate = Date().addingTimeInterval(focus)
+        remainingWhenPaused = focus
+
+        phase = .running
+        refreshDisplay()
+        startTicking()
+    }
+
+    /// Focus → break → next focus, with no pause in between and a single
+    /// chime to mark the change.
+    private func advancePomodoro() {
+
+        stage = stage == .focus ? .rest : .focus
+
+        if stage == .focus { session += 1 }
+
+        let next = stage == .focus ? focusDuration : restDuration
+
+        endDate = Date().addingTimeInterval(next)
+        remainingWhenPaused = next
+
+        (NSSound(named: "Glass") ?? NSSound(named: "Ping"))?.play()
+
+        refreshDisplay()
+    }
+
     func togglePause() {
 
         switch phase {
 
         case .running:
 
-            if kind == .countdown {
+            if countsDown {
                 remainingWhenPaused = max(0, endDate?.timeIntervalSinceNow ?? 0)
                 endDate = nil
             } else {
@@ -97,7 +161,7 @@ final class TimerSlot: ObservableObject {
 
         case .paused:
 
-            if kind == .countdown {
+            if countsDown {
                 endDate = Date().addingTimeInterval(remainingWhenPaused)
             } else {
                 startDate = Date().addingTimeInterval(-elapsedWhenPaused)
@@ -157,8 +221,14 @@ final class TimerSlot: ObservableObject {
 
         guard phase == .running else { return }
 
-        if kind == .countdown, (endDate?.timeIntervalSinceNow ?? 0) <= 0 {
-            finish()
+        if countsDown, (endDate?.timeIntervalSinceNow ?? 0) <= 0 {
+
+            if kind == .pomodoro {
+                advancePomodoro()
+            } else {
+                finish()
+            }
+
             return
         }
 
@@ -173,16 +243,46 @@ final class TimerSlot: ObservableObject {
 
         let seconds: Int
 
-        switch kind {
-        case .countdown:
+        if countsDown {
             let remaining = endDate?.timeIntervalSinceNow ?? remainingWhenPaused
             seconds = Int(max(0, remaining).rounded(.up))
-        case .stopwatch:
+        } else {
             seconds = Int(elapsed())
         }
 
         if seconds != displaySeconds {
             displaySeconds = seconds
+        }
+    }
+
+    // MARK: - Presentation
+
+    var accent: Color {
+        switch kind {
+        case .pomodoro:
+            return stage == .focus
+                ? DesignTokens.Color.pomodoroAccent
+                : DesignTokens.Color.chargingAccent
+        case .countdown, .stopwatch:
+            return DesignTokens.Color.timerAccent
+        }
+    }
+
+    var glyph: String {
+        if phase == .finished { return "bell.fill" }
+        switch kind {
+        case .pomodoro: return stage == .focus ? "brain.head.profile" : "cup.and.saucer.fill"
+        case .countdown: return "timer"
+        case .stopwatch: return "stopwatch.fill"
+        }
+    }
+
+    var title: String {
+        if phase == .finished { return "Timer Done" }
+        switch kind {
+        case .pomodoro: return stage == .focus ? "Focus · Session \(session)" : "Break"
+        case .countdown: return "Timer"
+        case .stopwatch: return "Stopwatch"
         }
     }
 
@@ -255,6 +355,7 @@ final class TimerActivity: ObservableObject {
 
     static let kind: ActivityKind = .timer
 
+    let pomodoro = TimerSlot(kind: .pomodoro)
     let countdown = TimerSlot(kind: .countdown)
     let stopwatch = TimerSlot(kind: .stopwatch)
 
@@ -270,16 +371,16 @@ final class TimerActivity: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private var startObserver: Task<Void, Never>?
 
-    /// The clocks currently on the island, timer first.
+    /// The clocks currently on the island: pomodoro, timer, stopwatch.
     var activeSlots: [TimerSlot] {
-        [countdown, stopwatch].filter(\.isActive)
+        [pomodoro, countdown, stopwatch].filter(\.isActive)
     }
 
     init() {
 
         // Re-publish whenever a slot changes, so the view (which
         // observes this activity) redraws, and `isActive` follows.
-        for slot in [countdown, stopwatch] {
+        for slot in [pomodoro, countdown, stopwatch] {
             slot.objectWillChange
                 .sink { [weak self] _ in
                     self?.objectWillChange.send()
@@ -293,8 +394,7 @@ final class TimerActivity: ObservableObject {
                 named: .islandStartTimer
             )
             for await note in notes {
-                let duration = note.userInfo?["duration"] as? TimeInterval
-                self?.start(duration: duration)
+                self?.start(userInfo: note.userInfo)
             }
         }
     }
@@ -303,12 +403,26 @@ final class TimerActivity: ObservableObject {
         startObserver?.cancel()
     }
 
-    /// `nil` starts a stopwatch, a duration starts the countdown.
-    func start(duration: TimeInterval?) {
+    private func start(userInfo: [AnyHashable: Any]?) {
 
-        if let duration, duration > 0 {
-            countdown.start(duration: duration)
-        } else {
+        let duration = userInfo?["duration"] as? TimeInterval
+        let kind = userInfo?["kind"] as? String
+            ?? (duration == nil ? "stopwatch" : "countdown")
+
+        switch kind {
+
+        case "pomodoro":
+            pomodoro.startPomodoro(
+                focus: max(60, duration ?? 25 * 60),
+                rest: max(60, userInfo?["breakDuration"] as? TimeInterval ?? 5 * 60)
+            )
+
+        case "countdown":
+            if let duration, duration > 0 {
+                countdown.start(duration: duration)
+            }
+
+        default:
             stopwatch.start()
         }
 
@@ -336,11 +450,24 @@ final class TimerActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// Each flank of the compact pill, sized to what it has to show.
+    private var compactFlankWidth: CGFloat {
+
+        typealias Metrics = DesignTokens.TimerMetrics
+
+        let shown = activeSlots.prefix(2)
+        let hasHours = shown.contains { $0.displaySeconds >= 3600 }
+
+        if shown.count > 1 {
+            return hasHours ? Metrics.flankWidthDualHours : Metrics.flankWidthDual
+        }
+
+        return hasHours ? Metrics.flankWidthHours : Metrics.flankWidth
+    }
+
     var compactSize: CGSize {
         CGSize(
-            width: activeSlots.count > 1
-                ? DesignTokens.TimerMetrics.compactWidthDual
-                : DesignTokens.TimerMetrics.compactWidth,
+            width: DesignTokens.FileDropMetrics.notchWidth + compactFlankWidth * 2,
             height: DesignTokens.TimerMetrics.compactHeight
         )
     }
@@ -349,7 +476,8 @@ final class TimerActivity: ObservableObject {
         CGSize(
             width: DesignTokens.TimerMetrics.expandedWidth,
             height: activeSlots.count > 1
-                ? DesignTokens.TimerMetrics.expandedHeightDual
+                ? DesignTokens.TimerMetrics.expandedHeaderHeight
+                    + CGFloat(activeSlots.count) * DesignTokens.TimerMetrics.expandedRowHeightDual
                 : DesignTokens.TimerMetrics.expandedHeight
         )
     }

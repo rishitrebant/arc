@@ -307,7 +307,22 @@ struct IslandRootView: View {
         // EXISTING HOVER
         // ---------------------------------------------------------
 
-        .onHover { hovering in
+        // Hover comes from `WindowManager`'s geometry, not SwiftUI's
+        // `.onHover` (see `WindowManager.activeScreenID`), so the hover
+        // area is exactly the visible island.
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .islandHoverChanged
+            )
+        ) { note in
+
+            guard
+                let id = note.userInfo?["screenID"] as? ObjectIdentifier,
+                id == screenID,
+                let hovering = note.userInfo?["hovering"] as? Bool
+            else {
+                return
+            }
 
             handleHover(
                 hovering
@@ -421,6 +436,18 @@ struct IslandRootView: View {
             if isDocked {
 
                 undock()
+
+                return
+            }
+
+            // Nothing on the island: a tap on the notch opens the
+            // launcher (now playing, timers).
+            if renderedActivity == nil {
+
+                NotificationCenter.default.post(
+                    name: .islandOpenLauncher,
+                    object: nil
+                )
 
                 return
             }
@@ -562,6 +589,14 @@ struct IslandRootView: View {
 
                     renderedActivity =
                         nil
+
+                    // Nothing left to be expanded — otherwise the hover
+                    // region stays expanded-sized around an empty notch.
+                    hoverWorkItem?.cancel()
+                    hoverWorkItem = nil
+                    isHovering = false
+                    isPrimed = false
+                    isExpanded = false
                 }
 
             presentationWorkItem =
@@ -673,6 +708,13 @@ struct IslandRootView: View {
 
         // Never expand while docked.
         guard !isDocked else {
+            return
+        }
+
+        // Nothing is on the island, so there is nothing to expand —
+        // without this an invisible island "expanded" on hover and
+        // inflated the hover region around the notch.
+        guard renderedActivity != nil else {
             return
         }
 

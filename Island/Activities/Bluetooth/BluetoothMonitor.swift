@@ -234,7 +234,7 @@ final class BluetoothMonitor: NSObject {
         if lowered.contains("airpods max") { return "airpodsmax" }
         if lowered.contains("airpods pro") { return "airpodspro" }
         if lowered.contains("airpods") { return "airpods" }
-        if lowered.contains("trackpad") { return "trackpad.fill" }
+        if lowered.contains("trackpad") { return "rectangle.and.hand.point.up.left.fill" }
         if lowered.contains("keyboard") { return "keyboard.fill" }
         if lowered.contains("mouse") { return "computermouse.fill" }
         if lowered.contains("iphone") { return "iphone" }

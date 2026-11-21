@@ -68,6 +68,7 @@ struct TimerIslandView: View {
         )
         // Starting or ending the second clock resizes the pill smoothly
         // instead of snapping.
+        .animation(AnimationTokens.shapeSpring, value: visibleSize.width)
         .animation(AnimationTokens.shapeSpring, value: slots.count)
     }
 
@@ -79,7 +80,7 @@ struct TimerIslandView: View {
 
             if slots.count > 1 {
 
-                ForEach(Array(slots.enumerated()), id: \.element.kind) { index, slot in
+                ForEach(Array(slots.prefix(2).enumerated()), id: \.element.kind) { index, slot in
 
                     if index > 0 { Spacer(minLength: 0) }
 
@@ -88,9 +89,9 @@ struct TimerIslandView: View {
 
             } else if let slot = slots.first {
 
-                Image(systemName: Self.glyph(for: slot))
+                Image(systemName: slot.glyph)
                     .font(.system(size: Metrics.compactGlyphSize, weight: .semibold))
-                    .foregroundStyle(DesignTokens.Color.timerAccent)
+                    .foregroundStyle(slot.accent)
                     .symbolEffect(.pulse, isActive: slot.phase == .finished)
                     .frame(width: Metrics.compactIconSlot, height: Metrics.compactIconSlot)
 
@@ -106,9 +107,9 @@ struct TimerIslandView: View {
 
         HStack(spacing: Metrics.compactGlyphToTime) {
 
-            Image(systemName: Self.glyph(for: slot))
+            Image(systemName: slot.glyph)
                 .font(.system(size: Metrics.compactGlyphSize, weight: .semibold))
-                .foregroundStyle(DesignTokens.Color.timerAccent)
+                .foregroundStyle(slot.accent)
                 .symbolEffect(.pulse, isActive: slot.phase == .finished)
                 .frame(width: Metrics.compactIconSlot, height: Metrics.compactIconSlot)
 
@@ -121,11 +122,11 @@ struct TimerIslandView: View {
         Text(slot.phase == .finished ? "Done" : Self.format(slot.displaySeconds))
             .font(Metrics.compactTimeFont)
             .monospacedDigit()
-            .foregroundStyle(DesignTokens.Color.timerAccent)
+            .foregroundStyle(slot.accent)
             .opacity(slot.phase == .paused ? 0.55 : 1)
             .lineLimit(1)
             .fixedSize()
-            .contentTransition(.numericText(countsDown: slot.kind == .countdown))
+            .contentTransition(.numericText(countsDown: slot.countsDown))
     }
 
     // MARK: - Expanded
@@ -154,11 +155,6 @@ struct TimerIslandView: View {
 
     // MARK: - Helpers
 
-    static func glyph(for slot: TimerSlot) -> String {
-        if slot.phase == .finished { return "bell.fill" }
-        return slot.kind == .stopwatch ? "stopwatch.fill" : "timer"
-    }
-
     /// `m:ss`, or `h:mm:ss` from one hour up.
     static func format(_ total: Int) -> String {
         let hours = total / 3600
@@ -183,11 +179,6 @@ private struct TimerRow: View {
     private var isFinished: Bool { slot.phase == .finished }
     private var isPaused: Bool { slot.phase == .paused }
 
-    private var title: String {
-        if isFinished { return "Timer Done" }
-        return slot.kind == .stopwatch ? "Stopwatch" : "Timer"
-    }
-
     private var buttonSize: CGFloat {
         dual ? Metrics.buttonSizeDual : Metrics.buttonSize
     }
@@ -204,14 +195,14 @@ private struct TimerRow: View {
 
                 HStack(spacing: 4) {
 
-                    Image(systemName: TimerIslandView.glyph(for: slot))
+                    Image(systemName: slot.glyph)
                         .font(.system(size: Metrics.labelGlyphSize, weight: .semibold))
 
-                    Text(title)
+                    Text(slot.title)
                         .font(Metrics.labelFont)
                         .lineLimit(1)
                 }
-                .foregroundStyle(DesignTokens.Color.timerAccent)
+                .foregroundStyle(slot.accent)
 
                 Text(TimerIslandView.format(slot.displaySeconds))
                     .font(dual ? Metrics.timeFontDual : Metrics.timeFont)
@@ -220,7 +211,7 @@ private struct TimerRow: View {
                     .opacity(isPaused ? 0.55 : 1)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .contentTransition(.numericText(countsDown: slot.kind == .countdown))
+                    .contentTransition(.numericText(countsDown: slot.countsDown))
             }
 
             Spacer(minLength: 12)
@@ -242,8 +233,8 @@ private struct TimerRow: View {
                         controlButton(
                             symbol: "arrow.clockwise",
                             label: "Repeat",
-                            foreground: DesignTokens.Color.timerAccent,
-                            background: DesignTokens.Color.timerAccent.opacity(0.28)
+                            foreground: slot.accent,
+                            background: slot.accent.opacity(0.28)
                         ) {
                             slot.restart()
                         }
@@ -254,8 +245,8 @@ private struct TimerRow: View {
                     controlButton(
                         symbol: isPaused ? "play.fill" : "pause.fill",
                         label: isPaused ? "Resume" : "Pause",
-                        foreground: DesignTokens.Color.timerAccent,
-                        background: DesignTokens.Color.timerAccent.opacity(0.28)
+                        foreground: slot.accent,
+                        background: slot.accent.opacity(0.28)
                     ) {
                         slot.togglePause()
                     }

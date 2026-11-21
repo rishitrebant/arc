@@ -62,6 +62,7 @@ enum DesignTokens {
         static let deviceIconBackground = SwiftUI.Color(white: 1.0).opacity(0.16)              // derived — the soft grey disc behind the device icon and the Disconnect button
         static let chargingBatteryOutline = SwiftUI.Color(white: 1.0).opacity(0.35)            // derived — the dim battery shell/terminal around the green fill
 
+        static let pomodoroAccent = SwiftUI.Color(red: 255/255, green: 69/255, blue: 58/255)   // derived — iOS system red, a tomato
         static let timerAccent = SwiftUI.Color(red: 255/255, green: 159/255, blue: 10/255)     // derived — iOS system orange, the colour of the iPhone's timer activity
         static let capsLockAccent = SwiftUI.Color(red: 10/255, green: 132/255, blue: 255/255)  // derived — iOS system blue
         static let controlDisc = SwiftUI.Color(white: 1.0).opacity(0.18)                       // derived — grey disc behind the timer's cancel button
@@ -384,17 +385,18 @@ enum DesignTokens {
 
     enum BluetoothMetrics {
 
-        static let expandedWidth: CGFloat = 380
-        static let expandedHeight: CGFloat = 88
+        static let expandedWidth: CGFloat = 360
+        static let expandedHeight: CGFloat = 96
 
-        static let edgePadding: CGFloat = 16
-        static let iconSize: CGFloat = 46
-        static let iconToTextGap: CGFloat = 14
-        static let bottomPadding: CGFloat = 6
+        static let edgePadding: CGFloat = 20
+        static let iconSize: CGFloat = 48
+        static let iconToTextGap: CGFloat = 12
+        static let bottomPadding: CGFloat = 10
 
-        static let buttonFont = Font.system(size: 12, weight: .semibold)
-        static let buttonHeight: CGFloat = 30
-        static let buttonHorizontalPadding: CGFloat = 14
+        static let statusFont = Font.system(size: 13, weight: .medium)
+        static let buttonFont = Font.system(size: 13, weight: .semibold)
+        static let buttonHeight: CGFloat = 32
+        static let buttonHorizontalPadding: CGFloat = 16
     }
 
     // MARK: - Timer metrics
@@ -410,10 +412,13 @@ enum DesignTokens {
         /// Both flanks match so the notch stays centred; sized for the
         /// widest label, "1:24:59". The dual layout (timer left,
         /// stopwatch right) needs a glyph beside each time.
-        static let flankWidth: CGFloat = 66
-        static let flankWidthDual: CGFloat = 88
-        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidth * 2
-        static let compactWidthDual: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidthDual * 2
+        /// Flanks hug their content, like the iPhone's timer pill: just
+        /// room for "m:ss" (or "h:mm:ss" from an hour up), and for two
+        /// glyph+time pairs when two clocks run.
+        static let flankWidth: CGFloat = 50
+        static let flankWidthHours: CGFloat = 66
+        static let flankWidthDual: CGFloat = 70
+        static let flankWidthDualHours: CGFloat = 88
         static let compactHeight: CGFloat = 33
 
         /// Compact glyphs follow the other 33pt pills (AirDrop /
@@ -426,7 +431,10 @@ enum DesignTokens {
 
         static let expandedWidth: CGFloat = 360
         static let expandedHeight: CGFloat = 112
-        static let expandedHeightDual: CGFloat = 172
+        /// Notch keep-clear + bottom padding; each row of a multi-clock
+        /// panel then adds `expandedRowHeightDual`.
+        static let expandedHeaderHeight: CGFloat = 40
+        static let expandedRowHeightDual: CGFloat = 60
         static let expandedEdgePadding: CGFloat = 22
         static let bottomPadding: CGFloat = 8
         static let rowSpacing: CGFloat = 4
@@ -441,6 +449,40 @@ enum DesignTokens {
         static let buttonSpacing: CGFloat = 12
         static let buttonGlyphSize: CGFloat = 17
         static let buttonGlyphSizeDual: CGFloat = 14
+    }
+
+    // MARK: - Launcher metrics
+    //
+    // The menu that opens when the empty notch is clicked. Width stays
+    // inside the shared canvas (390). Sizes are DERIVED from the Music
+    // expanded panel's proportions (22pt edge, 64pt art tile scaled down).
+
+    enum LauncherMetrics {
+
+        static let width: CGFloat = 380
+        static let height: CGFloat = 214
+
+        static let edgePadding: CGFloat = 20
+        static let bottomPadding: CGFloat = 18
+        static let sectionSpacing: CGFloat = 14
+
+        static let artSize: CGFloat = 52
+        static let artCornerRadius: CGFloat = 12
+        static let transportButtonSize: CGFloat = 40
+
+        static let tileHeight: CGFloat = 68
+        static let tileSpacing: CGFloat = 10
+        static let tileCornerRadius: CGFloat = 16   // concentric: 36pt panel radius - 20pt edge padding
+        static let tileGlyphSize: CGFloat = 22
+
+        static let chipHeight: CGFloat = 32
+        static let controlSize: CGFloat = 34
+        static let startButtonHeight: CGFloat = 34
+
+        static let titleFont = Font.system(size: 15, weight: .semibold)
+        static let subtitleFont = Font.system(size: 13, weight: .medium)
+        static let tileFont = Font.system(size: 12, weight: .semibold)
+        static let valueFont = Font.system(size: 17, weight: .semibold)
     }
 
     // MARK: - Caps Lock metrics (same pill as AirDrop/Bluetooth compact)
