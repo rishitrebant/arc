@@ -62,6 +62,11 @@ enum DesignTokens {
         static let deviceIconBackground = SwiftUI.Color(white: 1.0).opacity(0.16)              // derived — the soft grey disc behind the device icon and the Disconnect button
         static let chargingBatteryOutline = SwiftUI.Color(white: 1.0).opacity(0.35)            // derived — the dim battery shell/terminal around the green fill
 
+        static let calendarAccent = SwiftUI.Color(red: 255/255, green: 69/255, blue: 58/255)   // derived — iOS system red, the Calendar app's tint
+        static let joinAccent = SwiftUI.Color(red: 48/255, green: 209/255, blue: 88/255)       // derived — iOS system green, Calendar's "Join" button
+        static let cameraIndicator = SwiftUI.Color(red: 48/255, green: 209/255, blue: 88/255)  // derived — iOS camera-in-use green
+        static let microphoneIndicator = SwiftUI.Color(red: 255/255, green: 159/255, blue: 10/255) // derived — iOS microphone-in-use orange
+        static let screenIndicator = SwiftUI.Color(red: 191/255, green: 90/255, blue: 242/255) // derived — iOS system purple, screen recording
         static let pomodoroAccent = SwiftUI.Color(red: 255/255, green: 69/255, blue: 58/255)   // derived — iOS system red, a tomato
         static let timerAccent = SwiftUI.Color(red: 255/255, green: 159/255, blue: 10/255)     // derived — iOS system orange, the colour of the iPhone's timer activity
         static let capsLockAccent = SwiftUI.Color(red: 10/255, green: 132/255, blue: 255/255)  // derived — iOS system blue
@@ -449,6 +454,54 @@ enum DesignTokens {
         static let buttonSpacing: CGFloat = 12
         static let buttonGlyphSize: CGFloat = 17
         static let buttonGlyphSizeDual: CGFloat = 14
+    }
+
+    // MARK: - Status pill metrics
+    //
+    // The shared compact pill for short status moments (calendar,
+    // privacy, downloads): a glyph on the left, a short label on the
+    // right, with a flank just wide enough for "10 min" / "Camera".
+
+    enum StatusPillMetrics {
+        static let flankWidth: CGFloat = 56
+        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + flankWidth * 2
+        static let compactHeight: CGFloat = 33
+        static let edgePadding: CGFloat = 10
+        static let iconSlot: CGFloat = 20
+        static let glyphSize: CGFloat = 14
+        static let labelFont = Font.system(size: 12, weight: .semibold)
+    }
+
+    // MARK: - Calendar metrics (expanded; compact is `StatusPillMetrics`)
+
+    enum CalendarMetrics {
+        static let expandedWidth: CGFloat = 360
+        static let expandedHeight: CGFloat = 96
+        static let edgePadding: CGFloat = 20
+        static let iconSize: CGFloat = 48
+        static let iconToTextGap: CGFloat = 12
+        static let bottomPadding: CGFloat = 10
+        static let subtitleFont = Font.system(size: 13, weight: .medium)
+        static let buttonFont = Font.system(size: 13, weight: .semibold)
+        static let buttonHeight: CGFloat = 32
+        static let buttonHorizontalPadding: CGFloat = 18
+    }
+
+    // MARK: - Downloads metrics (expanded; compact is `StatusPillMetrics`)
+
+    enum DownloadsMetrics {
+        static let expandedWidth: CGFloat = 380
+        static let expandedHeight: CGFloat = 92
+        static let edgePadding: CGFloat = 20
+        static let ringSize: CGFloat = 48
+        static let ringLineWidth: CGFloat = 3
+        static let compactRingLineWidth: CGFloat = 2.5
+        static let iconToTextGap: CGFloat = 14
+        static let bottomPadding: CGFloat = 10
+        static let subtitleFont = Font.system(size: 13, weight: .medium)
+        static let buttonSize: CGFloat = 34
+        static let buttonGlyphSize: CGFloat = 14
+        static let buttonSpacing: CGFloat = 8
     }
 
     // MARK: - Launcher metrics

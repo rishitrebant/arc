@@ -36,6 +36,15 @@ final class AppDelegate:
     private var launcherActivity:
         LauncherActivity!
 
+    private var calendarActivity:
+        CalendarActivity!
+
+    private var privacyActivity:
+        PrivacyActivity!
+
+    private var downloadsActivity:
+        DownloadsActivity!
+
     private var capsLockActivity:
         CapsLockActivity!
 
@@ -129,6 +138,39 @@ final class AppDelegate:
 
         activityManager.register(
             capsLockActivity
+        )
+
+        calendarActivity =
+            CalendarActivity()
+
+        calendarActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            calendarActivity
+        )
+
+        privacyActivity =
+            PrivacyActivity()
+
+        privacyActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            privacyActivity
+        )
+
+        downloadsActivity =
+            DownloadsActivity()
+
+        activityManager.register(
+            downloadsActivity
         )
 
         launcherActivity =

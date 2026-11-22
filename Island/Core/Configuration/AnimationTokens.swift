@@ -93,6 +93,15 @@ enum AnimationTokens {
     /// returning the island (never while the cursor is on it).
     static let bluetoothDisplayDuration: TimeInterval = 4.0
 
+    /// How long the "meeting starting" pill stays (never while hovered).
+    static let calendarDisplayDuration: TimeInterval = 8.0
+
+    /// How long the "microphone / camera / screen recording" pill stays.
+    static let privacyDisplayDuration: TimeInterval = 3.5
+
+    /// How long the green check shows after a download finishes.
+    static let downloadsCompletionDuration: TimeInterval = 1.8
+
     /// How long the "Caps Lock On/Off" pill stays.
     static let capsLockDisplayDuration: TimeInterval = 1.6
 

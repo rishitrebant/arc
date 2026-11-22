@@ -67,6 +67,14 @@ struct GeneralSettingsTab: View {
     private var showBluetoothInputs = AppSettings.Default.showBluetoothInputDevices
     @AppStorage(AppSettings.Key.showCapsLockIndicator)
     private var showCapsLock = AppSettings.Default.showCapsLockIndicator
+    @AppStorage(AppSettings.Key.showCalendarAlerts)
+    private var showCalendar = AppSettings.Default.showCalendarAlerts
+    @AppStorage(AppSettings.Key.calendarLeadMinutes)
+    private var calendarLead = AppSettings.Default.calendarLeadMinutes
+    @AppStorage(AppSettings.Key.showPrivacyIndicators)
+    private var showPrivacy = AppSettings.Default.showPrivacyIndicators
+    @AppStorage(AppSettings.Key.showDownloadProgress)
+    private var showDownloads = AppSettings.Default.showDownloadProgress
 
     var body: some View {
         TabContainer {
@@ -104,6 +112,36 @@ struct GeneralSettingsTab: View {
                 detail: "Briefly shows whether Caps Lock is on or off in the notch whenever you press it."
             ) {
                 Toggle("Show when Caps Lock changes", isOn: $showCapsLock)
+            }
+
+            SettingsRow(
+                "Calendar:",
+                detail: "Shows your next meeting in the notch shortly before it starts, with a Join button when it has a video link. Island asks for calendar access the first time."
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Show upcoming meetings", isOn: $showCalendar)
+                    Picker("Tell me", selection: $calendarLead) {
+                        ForEach([1, 5, 10, 15], id: \.self) { minutes in
+                            Text("\(minutes) min before").tag(minutes)
+                        }
+                    }
+                    .fixedSize()
+                    .disabled(!showCalendar)
+                }
+            }
+
+            SettingsRow(
+                "Privacy:",
+                detail: "Briefly shows when the microphone, camera or screen recording turns on."
+            ) {
+                Toggle("Show privacy indicators", isOn: $showPrivacy)
+            }
+
+            SettingsRow(
+                "Downloads:",
+                detail: "Shows progress while a file downloads to your Downloads folder (Safari, Chrome and Firefox). Island asks for Downloads folder access the first time."
+            ) {
+                Toggle("Show download progress", isOn: $showDownloads)
             }
         }
     }

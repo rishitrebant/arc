@@ -782,21 +782,13 @@ final class MediaRemoteMusicService:
             isCompetingMedia =
                 false
 
-            currentState =
-                savedState
-
-            baseElapsed =
-                savedState.elapsed
-
-            baseTimestamp =
-                .now
-
-            playbackRate =
-                savedState.isPlaying
-                    ? 1
-                    : 0
-
-            stateSubject.send(
+            // The saved state is only what the music app was doing
+            // BEFORE the interruption. While something else owned Now
+            // Playing, the music app's own events never reached us — so
+            // if it was paused (or quit, or skipped tracks) in the
+            // meantime, restoring the saved state blindly makes the
+            // island resume a song that isn't playing. Ask the app.
+            restoreVerified(
                 savedState
             )
 
@@ -821,6 +813,192 @@ final class MediaRemoteMusicService:
         )
     }
 
+    // MARK: - Verified Restore
+
+    /// Bumped by every real music event, so a slow verification can't
+    /// overwrite fresher information.
+    private var restoreToken:
+        UUID?
+
+    private func restoreVerified(
+        _ saved:
+            MusicPlaybackState
+    ) {
+
+        let bundle =
+            saved.app.bundleIdentifier
+
+        // App was quit while something else was playing: nothing to
+        // restore. (Also avoids AppleScript launching it just to ask.)
+        guard
+            !NSRunningApplication
+                .runningApplications(withBundleIdentifier: bundle)
+                .isEmpty
+        else {
+
+            lastSupportedState =
+                nil
+
+            return
+        }
+
+        let token =
+            UUID()
+
+        restoreToken =
+            token
+
+        let appName:
+            String
+
+        switch saved.app {
+
+        case .appleMusic:
+            appName = "Music"
+
+        case .spotify:
+            appName = "Spotify"
+        }
+
+        let script = """
+        tell application "\(appName)"
+            return (player state as text) & "|" & (player position as text)
+        end tell
+        """
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            [weak self] in
+
+            let process =
+                Process()
+
+            process.executableURL =
+                URL(fileURLWithPath: "/usr/bin/osascript")
+
+            process.arguments =
+                ["-e", script]
+
+            let outPipe =
+                Pipe()
+
+            process.standardOutput =
+                outPipe
+
+            process.standardError =
+                FileHandle.nullDevice
+
+            var playing =
+                false
+
+            var position:
+                TimeInterval?
+
+            do {
+
+                try process.run()
+
+                process.waitUntilExit()
+
+                let text =
+                    String(
+                        data:
+                            outPipe.fileHandleForReading
+                                .readDataToEndOfFile(),
+
+                        encoding:
+                            .utf8
+                    )?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    ?? ""
+
+                let parts =
+                    text.split(separator: "|", maxSplits: 1)
+
+                if process.terminationStatus == 0,
+                   let first = parts.first {
+
+                    playing =
+                        first.lowercased() == "playing"
+
+                    if parts.count > 1 {
+
+                        position =
+                            TimeInterval(
+                                parts[1].replacingOccurrences(
+                                    of: ",",
+                                    with: "."
+                                )
+                            )
+                    }
+                }
+
+            } catch {
+
+                // Couldn't ask (no Automation permission, etc.). Fail
+                // SAFE: show paused rather than a phantom "playing".
+                playing =
+                    false
+            }
+
+            DispatchQueue.main.async {
+                [weak self] in
+
+                guard
+                    let self,
+                    self.restoreToken == token,
+                    !self.isCompetingMedia
+                else {
+                    return
+                }
+
+                self.restoreToken =
+                    nil
+
+                var state =
+                    saved
+
+                state.isPlaying =
+                    playing
+
+                if let position {
+
+                    state.elapsed =
+                        self.clampElapsed(
+                            position,
+                            duration:
+                                state.duration
+                        )
+                }
+
+                self.lastSupportedState =
+                    state
+
+                self.currentState =
+                    state
+
+                self.baseElapsed =
+                    state.elapsed
+
+                self.baseTimestamp =
+                    .now
+
+                self.playbackRate =
+                    playing
+                        ? 1
+                        : 0
+
+                self.stateSubject.send(
+                    state
+                )
+
+                print(
+                    "✅ Restored \(state.app.rawValue) as"
+                    + " \(playing ? "playing" : "paused")"
+                )
+            }
+        }
+    }
+
     // MARK: - Supported Music
 
     private func handleSupportedMusic(
@@ -830,6 +1008,11 @@ final class MediaRemoteMusicService:
         app:
             MusicApp
     ) {
+
+        // A real event from the music app is fresher than any pending
+        // restore verification.
+        restoreToken =
+            nil
 
         // -------------------------------------------------------------
         // STALE EVENT GUARD

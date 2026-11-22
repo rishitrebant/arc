@@ -31,38 +31,41 @@ enum ActivityKind: Int, Comparable, CaseIterable {
     /// calls and file drops.
     case lowBattery = 3
 
+    /// Microphone / camera / screen recording just started (see
+    /// `PrivacyActivity`). Above everything but calls and file drops —
+    /// people should always notice a sensor turning on.
+    case privacy = 4
+
     /// "Charger just plugged in" — a short-lived moment (see
     /// `ChargingActivity`). Above `music` so it can briefly take the
-    /// island from whatever is playing and hand it straight back, but
-    /// below calls and file drops, which it should never interrupt.
-    /// Everything below shifted down by one; their relative order is
-    /// unchanged.
-    case charging = 4
+    /// island from whatever is playing and hand it straight back.
+    case charging = 5
 
     /// "A Bluetooth device just connected" (see `BluetoothActivity`).
-    /// Above `music` for the same reason as `charging`: it's a brief
-    /// moment that should appear over whatever is playing and then
-    /// hand the island straight back.
-    case bluetooth = 5
+    case bluetooth = 6
 
-    /// A Caps Lock toggle moment (see `CapsLockActivity`) — brief, so it
-    /// sits above `music` like `bluetooth` and hands the island back.
-    case capsLock = 6
+    /// A meeting is about to start (see `CalendarActivity`).
+    case calendar = 7
 
-    /// A running timer / stopwatch (see `TimerActivity`). Above `music`
-    /// so a countdown stays visible while something is playing, as on
-    /// the iPhone; moved up from its old slot below `focus`.
-    case timer = 7
+    /// A Caps Lock toggle moment (see `CapsLockActivity`).
+    case capsLock = 8
 
-    case music = 8
-    case airDrop = 9
-    case downloads = 10
-    case focus = 11
+    /// A running timer / stopwatch / pomodoro (see `TimerActivity`).
+    /// Above `music` so a countdown stays visible while playing.
+    case timer = 9
+
+    case music = 10
+    case airDrop = 11
+
+    /// Files downloading (see `DownloadsActivity`). Below `music`: a
+    /// long-running background task shouldn't push playback off the island.
+    case downloads = 12
+
+    case focus = 13
 
     /// The notch's click-to-open menu (see `LauncherActivity`). Lowest
-    /// priority: it only ever appears over an empty island, and anything
-    /// else that wants the island simply replaces it.
-    case launcher = 12
+    /// priority: it only ever appears over an empty island.
+    case launcher = 14
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

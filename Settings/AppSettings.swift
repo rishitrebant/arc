@@ -21,6 +21,10 @@ enum AppSettings {
         static let showBluetoothInputDevices = "showBluetoothInputDevices"
         static let lowBatteryTriggerPercent = "lowBatteryTriggerPercent"
         static let showCapsLockIndicator = "showCapsLockIndicator"
+        static let showCalendarAlerts = "showCalendarAlerts"
+        static let calendarLeadMinutes = "calendarLeadMinutes"
+        static let showPrivacyIndicators = "showPrivacyIndicators"
+        static let showDownloadProgress = "showDownloadProgress"
     }
 
     enum Default {
@@ -34,6 +38,10 @@ enum AppSettings {
         static let showBluetoothInputDevices = true
         static let lowBatteryTriggerPercent = 20
         static let showCapsLockIndicator = true
+        static let showCalendarAlerts = true
+        static let calendarLeadMinutes = 5
+        static let showPrivacyIndicators = true
+        static let showDownloadProgress = true
     }
 
     // MARK: - Static accessors (for non-SwiftUI code)
@@ -80,6 +88,27 @@ enum AppSettings {
     static var showBluetoothInputDevices: Bool {
         UserDefaults.standard.object(forKey: Key.showBluetoothInputDevices) as? Bool
             ?? Default.showBluetoothInputDevices
+    }
+
+    static var showCalendarAlerts: Bool {
+        UserDefaults.standard.object(forKey: Key.showCalendarAlerts) as? Bool
+            ?? Default.showCalendarAlerts
+    }
+
+    /// How many minutes before a meeting the island tells you.
+    static var calendarLeadMinutes: Int {
+        let stored = UserDefaults.standard.integer(forKey: Key.calendarLeadMinutes)
+        return stored > 0 ? stored : Default.calendarLeadMinutes
+    }
+
+    static var showPrivacyIndicators: Bool {
+        UserDefaults.standard.object(forKey: Key.showPrivacyIndicators) as? Bool
+            ?? Default.showPrivacyIndicators
+    }
+
+    static var showDownloadProgress: Bool {
+        UserDefaults.standard.object(forKey: Key.showDownloadProgress) as? Bool
+            ?? Default.showDownloadProgress
     }
 
     static var showCapsLockIndicator: Bool {
