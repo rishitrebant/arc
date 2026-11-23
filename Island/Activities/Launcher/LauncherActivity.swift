@@ -18,6 +18,7 @@ final class LauncherActivity: ObservableObject {
         case home
         case timer
         case pomodoro
+        case clipboard
     }
 
     @Published private(set) var isActive: Bool = false
@@ -32,6 +33,12 @@ final class LauncherActivity: ObservableObject {
     /// playback, it just shows and forwards controls.
     let music: MusicActivity
 
+    /// Connected Bluetooth devices, shown subtly on the home page.
+    let bluetooth: BluetoothActivity
+
+    /// What you've copied recently.
+    let clipboard = ClipboardHistory()
+
     private let isActiveSubject =
         CurrentValueSubject<Bool, Never>(false)
 
@@ -42,21 +49,40 @@ final class LauncherActivity: ObservableObject {
     /// Set by `AppDelegate` — the menu never closes under the cursor.
     var isIslandCurrentlyHovered: () -> Bool = { false }
 
-    private static let hideDelay: TimeInterval = 4
-    private static let hoverRecheckInterval: TimeInterval = 1
+    /// How long the launcher waits for the cursor to arrive (it can be
+    /// opened by a shortcut with the cursor elsewhere) before closing.
+    private static let arrivalGrace: TimeInterval = 4
 
-    private var hideWorkItem: DispatchWorkItem?
+    /// How long after the cursor leaves before the launcher collapses.
+    private static let leaveDelay: TimeInterval = 0.5
+
+    private var hoverTimer: Timer?
+    private var shownAt = Date.distantPast
+    private var hasBeenHovered = false
+    private var leftAt: Date?
     private var observers: [Task<Void, Never>] = []
 
-    init(music: MusicActivity) {
+    init(music: MusicActivity, bluetooth: BluetoothActivity) {
 
         self.music = music
+        self.bluetooth = bluetooth
+
+        clipboard.start()
 
         observers.append(Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(
                 named: .islandOpenLauncher
             ) {
                 self?.show()
+            }
+        })
+
+        observers.append(Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: .islandToggleLauncher
+            ) {
+                guard let self else { return }
+                self.isActive ? self.hide() : self.show()
             }
         })
 
@@ -72,6 +98,8 @@ final class LauncherActivity: ObservableObject {
 
     deinit {
         observers.forEach { $0.cancel() }
+        let clipboard = self.clipboard
+        Task { @MainActor in clipboard.stop() }
     }
 
     // MARK: - Visibility
@@ -79,39 +107,60 @@ final class LauncherActivity: ObservableObject {
     private func show() {
 
         page = .home
+        timerMinutes = AppSettings.lastTimerMinutes
+
+        bluetooth.refreshBatteries()
+
+        shownAt = Date()
+        hasBeenHovered = false
+        leftAt = nil
+
         setActive(true)
-        scheduleHideCheck(after: Self.hideDelay)
+        startHoverWatch()
     }
 
     func hide() {
 
-        hideWorkItem?.cancel()
-        hideWorkItem = nil
+        hoverTimer?.invalidate()
+        hoverTimer = nil
 
         setActive(false)
     }
 
-    private func scheduleHideCheck(after delay: TimeInterval) {
+    /// Collapses the launcher shortly after the cursor leaves it — and
+    /// only then, so it can stay open for as long as you're using it
+    /// (copying several clipboard items, say).
+    private func startHoverWatch() {
 
-        hideWorkItem?.cancel()
+        hoverTimer?.invalidate()
 
-        let work = DispatchWorkItem { [weak self] in
-
-            guard let self else { return }
-
-            if self.isIslandCurrentlyHovered() {
-                self.scheduleHideCheck(after: Self.hoverRecheckInterval)
-            } else {
-                self.hide()
-            }
+        let timer = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.checkHover() }
         }
 
-        hideWorkItem = work
+        RunLoop.main.add(timer, forMode: .common)
+        hoverTimer = timer
+    }
 
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + delay,
-            execute: work
-        )
+    private func checkHover() {
+
+        if isIslandCurrentlyHovered() {
+
+            hasBeenHovered = true
+            leftAt = nil
+
+        } else if hasBeenHovered {
+
+            let since = leftAt ?? Date()
+            leftAt = since
+
+            if Date().timeIntervalSince(since) > Self.leaveDelay {
+                hide()
+            }
+
+        } else if Date().timeIntervalSince(shownAt) > Self.arrivalGrace {
+            hide()
+        }
     }
 
     private func setActive(_ shouldBeActive: Bool) {
@@ -125,6 +174,7 @@ final class LauncherActivity: ObservableObject {
     // MARK: - Actions
 
     func startTimer() {
+        UserDefaults.standard.set(timerMinutes, forKey: AppSettings.Key.lastTimerMinutes)
         TimerPreset.start(TimeInterval(timerMinutes * 60))
         hide()
     }
@@ -135,6 +185,13 @@ final class LauncherActivity: ObservableObject {
             rest: TimeInterval(breakMinutes * 60)
         )
         hide()
+    }
+
+    /// Puts an entry back on the clipboard. The launcher stays open so
+    /// you can copy more; it closes when you move the cursor away.
+    func copyBack(_ entry: ClipboardEntry) {
+        clipboard.copyBack(entry)
+        Haptics.confirm()
     }
 
     func startStopwatch() {
@@ -170,7 +227,9 @@ final class LauncherActivity: ObservableObject {
 
         LauncherIslandView(
             activity: self,
-            music: music
+            music: music,
+            clipboard: clipboard,
+            bluetooth: bluetooth
         )
     }
 }

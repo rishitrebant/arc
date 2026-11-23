@@ -14,6 +14,12 @@ final class ActivityManager: ObservableObject {
     /// The WindowManager observes this to decide window visibility/sizing.
     @Published private(set) var ownedActivity: AnyActivity?
 
+    /// A second active activity that has a minimal presentation (music
+    /// while a timer owns the notch, a timer while a charger pill does…).
+    /// Shown as a small bubble beside the island — never competes for
+    /// ownership.
+    @Published private(set) var secondaryActivity: AnyActivity?
+
     private var registered: [AnyActivity] = []
     private var cancellables: Set<AnyCancellable> = []
 
@@ -43,6 +49,14 @@ final class ActivityManager: ObservableObject {
         let winner = registered
             .filter { $0.isActive }
             .min { $0.kind < $1.kind }
+
+        let secondary = registered
+            .filter { $0.isActive && $0.id != winner?.id && $0.minimalView != nil }
+            .min { $0.kind < $1.kind }
+
+        if secondary?.id != secondaryActivity?.id {
+            secondaryActivity = secondary
+        }
 
         guard winner?.id != ownedActivity?.id else { return }
 

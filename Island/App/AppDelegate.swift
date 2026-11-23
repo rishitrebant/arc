@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 
 @MainActor
 final class AppDelegate:
@@ -39,6 +40,18 @@ final class AppDelegate:
     private var calendarActivity:
         CalendarActivity!
 
+    private var audioOutputActivity:
+        AudioOutputActivity!
+
+    private var focusActivity:
+        FocusActivity!
+
+    private var cancellables:
+        Set<AnyCancellable> = []
+
+    private let hotKeys =
+        HotKeyManager()
+
     private var privacyActivity:
         PrivacyActivity!
 
@@ -69,6 +82,8 @@ final class AppDelegate:
         )
 
         installMainMenu()
+
+        hotKeys.start()
 
         musicActivity =
             MusicActivity()
@@ -153,6 +168,26 @@ final class AppDelegate:
             calendarActivity
         )
 
+        audioOutputActivity =
+            AudioOutputActivity()
+
+        audioOutputActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            audioOutputActivity
+        )
+
+        focusActivity =
+            FocusActivity()
+
+        activityManager.register(
+            focusActivity
+        )
+
         privacyActivity =
             PrivacyActivity()
 
@@ -175,7 +210,8 @@ final class AppDelegate:
 
         launcherActivity =
             LauncherActivity(
-                music: musicActivity
+                music: musicActivity,
+                bluetooth: bluetoothActivity
             )
 
         launcherActivity.isIslandCurrentlyHovered =
@@ -226,6 +262,22 @@ final class AppDelegate:
                     owned?.expandedSize ?? fallbackExpanded
                 )
             }
+
+        windowManager.currentCompactShift =
+            { [weak self] in
+
+                self?.activityManager.ownedActivity?.compactCenterShift ?? 0
+            }
+
+        // Tells the timer when a second activity is sharing the notch,
+        // so it can slide over to the left half.
+        activityManager.$secondaryActivity
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] secondary in
+
+                self?.timerActivity.hasCompanion = secondary != nil
+            }
+            .store(in: &cancellables)
 
         // Fixes the panel-disappears-mid-drag and unclickable-reveal
         // bugs — see `WindowManager.currentActivityIsForcingExpanded`'s

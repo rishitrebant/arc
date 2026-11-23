@@ -78,6 +78,7 @@ struct BluetoothIslandView: View {
             value: isExpanded
         )
         .animation(AnimationTokens.stateUpdate, value: activity.phase)
+        .animation(AnimationTokens.stateUpdate, value: activity.battery)
     }
 
     // MARK: - Compact
@@ -102,6 +103,38 @@ struct BluetoothIslandView: View {
                 y: Compact.compactContentCenterY
             )
 
+            trailingIndicator
+                .frame(
+                    width: Compact.compactIconSize + 6,
+                    height: Compact.compactIconSize
+                )
+                .position(
+                    x: Compact.compactWidth
+                        - Compact.compactEdgePadding
+                        - Compact.compactIconSize / 2,
+                    y: Compact.compactContentCenterY
+                )
+        }
+    }
+
+    /// The device's battery when it's known, otherwise the plain
+    /// "connected" check.
+    @ViewBuilder
+    private var trailingIndicator: some View {
+
+        if isConnected, let level = activity.battery?.headline {
+
+            BatteryGlyph(
+                percent: level,
+                tint: level <= 20
+                    ? DesignTokens.Color.lowBatteryAccent
+                    : DesignTokens.Color.primaryText,
+                showsBolt: false
+            )
+            .transition(.opacity)
+
+        } else {
+
             Image(systemName: isConnected
                   ? "checkmark.circle.fill"
                   : "xmark.circle.fill")
@@ -111,16 +144,7 @@ struct BluetoothIslandView: View {
                         ? DesignTokens.Color.chargingAccent
                         : DesignTokens.Color.secondaryText
                 )
-                .frame(
-                    width: Compact.compactIconSize,
-                    height: Compact.compactIconSize
-                )
-                .position(
-                    x: Compact.compactWidth
-                        - Compact.compactEdgePadding
-                        - Compact.compactIconSize / 2,
-                    y: Compact.compactContentCenterY
-                )
+                .transition(.opacity)
         }
     }
 
@@ -151,11 +175,40 @@ struct BluetoothIslandView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    Text(isConnected ? "Connected" : "Disconnected")
-                        .font(Expanded.statusFont)
-                        .foregroundStyle(DesignTokens.Color.secondaryText)
-                        .lineLimit(1)
-                        .contentTransition(.opacity)
+                    HStack(spacing: 6) {
+
+                        Text(isConnected ? "Connected" : "Disconnected")
+                            .font(Expanded.statusFont)
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
+                            .lineLimit(1)
+
+                        if isConnected, let battery = activity.battery {
+
+                            if let detail = battery.detail {
+
+                                Text("·  \(detail)")
+                                    .font(Expanded.statusFont)
+                                    .foregroundStyle(DesignTokens.Color.secondaryText)
+                                    .lineLimit(1)
+
+                            } else if let level = battery.headline {
+
+                                Text("·")
+                                    .font(Expanded.statusFont)
+                                    .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                                Text("\(level)%")
+                                    .font(Expanded.statusFont)
+                                    .monospacedDigit()
+                                    .foregroundStyle(
+                                        level <= 20
+                                            ? DesignTokens.Color.lowBatteryAccent
+                                            : DesignTokens.Color.secondaryText
+                                    )
+                            }
+                        }
+                    }
+                    .contentTransition(.opacity)
                 }
 
                 Spacer(minLength: 0)
@@ -200,5 +253,8 @@ private struct PressableButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                if pressed { Haptics.tick() }
+            }
     }
 }

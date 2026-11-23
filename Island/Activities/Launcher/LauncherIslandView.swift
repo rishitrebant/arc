@@ -8,6 +8,11 @@ struct LauncherIslandView: View {
 
     @ObservedObject var activity: LauncherActivity
     @ObservedObject var music: MusicActivity
+    @ObservedObject var clipboard: ClipboardHistory
+    @ObservedObject var bluetooth: BluetoothActivity
+
+    /// The clipboard row just copied — shows a check for a moment.
+    @State private var copiedID: UUID?
 
     private typealias Metrics = DesignTokens.LauncherMetrics
 
@@ -49,6 +54,8 @@ struct LauncherIslandView: View {
                         timerPage
                     case .pomodoro:
                         pomodoroPage
+                    case .clipboard:
+                        clipboardPage
                     }
                 }
                 .transition(.opacity)
@@ -100,7 +107,63 @@ struct LauncherIslandView: View {
                 ) {
                     activity.startStopwatch()
                 }
+
+                tile(
+                    symbol: "doc.on.clipboard.fill",
+                    title: "Clipboard",
+                    tint: DesignTokens.Color.capsLockAccent
+                ) {
+                    activity.page = .clipboard
+                }
             }
+
+            bluetoothRow
+        }
+    }
+
+    // MARK: Bluetooth (subtle)
+
+    /// One quiet line — device name and battery — for whatever is
+    /// connected, the way iOS lists connected accessories. Absent when
+    /// nothing is.
+    @ViewBuilder
+    private var bluetoothRow: some View {
+
+        let devices = Array(bluetooth.connected.prefix(2))
+
+        if !devices.isEmpty {
+
+            HStack(spacing: 14) {
+
+                ForEach(devices) { device in
+
+                    HStack(spacing: 5) {
+
+                        Image(systemName: device.symbolName)
+                            .symbolRenderingMode(.hierarchical)
+                            .font(.system(size: 11, weight: .medium))
+
+                        Text(device.name)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+
+                        if let level = bluetooth.batteries[device.address]?.headline {
+
+                            Text("\(level)%")
+                                .monospacedDigit()
+                                .foregroundStyle(
+                                    level <= 20
+                                        ? DesignTokens.Color.lowBatteryAccent
+                                        : DesignTokens.Color.secondaryText
+                                )
+                        }
+                    }
+                }
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(DesignTokens.Color.secondaryText)
+            .frame(maxWidth: .infinity)
+            .transition(.opacity)
         }
     }
 
@@ -272,6 +335,123 @@ struct LauncherIslandView: View {
         }
     }
 
+    // MARK: - Clipboard
+
+    private var clipboardPage: some View {
+
+        VStack(spacing: Metrics.sectionSpacing - 4) {
+
+            HStack(spacing: 10) {
+
+                Button {
+                    activity.page = .home
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                        .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+                }
+                .buttonStyle(LauncherPressStyle())
+                .accessibilityLabel("Back")
+
+                Text("Clipboard")
+                    .font(Metrics.titleFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+
+                Spacer(minLength: 0)
+
+                if !clipboard.entries.isEmpty {
+                    Button {
+                        clipboard.clear()
+                    } label: {
+                        Text("Clear")
+                            .font(Metrics.tileFont)
+                            .foregroundStyle(DesignTokens.Color.primaryText)
+                            .padding(.horizontal, 14)
+                            .frame(height: Metrics.controlSize)
+                            .background(Capsule().fill(DesignTokens.Color.deviceIconBackground))
+                    }
+                    .buttonStyle(LauncherPressStyle())
+                }
+            }
+
+            if clipboard.entries.isEmpty {
+
+                Spacer(minLength: 0)
+
+                Text(AppSettings.keepClipboardHistory
+                     ? "Things you copy will show up here"
+                     : "Clipboard history is turned off in Settings")
+                    .font(Metrics.subtitleFont)
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                Spacer(minLength: 0)
+
+            } else {
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 6) {
+                        ForEach(clipboard.entries) { entry in
+                            clipboardRow(entry)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func clipboardRow(_ entry: ClipboardEntry) -> some View {
+
+        Button {
+
+            activity.copyBack(entry)
+
+            copiedID = entry.id
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                if copiedID == entry.id { copiedID = nil }
+            }
+
+        } label: {
+
+            HStack(spacing: 10) {
+
+                Image(systemName: entry.symbolName)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(DesignTokens.Color.capsLockAccent)
+                    .frame(width: 22)
+
+                Text(entry.title)
+                    .font(Metrics.tileFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer(minLength: 0)
+
+                if copiedID == entry.id {
+                    Label("Copied", systemImage: "checkmark")
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.chargingAccent)
+                        .transition(.opacity)
+                }
+            }
+            .animation(AnimationTokens.stateUpdate, value: copiedID)
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .background(
+                RoundedRectangle(
+                    cornerRadius: 12,
+                    style: .continuous
+                )
+                .fill(DesignTokens.Color.deviceIconBackground)
+            )
+        }
+        .buttonStyle(LauncherPressStyle())
+    }
+
     // MARK: - Setup components
 
     private func header(
@@ -390,5 +570,8 @@ private struct LauncherPressStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                if pressed { Haptics.tick() }
+            }
     }
 }

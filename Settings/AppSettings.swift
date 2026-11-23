@@ -25,6 +25,12 @@ enum AppSettings {
         static let calendarLeadMinutes = "calendarLeadMinutes"
         static let showPrivacyIndicators = "showPrivacyIndicators"
         static let showDownloadProgress = "showDownloadProgress"
+        static let showFocusChanges = "showFocusChanges"
+        static let hapticsEnabled = "hapticsEnabled"
+        static let showAudioOutputChanges = "showAudioOutputChanges"
+        static let globalShortcutsEnabled = "globalShortcutsEnabled"
+        static let keepClipboardHistory = "keepClipboardHistory"
+        static let lastTimerMinutes = "lastTimerMinutes"
     }
 
     enum Default {
@@ -42,6 +48,12 @@ enum AppSettings {
         static let calendarLeadMinutes = 5
         static let showPrivacyIndicators = true
         static let showDownloadProgress = true
+        static let showFocusChanges = true
+        static let hapticsEnabled = true
+        static let showAudioOutputChanges = true
+        static let globalShortcutsEnabled = true
+        static let keepClipboardHistory = true
+        static let lastTimerMinutes = 10
     }
 
     // MARK: - Static accessors (for non-SwiftUI code)
@@ -104,6 +116,38 @@ enum AppSettings {
     static var showPrivacyIndicators: Bool {
         UserDefaults.standard.object(forKey: Key.showPrivacyIndicators) as? Bool
             ?? Default.showPrivacyIndicators
+    }
+
+    static var showFocusChanges: Bool {
+        UserDefaults.standard.object(forKey: Key.showFocusChanges) as? Bool
+            ?? Default.showFocusChanges
+    }
+
+    static var hapticsEnabled: Bool {
+        UserDefaults.standard.object(forKey: Key.hapticsEnabled) as? Bool
+            ?? Default.hapticsEnabled
+    }
+
+    static var showAudioOutputChanges: Bool {
+        UserDefaults.standard.object(forKey: Key.showAudioOutputChanges) as? Bool
+            ?? Default.showAudioOutputChanges
+    }
+
+    static var globalShortcutsEnabled: Bool {
+        UserDefaults.standard.object(forKey: Key.globalShortcutsEnabled) as? Bool
+            ?? Default.globalShortcutsEnabled
+    }
+
+    static var keepClipboardHistory: Bool {
+        UserDefaults.standard.object(forKey: Key.keepClipboardHistory) as? Bool
+            ?? Default.keepClipboardHistory
+    }
+
+    /// The timer length last started from the launcher — what the
+    /// global shortcut starts.
+    static var lastTimerMinutes: Int {
+        let stored = UserDefaults.standard.integer(forKey: Key.lastTimerMinutes)
+        return stored > 0 ? stored : Default.lastTimerMinutes
     }
 
     static var showDownloadProgress: Bool {

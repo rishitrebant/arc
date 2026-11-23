@@ -434,6 +434,12 @@ enum DesignTokens {
         static let compactTimeFont = Font.system(size: 13, weight: .semibold)
         static let compactGlyphToTime: CGFloat = 5
 
+        /// Split layout (timer on the left of the notch, another
+        /// activity on the right): room for "m:ss" / "h:mm:ss".
+        static let splitTimeWidth: CGFloat = 34
+        static let splitTimeWidthHours: CGFloat = 52
+        static let splitNotchPadding: CGFloat = 8
+
         static let expandedWidth: CGFloat = 360
         static let expandedHeight: CGFloat = 112
         /// Notch keep-clear + bottom padding; each row of a multi-clock
@@ -454,6 +460,34 @@ enum DesignTokens {
         static let buttonSpacing: CGFloat = 12
         static let buttonGlyphSize: CGFloat = 17
         static let buttonGlyphSizeDual: CGFloat = 14
+    }
+
+    // MARK: - Minimal bubble metrics
+    //
+    // The detached circle beside the island — a second activity's
+    // "minimal" presentation, or the privacy dot. Same height as the
+    // compact pills so the two read as one row.
+
+    enum BubbleMetrics {
+
+        /// A rounded square, not a circle, so it reads as part of the
+        /// island rather than a floating dot.
+        static let side: CGFloat = 26
+        static let cornerRadius: CGFloat = 8
+
+        /// Centred in the 33pt pill height — never touching the top.
+        static let topInset: CGFloat = (33 - side) / 2
+
+        /// Gap to the notch edge when the bubble sits right beside the
+        /// notch (the timer's split layout), and to a pill's edge when
+        /// it sits beside a full pill.
+        static let notchGap: CGFloat = 2
+        static let pillGap: CGFloat = 5
+
+        static let contentSize: CGFloat = 18
+        static let contentCornerRadius: CGFloat = 5.5
+        static let glyphSize: CGFloat = 11
+        static let ringLineWidth: CGFloat = 2.2
     }
 
     // MARK: - Status pill metrics
@@ -555,35 +589,36 @@ enum DesignTokens {
     // are derived to read as a soft elevation lift, not a hard drop shadow.
 
     enum Shadow {
-        /// Always present, subtle — real macOS UI elements (menu bar
-        /// items, widgets) generally carry a soft resting shadow, not just
-        /// an on-hover one. This is that baseline.
-        static let restColor = SwiftUI.Color.black.opacity(0.28)
-        static let restRadius: CGFloat = 6
+        /// Resting (compact) island: a soft ambient shadow plus a tight
+        /// contact shadow, the way Apple lifts the Dynamic Island off the
+        /// content behind it.
+        static let restColor = SwiftUI.Color.black.opacity(0.34)
+        static let restRadius: CGFloat = 8
         static let restYOffset: CGFloat = 3
 
-        /// The stronger "noticed you" shadow layered on top the instant a
-        /// hover begins — same shadow, more pronounced, not a different
-        /// effect.
-        static let hoverColor = SwiftUI.Color.black.opacity(0.45)
-        static let hoverRadius: CGFloat = 16
-        static let hoverYOffset: CGFloat = 8
+        /// The stronger "noticed you" shadow the instant a hover begins.
+        static let hoverColor = SwiftUI.Color.black.opacity(0.48)
+        static let hoverRadius: CGFloat = 14
+        static let hoverYOffset: CGFloat = 6
+
+        /// Expanded island: the island floats well above the content, so
+        /// the shadow is larger, softer and lower.
+        static let expandedColor = SwiftUI.Color.black.opacity(0.55)
+        static let expandedRadius: CGFloat = 26
+        static let expandedYOffset: CGFloat = 12
+
+        /// Always-on tight shadow hugging the edge — gives the pill a
+        /// crisp edge against light wallpapers.
+        static let contactColor = SwiftUI.Color.black.opacity(0.28)
+        static let contactRadius: CGFloat = 2.5
+        static let contactYOffset: CGFloat = 1
 
         /// Extra transparent room carved around the visible pill so the
-        /// shadow above has somewhere to render into. AppKit clips all
-        /// drawing to the window's frame — a window sized exactly to the
-        /// pill (as it was) clips the shadow to nothing before it's ever
-        /// visible, regardless of how correct the SwiftUI shadow code is.
-        /// `WindowManager` builds the real window frame from the pill size
-        /// *plus* these insets, and pads the SwiftUI content by the same
-        /// amount so the pill still sits exactly where it should inside
-        /// the larger, invisible canvas. No top inset: the pill's top
-        /// edge must stay flush with the physical screen top (the notch
-        /// itself), so there's nowhere for a shadow to bleed upward into
-        /// regardless — and nothing is lost, since that direction is
-        /// covered by the camera housing in real life anyway.
-        static let canvasInsetX: CGFloat = hoverRadius + 4
-        static let canvasInsetBottom: CGFloat = hoverRadius + hoverYOffset + 4
+        /// shadows above have somewhere to render into. AppKit clips all
+        /// drawing to the window's frame. No top inset: the pill's top
+        /// edge must stay flush with the physical screen top (the notch).
+        static let canvasInsetX: CGFloat = expandedRadius + 4
+        static let canvasInsetBottom: CGFloat = expandedRadius + expandedYOffset + 4
     }
 
     // MARK: - Generic spacing scale (8pt / 16pt system)

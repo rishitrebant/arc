@@ -174,6 +174,10 @@ final class WindowManager {
             )
         }
 
+    /// Horizontal offset of the compact pill from the screen centre —
+    /// see `Activity.compactCenterShift`.
+    var currentCompactShift: () -> CGFloat = { 0 }
+
     private var compactSize: CGSize {
 
         currentContentSize().compact
@@ -981,7 +985,8 @@ final class WindowManager {
                         canvasSize.width
                         - DesignTokens.Shadow.canvasInsetX * 2
                         - size.width
-                    ) / 2,
+                    ) / 2
+                    + (isExpanded ? 0 : currentCompactShift()),
 
                 y:
                     0

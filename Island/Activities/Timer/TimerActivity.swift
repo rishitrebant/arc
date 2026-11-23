@@ -66,6 +66,19 @@ final class TimerSlot: ObservableObject {
     private var focusDuration: TimeInterval = 0
     private var restDuration: TimeInterval = 0
 
+    /// Length of the run currently counting down — what `progress` is
+    /// measured against.
+    private var totalDuration: TimeInterval = 0
+
+    /// 1 → 0 as a countdown or pomodoro stage runs out. `nil` for the
+    /// stopwatch, which has no end.
+    var progress: Double? {
+
+        guard countsDown, totalDuration > 0 else { return nil }
+
+        return min(1, max(0, Double(displaySeconds) / totalDuration))
+    }
+
     // Countdown: `endDate` while running, `remainingWhenPaused` otherwise.
     // Stopwatch: `startDate` while running, `elapsedWhenPaused` otherwise.
     private var endDate: Date?
@@ -95,6 +108,7 @@ final class TimerSlot: ObservableObject {
             return
         case .countdown:
             lastDuration = duration
+            totalDuration = duration
             endDate = Date().addingTimeInterval(duration)
             remainingWhenPaused = duration
         case .stopwatch:
@@ -118,6 +132,7 @@ final class TimerSlot: ObservableObject {
 
         endDate = Date().addingTimeInterval(focus)
         remainingWhenPaused = focus
+        totalDuration = focus
 
         phase = .running
         refreshDisplay()
@@ -136,8 +151,10 @@ final class TimerSlot: ObservableObject {
 
         endDate = Date().addingTimeInterval(next)
         remainingWhenPaused = next
+        totalDuration = next
 
         (NSSound(named: "Glass") ?? NSSound(named: "Ping"))?.play()
+        Haptics.confirm()
 
         refreshDisplay()
     }
@@ -299,6 +316,7 @@ final class TimerSlot: ObservableObject {
 
         chimesLeft = Int(AnimationTokens.timerFinishedDuration
             / AnimationTokens.timerChimeInterval)
+        Haptics.confirm()
         chime()
 
         let timer = Timer(
@@ -361,6 +379,10 @@ final class TimerActivity: ObservableObject {
 
     @Published private(set) var isActive: Bool = false
 
+    /// Another activity (e.g. music) is sharing the notch. The timer then
+    /// shrinks to the left half and the other sits right of the notch.
+    @Published var hasCompanion: Bool = false
+
     private let isActiveSubject =
         CurrentValueSubject<Bool, Never>(false)
 
@@ -389,6 +411,22 @@ final class TimerActivity: ObservableObject {
                 .store(in: &cancellables)
         }
 
+        toggleObserver = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: .islandToggleStopwatch
+            ) {
+                guard let self else { return }
+
+                if self.stopwatch.isActive {
+                    self.stopwatch.cancel()
+                } else {
+                    self.stopwatch.start()
+                }
+
+                self.refreshActive()
+            }
+        }
+
         startObserver = Task { [weak self] in
             let notes = NotificationCenter.default.notifications(
                 named: .islandStartTimer
@@ -401,7 +439,10 @@ final class TimerActivity: ObservableObject {
 
     deinit {
         startObserver?.cancel()
+        toggleObserver?.cancel()
     }
+
+    private var toggleObserver: Task<Void, Never>?
 
     private func start(userInfo: [AnyHashable: Any]?) {
 
@@ -465,8 +506,47 @@ final class TimerActivity: ObservableObject {
         return hasHours ? Metrics.flankWidthHours : Metrics.flankWidth
     }
 
+    // MARK: Split layout (timer left of the notch, companion right)
+
+    /// Width of the timer's half-pill, left of the notch: edge padding,
+    /// glyph, gap, the time, and a little room before the notch.
+    var splitWingWidth: CGFloat {
+
+        typealias Metrics = DesignTokens.TimerMetrics
+
+        let hasHours = activeSlots.first.map { $0.displaySeconds >= 3600 } ?? false
+
+        return Metrics.compactEdgePadding
+            + Metrics.compactIconSlot
+            + Metrics.compactGlyphToTime
+            + (hasHours ? Metrics.splitTimeWidthHours : Metrics.splitTimeWidth)
+            + Metrics.splitNotchPadding
+    }
+
+    private var splitRightExtent: CGFloat {
+        DesignTokens.FileDropMetrics.notchWidth / 2
+            + DesignTokens.BubbleMetrics.notchGap
+            + DesignTokens.BubbleMetrics.side
+    }
+
+    private var splitLeftExtent: CGFloat {
+        DesignTokens.FileDropMetrics.notchWidth / 2 + splitWingWidth
+    }
+
+    var compactCenterShift: CGFloat {
+        hasCompanion ? (splitRightExtent - splitLeftExtent) / 2 : 0
+    }
+
     var compactSize: CGSize {
-        CGSize(
+
+        if hasCompanion {
+            return CGSize(
+                width: splitLeftExtent + splitRightExtent,
+                height: DesignTokens.TimerMetrics.compactHeight
+            )
+        }
+
+        return CGSize(
             width: DesignTokens.FileDropMetrics.notchWidth + compactFlankWidth * 2,
             height: DesignTokens.TimerMetrics.compactHeight
         )

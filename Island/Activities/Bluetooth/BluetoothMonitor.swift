@@ -40,6 +40,20 @@ final class BluetoothMonitor: NSObject {
     /// A device (by address) disconnected.
     var onDisconnect: ((String) -> Void)?
 
+    /// The set of connected devices changed (including at launch and for
+    /// devices that were already connected — unlike `onConnect`).
+    var onConnectedSetChanged: (() -> Void)?
+
+    /// Everything connected right now.
+    func currentConnected() -> [BluetoothDeviceInfo] {
+
+        connectedAddresses
+            .compactMap { address in
+                devices[address].map { Self.info(for: $0, address: address) }
+            }
+            .sorted { $0.name < $1.name }
+    }
+
     private var connectNotification: IOBluetoothUserNotification?
     private var disconnectNotifications: [String: IOBluetoothUserNotification] = [:]
 
@@ -165,6 +179,7 @@ final class BluetoothMonitor: NSObject {
         guard !connectedAddresses.contains(address) else { return }
 
         connectedAddresses.insert(address)
+        onConnectedSetChanged?()
 
         guard Date().timeIntervalSince(startDate) > Self.startupGrace else {
             return
@@ -186,6 +201,7 @@ final class BluetoothMonitor: NSObject {
 
         disconnectNotifications[address] = nil
         connectedAddresses.remove(address)
+        onConnectedSetChanged?()
 
         onDisconnect?(address)
     }

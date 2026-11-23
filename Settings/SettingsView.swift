@@ -75,6 +75,16 @@ struct GeneralSettingsTab: View {
     private var showPrivacy = AppSettings.Default.showPrivacyIndicators
     @AppStorage(AppSettings.Key.showDownloadProgress)
     private var showDownloads = AppSettings.Default.showDownloadProgress
+    @AppStorage(AppSettings.Key.showFocusChanges)
+    private var showFocus = AppSettings.Default.showFocusChanges
+    @AppStorage(AppSettings.Key.hapticsEnabled)
+    private var haptics = AppSettings.Default.hapticsEnabled
+    @AppStorage(AppSettings.Key.showAudioOutputChanges)
+    private var showAudioOutput = AppSettings.Default.showAudioOutputChanges
+    @AppStorage(AppSettings.Key.globalShortcutsEnabled)
+    private var shortcuts = AppSettings.Default.globalShortcutsEnabled
+    @AppStorage(AppSettings.Key.keepClipboardHistory)
+    private var clipboardHistory = AppSettings.Default.keepClipboardHistory
 
     var body: some View {
         TabContainer {
@@ -135,6 +145,41 @@ struct GeneralSettingsTab: View {
                 detail: "Briefly shows when the microphone, camera or screen recording turns on."
             ) {
                 Toggle("Show privacy indicators", isOn: $showPrivacy)
+            }
+
+            SettingsRow(
+                "Sound output:",
+                detail: "Briefly shows the new device when your sound output changes — AirPods, AirPlay, a display or speakers."
+            ) {
+                Toggle("Show when output changes", isOn: $showAudioOutput)
+            }
+
+            SettingsRow(
+                "Focus:",
+                detail: "Briefly shows when a Focus turns on or off. macOS tells apps only whether a Focus is on, not which one. Island asks for permission the first time."
+            ) {
+                Toggle("Show when Focus changes", isOn: $showFocus)
+            }
+
+            SettingsRow(
+                "Clipboard:",
+                detail: "The launcher keeps your last few copies so you can copy one again. History stays in memory only — it is never saved to disk, and items from password managers are skipped."
+            ) {
+                Toggle("Keep clipboard history", isOn: $clipboardHistory)
+            }
+
+            SettingsRow(
+                "Shortcuts:",
+                detail: "⌃⌥Space opens the launcher · ⌃⌥T starts your last timer · ⌃⌥S starts or stops the stopwatch · ⌃⌥P starts a pomodoro."
+            ) {
+                Toggle("Enable global shortcuts", isOn: $shortcuts)
+            }
+
+            SettingsRow(
+                "Haptics:",
+                detail: "A subtle trackpad tap when the island opens, a new activity appears, or you press a button."
+            ) {
+                Toggle("Haptic feedback", isOn: $haptics)
             }
 
             SettingsRow(

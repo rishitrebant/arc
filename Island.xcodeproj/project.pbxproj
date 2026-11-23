@@ -53,6 +53,13 @@
 		A5B6EAE530B220C700F22126 /* DownloadsMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EAE430B220C700F22126 /* DownloadsMonitor.swift */; };
 		A5B6EAE730B220CF00F22126 /* DownloadsActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EAE630B220CF00F22126 /* DownloadsActivity.swift */; };
 		A5B6EAE930B220DB00F22126 /* DownloadsIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6EAE830B220DB00F22126 /* DownloadsIslandView.swift */; };
+		A5FC92DB30B3748E006B7C70 /* AudioOutputMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92DA30B3748E006B7C70 /* AudioOutputMonitor.swift */; };
+		A5FC92DD30B37496006B7C70 /* AudioOutputActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92DC30B37496006B7C70 /* AudioOutputActivity.swift */; };
+		A5FC92DF30B3749D006B7C70 /* AudioOutputIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92DE30B3749D006B7C70 /* AudioOutputIslandView.swift */; };
+		A5FC92E130B374B9006B7C70 /* ClipboardHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92E030B374B9006B7C70 /* ClipboardHistory.swift */; };
+		A5FC92E330B374EA006B7C70 /* MinimalBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92E230B374EA006B7C70 /* MinimalBubbles.swift */; };
+		A5FC92E630B378AE006B7C70 /* FocusActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92E530B378AE006B7C70 /* FocusActivity.swift */; };
+		A5FC92E830B378B2006B7C70 /* FocusIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92E730B378B2006B7C70 /* FocusIslandView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -103,6 +110,13 @@
 		A5B6EAE430B220C700F22126 /* DownloadsMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsMonitor.swift; sourceTree = "<group>"; };
 		A5B6EAE630B220CF00F22126 /* DownloadsActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsActivity.swift; sourceTree = "<group>"; };
 		A5B6EAE830B220DB00F22126 /* DownloadsIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsIslandView.swift; sourceTree = "<group>"; };
+		A5FC92DA30B3748E006B7C70 /* AudioOutputMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputMonitor.swift; sourceTree = "<group>"; };
+		A5FC92DC30B37496006B7C70 /* AudioOutputActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputActivity.swift; sourceTree = "<group>"; };
+		A5FC92DE30B3749D006B7C70 /* AudioOutputIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputIslandView.swift; sourceTree = "<group>"; };
+		A5FC92E030B374B9006B7C70 /* ClipboardHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistory.swift; sourceTree = "<group>"; };
+		A5FC92E230B374EA006B7C70 /* MinimalBubbles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimalBubbles.swift; sourceTree = "<group>"; };
+		A5FC92E530B378AE006B7C70 /* FocusActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusActivity.swift; sourceTree = "<group>"; };
+		A5FC92E730B378B2006B7C70 /* FocusIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusIslandView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -238,6 +252,8 @@
 				A5B6EAD730B2208100F22126 /* Calendar */,
 				A5B6EAD830B2208200F22126 /* Privacy */,
 				A5B6EAD930B2208200F22126 /* Downloads */,
+				A5FC92D930B37483006B7C70 /* AudioOutput */,
+				A5FC92E430B378A0006B7C70 /* Focus */,
 			);
 			path = Activities;
 			sourceTree = "<group>";
@@ -259,6 +275,7 @@
 				000000000000000000100032 /* PlaybackButton.swift */,
 				000000000000000000100034 /* ProgressBar.swift */,
 				00000000000000000010002E /* Waveform.swift */,
+				A5FC92E230B374EA006B7C70 /* MinimalBubbles.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -352,6 +369,7 @@
 			children = (
 				A5B6EAA030B1F21900F22126 /* LauncherActivity.swift */,
 				A5B6EAA230B1F22C00F22126 /* LauncherIslandView.swift */,
+				A5FC92E030B374B9006B7C70 /* ClipboardHistory.swift */,
 			);
 			path = Launcher;
 			sourceTree = "<group>";
@@ -383,6 +401,25 @@
 				A5B6EAE830B220DB00F22126 /* DownloadsIslandView.swift */,
 			);
 			path = Downloads;
+			sourceTree = "<group>";
+		};
+		A5FC92D930B37483006B7C70 /* AudioOutput */ = {
+			isa = PBXGroup;
+			children = (
+				A5FC92DA30B3748E006B7C70 /* AudioOutputMonitor.swift */,
+				A5FC92DC30B37496006B7C70 /* AudioOutputActivity.swift */,
+				A5FC92DE30B3749D006B7C70 /* AudioOutputIslandView.swift */,
+			);
+			path = AudioOutput;
+			sourceTree = "<group>";
+		};
+		A5FC92E430B378A0006B7C70 /* Focus */ = {
+			isa = PBXGroup;
+			children = (
+				A5FC92E530B378AE006B7C70 /* FocusActivity.swift */,
+				A5FC92E730B378B2006B7C70 /* FocusIslandView.swift */,
+			);
+			path = Focus;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -464,6 +501,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				000000000000000000100013 /* IslandApp.swift in Sources */,
+				A5FC92E330B374EA006B7C70 /* MinimalBubbles.swift in Sources */,
 				000000000000000000100015 /* AppDelegate.swift in Sources */,
 				A53269893044144900EDDE1E /* SkipChevronsIcon_NEW.swift in Sources */,
 				A5B6EA9730B1EC9200F22126 /* CapsLockIslandView.swift in Sources */,
@@ -482,10 +520,13 @@
 				000000000000000000100021 /* ActivityManager.swift in Sources */,
 				000000000000000000100023 /* IslandWindow.swift in Sources */,
 				000000000000000000100025 /* WindowManager.swift in Sources */,
+				A5FC92DD30B37496006B7C70 /* AudioOutputActivity.swift in Sources */,
 				000000000000000000100027 /* MusicModels.swift in Sources */,
 				A5B6EADB30B2209300F22126 /* CalendarActivity.swift in Sources */,
+				A5FC92E630B378AE006B7C70 /* FocusActivity.swift in Sources */,
 				A5326961303ED0D800EDDE1E /* MusicIslandView.swift in Sources */,
 				000000000000000000100029 /* MusicService.swift in Sources */,
+				A5FC92DB30B3748E006B7C70 /* AudioOutputMonitor.swift in Sources */,
 				00000000000000000010002B /* HardcodedMusicService.swift in Sources */,
 				00000000000000000010002D /* MusicActivity.swift in Sources */,
 				A5B6EAE930B220DB00F22126 /* DownloadsIslandView.swift in Sources */,
@@ -497,17 +538,20 @@
 				000000000000000000100033 /* PlaybackButton.swift in Sources */,
 				A532698730440A5600EDDE1E /* OutputDevicePanelController.swift in Sources */,
 				000000000000000000100035 /* ProgressBar.swift in Sources */,
+				A5FC92E830B378B2006B7C70 /* FocusIslandView.swift in Sources */,
 				000000000000000000100037 /* IslandShape.swift in Sources */,
 				000000000000000000100039 /* MusicCompactView.swift in Sources */,
 				A532696A3040B21200EDDE1E /* MediaRemoteMusicService.swift in Sources */,
 				A5B6EA9C30B1ECAA00F22126 /* TimerActivity.swift in Sources */,
 				A5B6EADD30B2209F00F22126 /* CalendarIslandView.swift in Sources */,
+				A5FC92E130B374B9006B7C70 /* ClipboardHistory.swift in Sources */,
 				A5B6EA9E30B1ECB600F22126 /* TimerIslandView.swift in Sources */,
 				A5B6EAA130B1F21900F22126 /* LauncherActivity.swift in Sources */,
 				00000000000000000010003B /* MusicExpandedView.swift in Sources */,
 				00000000000000000010003D /* IslandRootView.swift in Sources */,
 				A5B6EA9930B1EC9B00F22126 /* CapsLockActivity.swift in Sources */,
 				00000000000000000010003F /* IslandNamespace.swift in Sources */,
+				A5FC92DF30B3749D006B7C70 /* AudioOutputIslandView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -532,6 +576,7 @@
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Island shows your next meeting in the notch, with a Join button when it has a video link.";
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Island shows the progress of files downloading to your Downloads folder.";
+				INFOPLIST_KEY_NSFocusStatusUsageDescription = "Island shows a pill in the notch when your Focus turns on or off.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -567,6 +612,7 @@
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Island shows your next meeting in the notch, with a Join button when it has a video link.";
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Island shows the progress of files downloading to your Downloads folder.";
+				INFOPLIST_KEY_NSFocusStatusUsageDescription = "Island shows a pill in the notch when your Focus turns on or off.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;

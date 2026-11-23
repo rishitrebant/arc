@@ -93,6 +93,12 @@ enum AnimationTokens {
     /// returning the island (never while the cursor is on it).
     static let bluetoothDisplayDuration: TimeInterval = 4.0
 
+    /// How long the "Focus on / off" pill stays.
+    static let focusDisplayDuration: TimeInterval = 2.2
+
+    /// How long the "sound output changed" pill stays.
+    static let audioOutputDisplayDuration: TimeInterval = 3.0
+
     /// How long the "meeting starting" pill stays (never while hovered).
     static let calendarDisplayDuration: TimeInterval = 8.0
 

@@ -19,6 +19,8 @@ final class AnyActivity: Identifiable {
     private let _didResignActive: () -> Void
     private let _compactSize: () -> CGSize
     private let _expandedSize: () -> CGSize
+    private let _compactCenterShift: () -> CGFloat
+    private let _minimalView: (() -> AnyView)?
 
     init<A: Activity>(_ activity: A) {
         self.kind = A.kind
@@ -29,6 +31,13 @@ final class AnyActivity: Identifiable {
         self._didResignActive = { activity.didResignActive() }
         self._compactSize = { activity.compactSize }
         self._expandedSize = { activity.expandedSize }
+        self._compactCenterShift = { activity.compactCenterShift }
+
+        if let presentable = activity as? MinimalPresentable {
+            self._minimalView = { presentable.minimalView() }
+        } else {
+            self._minimalView = nil
+        }
     }
 
     var isActive: Bool { _isActive() }
@@ -41,6 +50,10 @@ final class AnyActivity: Identifiable {
     func islandView(isExpanded: Bool) -> AnyView { _islandView(isExpanded) }
     func didBecomeActive() { _didBecomeActive() }
     func didResignActive() { _didResignActive() }
+    /// The small detached bubble this activity shows while another one
+    /// owns the notch, or `nil` if it has no such presentation.
+    var minimalView: AnyView? { _minimalView?() }
+    var compactCenterShift: CGFloat { _compactCenterShift() }
     var compactSize: CGSize { _compactSize() }
     var expandedSize: CGSize { _expandedSize() }
 }

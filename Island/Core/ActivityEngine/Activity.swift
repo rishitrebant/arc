@@ -55,9 +55,17 @@ protocol Activity: AnyObject, ObservableObject {
     /// unchanged.
     var compactSize: CGSize { get }
     var expandedSize: CGSize { get }
+
+    /// How far the compact pill's centre sits from the screen centre,
+    /// positive = right. Zero for every symmetric pill; non-zero only
+    /// for the timer's split layout, which hugs the left of the notch.
+    /// `WindowManager` shifts its hit region by this.
+    var compactCenterShift: CGFloat { get }
 }
 
 extension Activity {
+
+    var compactCenterShift: CGFloat { 0 }
 
     var compactSize: CGSize {
         CGSize(

@@ -28,6 +28,17 @@ final class BluetoothActivity: ObservableObject {
     @Published private(set) var device: BluetoothDeviceInfo?
     @Published private(set) var phase: Phase = .connected
 
+    /// Battery of the device on screen, once it's been read.
+    @Published private(set) var battery: BluetoothBattery?
+
+    /// Everything connected right now, for the launcher.
+    @Published private(set) var connected: [BluetoothDeviceInfo] = []
+
+    /// Last known battery per device address.
+    @Published private(set) var batteries: [String: BluetoothBattery] = [:]
+
+    private var lastBatteryRefresh = Date.distantPast
+
     private let isActiveSubject =
         CurrentValueSubject<Bool, Never>(false)
 
@@ -67,12 +78,67 @@ final class BluetoothActivity: ObservableObject {
             self?.handleDisconnect(address: address)
         }
 
+        monitor.onConnectedSetChanged = { [weak self] in
+            self?.connectedSetChanged()
+        }
+
         monitor.start()
+
+        connected = monitor.currentConnected()
+        refreshBatteries(force: true)
     }
 
     deinit {
         let monitor = self.monitor
         Task { @MainActor in monitor.stop() }
+    }
+
+    // MARK: - Connected devices & battery
+
+    private func connectedSetChanged() {
+
+        connected = monitor.currentConnected()
+
+        batteries = batteries.filter { entry in
+            connected.contains { $0.address == entry.key }
+        }
+
+        // Devices report their battery a moment after connecting.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.refreshBatteries(force: true)
+        }
+    }
+
+    /// Reads every connected device's battery. Rate-limited so opening
+    /// the launcher repeatedly doesn't spawn a probe each time.
+    func refreshBatteries(force: Bool = false) {
+
+        guard force || Date().timeIntervalSince(lastBatteryRefresh) > 60 else { return }
+
+        lastBatteryRefresh = Date()
+
+        for info in connected {
+
+            Task { [weak self] in
+
+                let level = await BluetoothBatteryReader.read(
+                    address: info.address,
+                    name: info.name
+                )
+
+                guard let self else { return }
+
+                if let level, !level.isEmpty {
+                    self.batteries[info.address] = level
+                } else {
+                    self.batteries[info.address] = nil
+                }
+
+                if self.device?.address == info.address {
+                    self.battery = self.batteries[info.address]
+                }
+            }
+        }
     }
 
     // MARK: - Detection → State
@@ -93,6 +159,7 @@ final class BluetoothActivity: ObservableObject {
         lastShown[info.address] = Date()
 
         device = info
+        battery = batteries[info.address]
         phase = .connected
 
         setActive(true)

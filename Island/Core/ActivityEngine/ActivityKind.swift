@@ -47,25 +47,29 @@ enum ActivityKind: Int, Comparable, CaseIterable {
     /// A meeting is about to start (see `CalendarActivity`).
     case calendar = 7
 
+    /// Sound output switched to another device (see `AudioOutputActivity`).
+    case audioOutput = 8
+
+    /// Focus turned on / off (see `FocusActivity`) — a brief moment.
+    case focus = 9
+
     /// A Caps Lock toggle moment (see `CapsLockActivity`).
-    case capsLock = 8
+    case capsLock = 10
 
     /// A running timer / stopwatch / pomodoro (see `TimerActivity`).
     /// Above `music` so a countdown stays visible while playing.
-    case timer = 9
+    case timer = 11
 
-    case music = 10
-    case airDrop = 11
+    case music = 12
+    case airDrop = 13
 
     /// Files downloading (see `DownloadsActivity`). Below `music`: a
     /// long-running background task shouldn't push playback off the island.
-    case downloads = 12
-
-    case focus = 13
+    case downloads = 14
 
     /// The notch's click-to-open menu (see `LauncherActivity`). Lowest
     /// priority: it only ever appears over an empty island.
-    case launcher = 14
+    case launcher = 15
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

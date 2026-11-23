@@ -1,0 +1,147 @@
+import AppKit
+import Carbon.HIToolbox
+
+extension Notification.Name {
+    /// Opens the launcher if it's closed, closes it if it's open.
+    static let islandToggleLauncher = Notification.Name("IslandToggleLauncher")
+
+    /// Starts the stopwatch if it isn't running, stops it if it is.
+    static let islandToggleStopwatch = Notification.Name("IslandToggleStopwatch")
+}
+
+/// System-wide keyboard shortcuts.
+///
+/// Uses Carbon's `RegisterEventHotKey`, which — unlike a global key
+/// monitor — needs NO Accessibility or Input Monitoring permission and
+/// works while any app is in front.
+///
+/// | Shortcut | Action |
+/// |----------|--------|
+/// | ⌃⌥Space  | open / close the launcher |
+/// | ⌃⌥T      | start a timer (the last length you used) |
+/// | ⌃⌥S      | start / stop the stopwatch |
+/// | ⌃⌥P      | start a 25/5 pomodoro |
+@MainActor
+final class HotKeyManager {
+
+    private struct Binding {
+        let keyCode: Int
+        let action: @MainActor () -> Void
+    }
+
+    private static let modifiers = UInt32(controlKey | optionKey)
+
+    private static let bindings: [UInt32: Binding] = [
+        1: Binding(keyCode: kVK_Space) {
+            NotificationCenter.default.post(name: .islandToggleLauncher, object: nil)
+        },
+        2: Binding(keyCode: kVK_ANSI_T) {
+            TimerPreset.start(TimeInterval(AppSettings.lastTimerMinutes * 60))
+        },
+        3: Binding(keyCode: kVK_ANSI_S) {
+            NotificationCenter.default.post(name: .islandToggleStopwatch, object: nil)
+        },
+        4: Binding(keyCode: kVK_ANSI_P) {
+            TimerPreset.startPomodoro(focus: 25 * 60, rest: 5 * 60)
+        }
+    ]
+
+    private var hotKeyRefs: [EventHotKeyRef] = []
+    private var handlerRef: EventHandlerRef?
+    private var defaultsObserver: NSObjectProtocol?
+
+    /// Four-character code identifying this app's hot keys.
+    private static let signature: OSType = 0x49534C44   // "ISLD"
+
+    func start() {
+
+        installHandlerIfNeeded()
+
+        syncRegistration()
+
+        // Follow the Settings toggle live.
+        defaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.syncRegistration() }
+        }
+    }
+
+    // MARK: - Registration
+
+    private func syncRegistration() {
+
+        let shouldBeRegistered = AppSettings.globalShortcutsEnabled
+
+        if shouldBeRegistered, hotKeyRefs.isEmpty {
+
+            for (id, binding) in Self.bindings {
+
+                var ref: EventHotKeyRef?
+
+                let status = RegisterEventHotKey(
+                    UInt32(binding.keyCode),
+                    Self.modifiers,
+                    EventHotKeyID(signature: Self.signature, id: id),
+                    GetApplicationEventTarget(),
+                    0,
+                    &ref
+                )
+
+                if status == noErr, let ref {
+                    hotKeyRefs.append(ref)
+                }
+            }
+
+        } else if !shouldBeRegistered, !hotKeyRefs.isEmpty {
+
+            hotKeyRefs.forEach { UnregisterEventHotKey($0) }
+            hotKeyRefs.removeAll()
+        }
+    }
+
+    private func installHandlerIfNeeded() {
+
+        guard handlerRef == nil else { return }
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
+
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, event, _ -> OSStatus in
+
+                var hotKeyID = EventHotKeyID()
+
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &hotKeyID
+                )
+
+                guard status == noErr else { return status }
+
+                let id = hotKeyID.id
+
+                // Carbon delivers on the main thread.
+                MainActor.assumeIsolated {
+                    HotKeyManager.bindings[id]?.action()
+                }
+
+                return noErr
+            },
+            1,
+            &eventType,
+            nil,
+            &handlerRef
+        )
+    }
+}

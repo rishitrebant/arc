@@ -122,6 +122,55 @@ struct IslandRootView: View {
         )
     }
 
+    // MARK: - Side bubbles
+
+    /// The Dynamic Island's second slot: a second activity as a small
+    /// rounded square beside the island.
+    ///
+    ///   - Timer owning the notch: the timer takes the LEFT half and the
+    ///     square sits right against the notch's right edge, so the two
+    ///     read as one island split by the notch.
+    ///   - Any other owner: the square sits just past the pill's edge.
+    private var sideBubbles: some View {
+
+        typealias Bubble = DesignTokens.BubbleMetrics
+
+        let notchHalf = DesignTokens.FileDropMetrics.notchWidth / 2
+
+        let isSplit = renderedActivity?.kind == .timer
+
+        let centerX = isSplit
+            ? notchHalf + Bubble.notchGap + Bubble.side / 2
+            : visibleSize.width / 2 + Bubble.pillGap + Bubble.side / 2
+
+        return ZStack(alignment: .top) {
+
+            if !isExpanded,
+               !isDocked,
+               renderedActivity != nil,
+               let bubble = activityManager.secondaryActivity?.minimalView {
+
+                bubble
+                    .offset(x: centerX, y: Bubble.topInset)
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+            }
+        }
+        .frame(
+            width: DesignTokens.sharedCanvasSize.width,
+            height: DesignTokens.FileDropMetrics.notchKeepClearHeight,
+            alignment: .top
+        )
+        .allowsHitTesting(false)
+        .animation(
+            AnimationTokens.ownershipChange,
+            value: activityManager.secondaryActivity?.id
+        )
+        .animation(
+            AnimationTokens.ownershipChange,
+            value: isSplit
+        )
+    }
+
     var body: some View {
 
         Group {
@@ -241,6 +290,12 @@ struct IslandRootView: View {
                 isPresentationVisible
         )
 
+        // Detached bubbles beside the island. Deliberately OUTSIDE the
+        // notch scale above, so they don't squash with the pill.
+        .overlay(alignment: .top) {
+            sideBubbles
+        }
+
         // ---------------------------------------------------------
         // IMPORTANT:
         //
@@ -277,30 +332,65 @@ struct IslandRootView: View {
         // EXISTING SHADOW
         // ---------------------------------------------------------
 
+        // Two layers, like Apple's own floating surfaces: a large soft
+        // ambient shadow that grows as the island opens, plus a tight
+        // contact shadow that keeps its edge crisp.
         .shadow(
             color:
-                isPrimed
-                    ? DesignTokens.Shadow.hoverColor
-                    : DesignTokens.Shadow.restColor,
+                isExpanded
+                    ? DesignTokens.Shadow.expandedColor
+                    : (
+                        isPrimed
+                            ? DesignTokens.Shadow.hoverColor
+                            : DesignTokens.Shadow.restColor
+                    ),
 
             radius:
-                isPrimed
-                    ? DesignTokens.Shadow.hoverRadius
-                    : DesignTokens.Shadow.restRadius,
+                isExpanded
+                    ? DesignTokens.Shadow.expandedRadius
+                    : (
+                        isPrimed
+                            ? DesignTokens.Shadow.hoverRadius
+                            : DesignTokens.Shadow.restRadius
+                    ),
 
             x:
                 0,
 
             y:
-                isPrimed
-                    ? DesignTokens.Shadow.hoverYOffset
-                    : DesignTokens.Shadow.restYOffset
+                isExpanded
+                    ? DesignTokens.Shadow.expandedYOffset
+                    : (
+                        isPrimed
+                            ? DesignTokens.Shadow.hoverYOffset
+                            : DesignTokens.Shadow.restYOffset
+                    )
+        )
+
+        .shadow(
+            color:
+                DesignTokens.Shadow.contactColor,
+
+            radius:
+                DesignTokens.Shadow.contactRadius,
+
+            x:
+                0,
+
+            y:
+                DesignTokens.Shadow.contactYOffset
         )
 
         .animation(
             AnimationTokens.hoverPrimeTransition,
             value:
                 isPrimed
+        )
+
+        .animation(
+            AnimationTokens.shapeSpring,
+            value:
+                isExpanded
         )
 
         // ---------------------------------------------------------
@@ -347,6 +437,11 @@ struct IslandRootView: View {
         }
 
         .onChange(of: isExpanded) { _, expanded in
+
+            // Only opening is felt — closing (hover-off) is silent.
+            if expanded, renderedActivity != nil {
+                Haptics.open()
+            }
 
             NotificationCenter.default.post(
                 name: .islandExpandedStateChanged,
@@ -625,6 +720,8 @@ struct IslandRootView: View {
         // collapses into the notch and reopens: the pill morphs to the
         // new size while the content cross-fades.
         // ---------------------------------------------------------
+
+        Haptics.open()
 
         if renderedActivity != nil,
            isPresentationVisible,
