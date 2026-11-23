@@ -74,6 +74,12 @@ struct IslandRootView: View {
     @State private var handoverBackdropSize: CGSize = .zero
     @State private var handoverWorkItem: DispatchWorkItem?
 
+    /// Which half of a shared pill the cursor is over.
+    @State private var hoverSide: EarSide = .leading
+
+    /// The pill's size one change ago — where a morph starts from.
+    @State private var previousVisibleSize: CGSize = .zero
+
     /// Duration for the very small horizontal enter/exit animation.
     ///
     /// This is intentionally separate from the existing morph animation.
@@ -91,10 +97,37 @@ struct IslandRootView: View {
         )
     }
 
+    /// Two activities are sharing the notch as one even pill — owner on
+    /// the left, the second on the right.
+    private var isSplitMode: Bool {
+        !isExpanded
+            && !isDocked
+            && renderedActivity != nil
+            && activityManager.splitCompactSize != nil
+    }
+
+    /// The activity whose view is on screen: normally the owner, but
+    /// when the cursor is on the second half of a shared pill and it
+    /// expands, that second activity takes the island.
+    private var presentedActivity: AnyActivity? {
+
+        if isExpanded,
+           activityManager.expandsSecondary,
+           let secondary = activityManager.secondaryActivity {
+            return secondary
+        }
+
+        return renderedActivity
+    }
+
     /// The size of the pill actually on screen right now.
     private var visibleSize: CGSize {
 
-        guard let activity = renderedActivity else {
+        if isSplitMode, let size = activityManager.splitCompactSize {
+            return size
+        }
+
+        guard let activity = presentedActivity else {
             return compactSize
         }
 
@@ -124,30 +157,21 @@ struct IslandRootView: View {
 
     // MARK: - Side bubbles
 
-    /// The Dynamic Island's second slot: a second activity as a small
-    /// rounded square beside the island.
-    ///
-    ///   - Timer owning the notch: the timer takes the LEFT half and the
-    ///     square sits right against the notch's right edge, so the two
-    ///     read as one island split by the notch.
-    ///   - Any other owner: the square sits just past the pill's edge.
+    /// A second activity as a small rounded square just past the pill —
+    /// only when the owner can't share the notch as one even pill (a
+    /// charger or Bluetooth moment, say, with a timer running).
     private var sideBubbles: some View {
 
         typealias Bubble = DesignTokens.BubbleMetrics
 
-        let notchHalf = DesignTokens.FileDropMetrics.notchWidth / 2
-
-        let isSplit = renderedActivity?.kind == .timer
-
-        let centerX = isSplit
-            ? notchHalf + Bubble.notchGap + Bubble.side / 2
-            : visibleSize.width / 2 + Bubble.pillGap + Bubble.side / 2
+        let centerX = visibleSize.width / 2 + Bubble.pillGap + Bubble.side / 2
 
         return ZStack(alignment: .top) {
 
             if !isExpanded,
                !isDocked,
                renderedActivity != nil,
+               activityManager.splitCompactSize == nil,
                let bubble = activityManager.secondaryActivity?.minimalView {
 
                 bubble
@@ -165,10 +189,6 @@ struct IslandRootView: View {
             AnimationTokens.ownershipChange,
             value: activityManager.secondaryActivity?.id
         )
-        .animation(
-            AnimationTokens.ownershipChange,
-            value: isSplit
-        )
     }
 
     var body: some View {
@@ -180,11 +200,19 @@ struct IslandRootView: View {
 
                 ZStack(alignment: .top) {
 
+                    // The black surface. It morphs between sizes (single
+                    // pill ↔ shared pill ↔ expanded) on the same spring
+                    // as everything else while the content on it
+                    // cross-fades.
                     if showHandoverBackdrop {
 
                         IslandShape(
-                            topRadius: DesignTokens.Shape.compactTopRadius,
-                            bottomRadius: DesignTokens.Shape.compactBottomRadius
+                            topRadius: isExpanded
+                                ? DesignTokens.Shape.expandedTopRadius
+                                : DesignTokens.Shape.compactTopRadius,
+                            bottomRadius: isExpanded
+                                ? DesignTokens.Shape.expandedBottomRadius
+                                : DesignTokens.Shape.compactBottomRadius
                         )
                         .fill(DesignTokens.Color.islandBackground)
                         .frame(
@@ -194,12 +222,30 @@ struct IslandRootView: View {
                         .allowsHitTesting(false)
                     }
 
-                    activity.islandView(
-                        isExpanded:
-                            isExpanded
-                    )
-                    .id(activity.id)
-                    .transition(.opacity)
+                    if isSplitMode,
+                       let earWidth = activityManager.splitEarWidth,
+                       let leading = activityManager.ownedActivity?.earView(side: .leading),
+                       let trailing = activityManager.secondaryActivity?.earView(side: .trailing) {
+
+                        SplitIslandContent(
+                            leading: leading,
+                            trailing: trailing,
+                            earWidth: earWidth
+                        )
+                        .id("split")
+                        .transition(.opacity)
+
+                    } else {
+
+                        let shown = presentedActivity ?? activity
+
+                        shown.islandView(
+                            isExpanded:
+                                isExpanded
+                        )
+                        .id(shown.id)
+                        .transition(.opacity)
+                    }
                 }
                 .offset(
                     y:
@@ -397,6 +443,36 @@ struct IslandRootView: View {
         // EXISTING HOVER
         // ---------------------------------------------------------
 
+        // Only used to know WHICH half of a shared pill the cursor is on
+        // — whether to expand at all is `WindowManager`'s call below.
+        .onContinuousHover { phase in
+
+            if case .active(let point) = phase {
+                hoverSide = point.x < visibleSize.width / 2
+                    ? .leading
+                    : .trailing
+            }
+        }
+
+        .onChange(of: visibleSize) { old, new in
+
+            previousVisibleSize = old
+
+            // A shared pill's width can change while it's up (the timer
+            // passing an hour) — keep the surface under it in step.
+            if isSplitMode, showHandoverBackdrop {
+                withAnimation(AnimationTokens.shapeSpring) {
+                    handoverBackdropSize = new
+                }
+            }
+        }
+
+        // Going into / out of a shared pill (or into an expanded panel
+        // from one) is a morph of the surface, not a pop.
+        .onChange(of: isSplitMode) { _, _ in
+            morphSurface()
+        }
+
         // Hover comes from `WindowManager`'s geometry, not SwiftUI's
         // `.onHover` (see `WindowManager.activeScreenID`), so the hover
         // area is exactly the visible island.
@@ -437,6 +513,10 @@ struct IslandRootView: View {
         }
 
         .onChange(of: isExpanded) { _, expanded in
+
+            if !expanded {
+                activityManager.expandsSecondary = false
+            }
 
             // Only opening is felt — closing (hover-off) is silent.
             if expanded, renderedActivity != nil {
@@ -793,6 +873,45 @@ struct IslandRootView: View {
         }
     }
 
+    // MARK: - Surface morph
+
+    /// Starts the black surface at the size the island WAS and springs it
+    /// to the size it IS now, so layout changes read as one shape
+    /// reshaping instead of one view swapping for another.
+    private func morphSurface() {
+
+        handoverWorkItem?.cancel()
+
+        var instant = Transaction()
+        instant.disablesAnimations = true
+
+        withTransaction(instant) {
+            handoverBackdropSize = previousVisibleSize
+            showHandoverBackdrop = true
+        }
+
+        DispatchQueue.main.async {
+            withAnimation(AnimationTokens.shapeSpring) {
+                handoverBackdropSize = visibleSize
+            }
+        }
+
+        let work = DispatchWorkItem {
+            // A shared pill keeps its surface; everything else is drawn
+            // by the activity itself once the morph has settled.
+            if !isSplitMode {
+                showHandoverBackdrop = false
+            }
+        }
+
+        handoverWorkItem = work
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 0.6,
+            execute: work
+        )
+    }
+
     // MARK: - Hover
 
     private func handleHover(
@@ -857,6 +976,11 @@ struct IslandRootView: View {
                 // DO NOT CHANGE.
                 // =====================================================
 
+                if hovering {
+                    activityManager.expandsSecondary =
+                        isSplitMode && hoverSide == .trailing
+                }
+
                 withAnimation(
                     AnimationTokens.shapeMorph(
                         isExpanding:
@@ -889,6 +1013,9 @@ struct IslandRootView: View {
         // Cancel delayed hover expansion.
         hoverWorkItem?.cancel()
         hoverWorkItem = nil
+
+        activityManager.expandsSecondary =
+            isSplitMode && hoverSide == .trailing
 
         // Same morph animation as hover.
         withAnimation(

@@ -547,20 +547,22 @@ enum DesignTokens {
     enum LauncherMetrics {
 
         static let width: CGFloat = 380
-        static let height: CGFloat = 214
+        static let height: CGFloat = 220
 
         static let edgePadding: CGFloat = 20
-        static let bottomPadding: CGFloat = 18
-        static let sectionSpacing: CGFloat = 14
+        static let bottomPadding: CGFloat = 16
+        static let sectionSpacing: CGFloat = 12
 
-        static let artSize: CGFloat = 52
-        static let artCornerRadius: CGFloat = 12
+        static let artSize: CGFloat = 48
+        static let artCornerRadius: CGFloat = 11
         static let transportButtonSize: CGFloat = 40
 
-        static let tileHeight: CGFloat = 68
+        static let tileHeight: CGFloat = 54
+
+        static let deviceCardHeight: CGFloat = 42
         static let tileSpacing: CGFloat = 10
         static let tileCornerRadius: CGFloat = 16   // concentric: 36pt panel radius - 20pt edge padding
-        static let tileGlyphSize: CGFloat = 22
+        static let tileGlyphSize: CGFloat = 19
 
         static let chipHeight: CGFloat = 32
         static let controlSize: CGFloat = 34

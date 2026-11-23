@@ -257,9 +257,21 @@ final class AppDelegate:
                         height: DesignTokens.MusicMetrics.expandedHeight
                     )
 
+                // Two activities sharing the notch: one even pill, and
+                // whichever half the cursor is on is the one that expands.
+                let compact =
+                    self?.activityManager.splitCompactSize
+                    ?? owned?.compactSize
+                    ?? fallbackCompact
+
+                let expandingActivity =
+                    (self?.activityManager.expandsSecondary ?? false)
+                        ? (self?.activityManager.secondaryActivity ?? owned)
+                        : owned
+
                 return (
-                    owned?.compactSize ?? fallbackCompact,
-                    owned?.expandedSize ?? fallbackExpanded
+                    compact,
+                    expandingActivity?.expandedSize ?? fallbackExpanded
                 )
             }
 
@@ -268,16 +280,6 @@ final class AppDelegate:
 
                 self?.activityManager.ownedActivity?.compactCenterShift ?? 0
             }
-
-        // Tells the timer when a second activity is sharing the notch,
-        // so it can slide over to the left half.
-        activityManager.$secondaryActivity
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] secondary in
-
-                self?.timerActivity.hasCompanion = secondary != nil
-            }
-            .store(in: &cancellables)
 
         // Fixes the panel-disappears-mid-drag and unclickable-reveal
         // bugs — see `WindowManager.currentActivityIsForcingExpanded`'s

@@ -20,6 +20,43 @@ final class ActivityManager: ObservableObject {
     /// ownership.
     @Published private(set) var secondaryActivity: AnyActivity?
 
+    /// Set by `IslandRootView`: the cursor is on the secondary activity's
+    /// half of a shared pill, so THAT activity is the one expanding.
+    /// Deliberately not `@Published` — it's read by `WindowManager` for
+    /// hit-testing, and publishing it would only re-render for nothing.
+    var expandsSecondary = false
+
+    /// Size of the shared pill (owner left of the notch, secondary
+    /// right) when both can share it; `nil` otherwise.
+    var splitCompactSize: CGSize? {
+
+        guard
+            let ownerEar = ownedActivity?.earWidth,
+            let secondaryEar = secondaryActivity?.earWidth
+        else {
+            return nil
+        }
+
+        return CGSize(
+            width: DesignTokens.FileDropMetrics.notchWidth
+                + max(ownerEar, secondaryEar) * 2,
+            height: DesignTokens.TimerMetrics.compactHeight
+        )
+    }
+
+    /// Width of one half of the shared pill.
+    var splitEarWidth: CGFloat? {
+
+        guard
+            let ownerEar = ownedActivity?.earWidth,
+            let secondaryEar = secondaryActivity?.earWidth
+        else {
+            return nil
+        }
+
+        return max(ownerEar, secondaryEar)
+    }
+
     private var registered: [AnyActivity] = []
     private var cancellables: Set<AnyCancellable> = []
 

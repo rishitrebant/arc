@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import AppKit
+import AVFoundation
 
 extension Notification.Name {
     /// Asks `TimerActivity` to start a clock. `userInfo`:
@@ -88,8 +89,7 @@ final class TimerSlot: ObservableObject {
     private var lastDuration: TimeInterval = 0
 
     private var ticker: Timer?
-    private var chimeTimer: Timer?
-    private var chimesLeft = 0
+    private var tonePlayer: AVAudioPlayer?
     private var dismissWorkItem: DispatchWorkItem?
 
     init(kind: Kind) {
@@ -153,7 +153,7 @@ final class TimerSlot: ObservableObject {
         remainingWhenPaused = next
         totalDuration = next
 
-        (NSSound(named: "Glass") ?? NSSound(named: "Ping"))?.play()
+        playTone(loop: false)
         Haptics.confirm()
 
         refreshDisplay()
@@ -314,20 +314,8 @@ final class TimerSlot: ObservableObject {
         displaySeconds = 0
         phase = .finished
 
-        chimesLeft = Int(AnimationTokens.timerFinishedDuration
-            / AnimationTokens.timerChimeInterval)
         Haptics.confirm()
-        chime()
-
-        let timer = Timer(
-            timeInterval: AnimationTokens.timerChimeInterval,
-            repeats: true
-        ) { [weak self] _ in
-            Task { @MainActor in self?.chime() }
-        }
-
-        RunLoop.main.add(timer, forMode: .common)
-        chimeTimer = timer
+        playTone(loop: true)
 
         // Nobody came to stop it — don't hold the island forever.
         let work = DispatchWorkItem { [weak self] in
@@ -342,21 +330,38 @@ final class TimerSlot: ObservableObject {
         )
     }
 
-    private func chime() {
+    /// Apple's own timer tone — "Radar", the Clock app's default, which
+    /// ships with macOS — looping until the timer is stopped (or the
+    /// finished timer dismisses itself). Falls back to the system "Glass"
+    /// alert if the file isn't there on some macOS version.
+    private static let radarURL = URL(
+        fileURLWithPath: "/System/Library/PrivateFrameworks/ToneLibrary.framework"
+            + "/Versions/A/Resources/Ringtones/Radar.m4r"
+    )
 
-        guard chimesLeft > 0 else {
-            stopChiming()
+    private func playTone(loop: Bool) {
+
+        tonePlayer?.stop()
+        tonePlayer = nil
+
+        if
+            FileManager.default.fileExists(atPath: Self.radarURL.path),
+            let player = try? AVAudioPlayer(contentsOf: Self.radarURL)
+        {
+            player.numberOfLoops = loop ? -1 : 0
+            player.volume = 1
+            player.prepareToPlay()
+            player.play()
+            tonePlayer = player
             return
         }
 
-        chimesLeft -= 1
-        (NSSound(named: "Glass") ?? NSSound(named: "Ping"))?.play()
+        NSSound(named: "Glass")?.play()
     }
 
     private func stopChiming() {
-        chimeTimer?.invalidate()
-        chimeTimer = nil
-        chimesLeft = 0
+        tonePlayer?.stop()
+        tonePlayer = nil
     }
 }
 
@@ -378,10 +383,6 @@ final class TimerActivity: ObservableObject {
     let stopwatch = TimerSlot(kind: .stopwatch)
 
     @Published private(set) var isActive: Bool = false
-
-    /// Another activity (e.g. music) is sharing the notch. The timer then
-    /// shrinks to the left half and the other sits right of the notch.
-    @Published var hasCompanion: Bool = false
 
     private let isActiveSubject =
         CurrentValueSubject<Bool, Never>(false)
@@ -506,45 +507,7 @@ final class TimerActivity: ObservableObject {
         return hasHours ? Metrics.flankWidthHours : Metrics.flankWidth
     }
 
-    // MARK: Split layout (timer left of the notch, companion right)
-
-    /// Width of the timer's half-pill, left of the notch: edge padding,
-    /// glyph, gap, the time, and a little room before the notch.
-    var splitWingWidth: CGFloat {
-
-        typealias Metrics = DesignTokens.TimerMetrics
-
-        let hasHours = activeSlots.first.map { $0.displaySeconds >= 3600 } ?? false
-
-        return Metrics.compactEdgePadding
-            + Metrics.compactIconSlot
-            + Metrics.compactGlyphToTime
-            + (hasHours ? Metrics.splitTimeWidthHours : Metrics.splitTimeWidth)
-            + Metrics.splitNotchPadding
-    }
-
-    private var splitRightExtent: CGFloat {
-        DesignTokens.FileDropMetrics.notchWidth / 2
-            + DesignTokens.BubbleMetrics.notchGap
-            + DesignTokens.BubbleMetrics.side
-    }
-
-    private var splitLeftExtent: CGFloat {
-        DesignTokens.FileDropMetrics.notchWidth / 2 + splitWingWidth
-    }
-
-    var compactCenterShift: CGFloat {
-        hasCompanion ? (splitRightExtent - splitLeftExtent) / 2 : 0
-    }
-
     var compactSize: CGSize {
-
-        if hasCompanion {
-            return CGSize(
-                width: splitLeftExtent + splitRightExtent,
-                height: DesignTokens.TimerMetrics.compactHeight
-            )
-        }
 
         return CGSize(
             width: DesignTokens.FileDropMetrics.notchWidth + compactFlankWidth * 2,

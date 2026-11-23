@@ -179,6 +179,19 @@ final class BluetoothActivity: ObservableObject {
 
     // MARK: - Actions
 
+    /// Disconnects any connected device by address — used by the
+    /// launcher's device row. (The device card's own button goes through
+    /// `disconnectDevice()`.)
+    func disconnect(address: String) {
+
+        guard monitor.disconnect(address: address) else { return }
+
+        // The monitor's disconnect notification refreshes `connected`;
+        // drop it from the list straight away so the row doesn't linger.
+        connected.removeAll { $0.address == address }
+        batteries[address] = nil
+    }
+
     /// Called by the Disconnect button.
     func disconnectDevice() {
 
@@ -265,20 +278,17 @@ final class BluetoothActivity: ObservableObject {
 
     // MARK: - Sizing
 
-    /// Compact reuses AirDrop's measured pill (icon left, status right).
+    /// One card — AirDrop's measured 312×74 oval — for the whole
+    /// moment. Hovering doesn't resize it, so the hit region is exactly
+    /// the card.
     var compactSize: CGSize {
         CGSize(
-            width: DesignTokens.AirDropMetrics.compactWidth,
-            height: DesignTokens.AirDropMetrics.compactHeight
+            width: DesignTokens.AirDropMetrics.expandedWidth,
+            height: DesignTokens.AirDropMetrics.expandedHeight
         )
     }
 
-    var expandedSize: CGSize {
-        CGSize(
-            width: DesignTokens.BluetoothMetrics.expandedWidth,
-            height: DesignTokens.BluetoothMetrics.expandedHeight
-        )
-    }
+    var expandedSize: CGSize { compactSize }
 
     // MARK: - Rendering
 

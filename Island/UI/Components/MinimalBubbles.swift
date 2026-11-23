@@ -6,7 +6,54 @@ import SwiftUI
 /// can both be on screen at once.
 @MainActor
 protocol MinimalPresentable {
+
+    /// The detached rounded-square bubble, for when the activity that
+    /// owns the notch can't share it.
     func minimalView() -> AnyView
+
+    /// How wide this activity's half of a shared pill needs to be.
+    var earWidth: CGFloat { get }
+
+    /// This activity's half of a shared pill — the pill is one even
+    /// capsule split by the notch, one activity on each side.
+    func earView(side: EarSide) -> AnyView
+}
+
+/// Which side of the notch a half of a shared pill sits on.
+enum EarSide {
+    case leading
+    case trailing
+}
+
+/// A shared pill's content: one activity left of the notch, one right,
+/// the notch itself between them.
+struct SplitIslandContent: View {
+
+    let leading: AnyView
+    let trailing: AnyView
+    let earWidth: CGFloat
+
+    var body: some View {
+
+        HStack(spacing: 0) {
+
+            leading
+                .frame(width: earWidth, height: DesignTokens.TimerMetrics.compactHeight)
+
+            Color.clear
+                .frame(width: DesignTokens.FileDropMetrics.notchWidth)
+
+            trailing
+                .frame(width: earWidth, height: DesignTokens.TimerMetrics.compactHeight)
+        }
+        .frame(height: DesignTokens.TimerMetrics.compactHeight)
+    }
+}
+
+private enum Ear {
+    static let edge: CGFloat = 10
+    static let slot: CGFloat = 20
+    static let gap: CGFloat = 5
 }
 
 // MARK: - Bubble chrome
@@ -38,6 +85,68 @@ extension TimerActivity: MinimalPresentable {
 
     func minimalView() -> AnyView {
         AnyView(TimerMinimalBubble(activity: self))
+    }
+
+    var earWidth: CGFloat {
+
+        let hasHours = activeSlots.first.map { $0.displaySeconds >= 3600 } ?? false
+
+        return Ear.edge + Ear.slot + Ear.gap
+            + (hasHours
+               ? DesignTokens.TimerMetrics.splitTimeWidthHours
+               : DesignTokens.TimerMetrics.splitTimeWidth)
+            + Ear.edge
+    }
+
+    func earView(side: EarSide) -> AnyView {
+        AnyView(TimerEar(activity: self, side: side))
+    }
+}
+
+/// The timer's half of a shared pill: its glyph at the outer edge and
+/// the time beside it.
+private struct TimerEar: View {
+
+    @ObservedObject var activity: TimerActivity
+    let side: EarSide
+
+    var body: some View {
+
+        if let slot = activity.activeSlots.first {
+
+            let glyph = Image(systemName: slot.glyph)
+                .font(.system(size: DesignTokens.TimerMetrics.compactGlyphSize, weight: .semibold))
+                .foregroundStyle(slot.accent)
+                .symbolEffect(.pulse, isActive: slot.phase == .finished)
+                .frame(width: Ear.slot, height: Ear.slot)
+
+            let time = Text(slot.phase == .finished
+                            ? "Done"
+                            : TimerIslandView.format(slot.displaySeconds))
+                .font(DesignTokens.TimerMetrics.compactTimeFont)
+                .monospacedDigit()
+                .foregroundStyle(slot.accent)
+                .opacity(slot.phase == .paused ? 0.55 : 1)
+                .lineLimit(1)
+                .fixedSize()
+                .contentTransition(.numericText(countsDown: slot.countsDown))
+
+            HStack(spacing: Ear.gap) {
+                if side == .leading {
+                    glyph
+                    time
+                } else {
+                    time
+                    glyph
+                }
+            }
+            .padding(.horizontal, Ear.edge)
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: .infinity,
+                alignment: side == .leading ? .leading : .trailing
+            )
+        }
     }
 }
 
@@ -99,6 +208,66 @@ extension MusicActivity: MinimalPresentable {
     func minimalView() -> AnyView {
         AnyView(MusicMinimalBubble(activity: self))
     }
+
+    var earWidth: CGFloat {
+        Ear.edge + Ear.slot + Ear.gap + Ear.slot + Ear.edge
+    }
+
+    func earView(side: EarSide) -> AnyView {
+        AnyView(MusicEar(activity: self, side: side))
+    }
+}
+
+/// Music's half of a shared pill: the album art and the waveform, the
+/// same two things its own compact pill shows.
+private struct MusicEar: View {
+
+    @ObservedObject var activity: MusicActivity
+    let side: EarSide
+
+    /// The album's dominant colour — what Music's own pill tints its
+    /// waveform with — so a shared pill matches it instead of falling
+    /// back to the default yellow.
+    @State private var accent = DesignTokens.Color.musicAccent
+
+    /// Changes when the track or its artwork does.
+    private var artworkKey: String {
+        let state = activity.playbackState
+        return "\(state?.title ?? "")|\(state?.artist ?? "")|\(state?.artwork != nil)"
+    }
+
+    private func refreshAccent() {
+        accent = ArtworkColorExtractor.dominantColor(
+            from: activity.playbackState?.artwork,
+            fallback: DesignTokens.Color.musicAccent
+        )
+    }
+
+    var body: some View {
+
+        HStack(spacing: Ear.gap) {
+
+            AlbumArtView(
+                image: activity.playbackState?.artwork,
+                size: Ear.slot,
+                cornerRadius: DesignTokens.MusicMetrics.compactIconCornerRadius
+            )
+
+            Waveform(
+                isPlaying: activity.playbackState?.isPlaying ?? false,
+                color: accent
+            )
+            .frame(width: Ear.slot, height: Ear.slot)
+        }
+        .onAppear { refreshAccent() }
+        .onChange(of: artworkKey) { _, _ in refreshAccent() }
+        .padding(.horizontal, Ear.edge)
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity,
+            alignment: side == .leading ? .leading : .trailing
+        )
+    }
 }
 
 /// The album art as a small rounded square (or a note when there is none).
@@ -141,6 +310,47 @@ extension DownloadsActivity: MinimalPresentable {
 
     func minimalView() -> AnyView {
         AnyView(DownloadsMinimalBubble(activity: self))
+    }
+
+    var earWidth: CGFloat {
+        Ear.edge + Ear.slot + Ear.gap + 30 + Ear.edge
+    }
+
+    func earView(side: EarSide) -> AnyView {
+        AnyView(DownloadsEar(activity: self, side: side))
+    }
+}
+
+private struct DownloadsEar: View {
+
+    @ObservedObject var activity: DownloadsActivity
+    let side: EarSide
+
+    var body: some View {
+
+        HStack(spacing: Ear.gap) {
+
+            DownloadRing(
+                fraction: activity.fraction,
+                isComplete: activity.isComplete,
+                diameter: Ear.slot,
+                lineWidth: DesignTokens.DownloadsMetrics.compactRingLineWidth
+            )
+
+            if let fraction = activity.fraction {
+                Text("\(Int((fraction * 100).rounded()))%")
+                    .font(DesignTokens.StatusPillMetrics.labelFont)
+                    .monospacedDigit()
+                    .foregroundStyle(DesignTokens.Color.airDropAccent)
+                    .fixedSize()
+            }
+        }
+        .padding(.horizontal, Ear.edge)
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity,
+            alignment: side == .leading ? .leading : .trailing
+        )
     }
 }
 

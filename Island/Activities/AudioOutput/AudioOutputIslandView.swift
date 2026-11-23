@@ -4,6 +4,8 @@ import SwiftUI
 ///   - compact: the device glyph on the left, a blue check on the right
 ///   - expanded (on hover): the device glyph on a disc, its name, and
 ///     "Sound Output"
+///
+/// Same fixed-canvas architecture as the other activities.
 struct AudioOutputIslandView: View {
 
     @ObservedObject var activity: AudioOutputActivity
@@ -65,6 +67,8 @@ struct AudioOutputIslandView: View {
         )
     }
 
+    // MARK: - Compact
+
     private var compactRow: some View {
 
         HStack(spacing: 0) {
@@ -85,6 +89,8 @@ struct AudioOutputIslandView: View {
         }
         .padding(.horizontal, Compact.edgePadding)
     }
+
+    // MARK: - Expanded
 
     private var expandedPanel: some View {
 

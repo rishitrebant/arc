@@ -121,48 +121,88 @@ struct LauncherIslandView: View {
         }
     }
 
-    // MARK: Bluetooth (subtle)
+    // MARK: Bluetooth
 
-    /// One quiet line — device name and battery — for whatever is
-    /// connected, the way iOS lists connected accessories. Absent when
-    /// nothing is.
+    /// The connected device, like the row Control Center shows: the
+    /// glyph on a soft disc, the name, "Connected · 85%" beneath it, and
+    /// a quiet Disconnect button. Absent when nothing is connected.
     @ViewBuilder
     private var bluetoothRow: some View {
 
-        let devices = Array(bluetooth.connected.prefix(2))
+        if let device = bluetooth.connected.first {
 
-        if !devices.isEmpty {
+            let battery = bluetooth.batteries[device.address]
+            let extra = bluetooth.connected.count - 1
 
-            HStack(spacing: 14) {
+            HStack(spacing: 10) {
 
-                ForEach(devices) { device in
+                DeviceIconView(
+                    symbolName: device.symbolName,
+                    diameter: 28
+                )
+
+                VStack(alignment: .leading, spacing: 1) {
+
+                    Text(device.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     HStack(spacing: 5) {
 
-                        Image(systemName: device.symbolName)
-                            .symbolRenderingMode(.hierarchical)
-                            .font(.system(size: 11, weight: .medium))
+                        Text(extra > 0 ? "Connected · +\(extra) more" : "Connected")
 
-                        Text(device.name)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                        if let detail = battery?.detail {
 
-                        if let level = bluetooth.batteries[device.address]?.headline {
+                            Text("· \(detail)")
+
+                        } else if let level = battery?.headline {
+
+                            BatteryGlyph(
+                                percent: level,
+                                tint: level <= 20
+                                    ? DesignTokens.Color.lowBatteryAccent
+                                    : DesignTokens.Color.primaryText,
+                                showsBolt: false
+                            )
+                            .scaleEffect(0.7)
+                            .frame(width: 18, height: 9)
 
                             Text("\(level)%")
                                 .monospacedDigit()
-                                .foregroundStyle(
-                                    level <= 20
-                                        ? DesignTokens.Color.lowBatteryAccent
-                                        : DesignTokens.Color.secondaryText
-                                )
                         }
                     }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+                    .lineLimit(1)
                 }
+
+                Spacer(minLength: 6)
+
+                Button {
+                    bluetooth.disconnect(address: device.address)
+                } label: {
+                    Text("Disconnect")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .padding(.horizontal, 11)
+                        .frame(height: 24)
+                        .background(
+                            Capsule().fill(DesignTokens.Color.deviceIconBackground)
+                        )
+                }
+                .buttonStyle(LauncherPressStyle())
             }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(DesignTokens.Color.secondaryText)
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 10)
+            .frame(height: Metrics.deviceCardHeight)
+            .background(
+                RoundedRectangle(
+                    cornerRadius: Metrics.tileCornerRadius,
+                    style: .continuous
+                )
+                .fill(Color.white.opacity(0.07))
+            )
             .transition(.opacity)
         }
     }

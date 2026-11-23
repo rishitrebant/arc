@@ -31,44 +31,31 @@ struct TimerIslandView: View {
         activity.activeSlots
     }
 
-    /// Another activity shares the notch: the timer is just the left
-    /// half, the other activity's square sits against the notch's right.
-    private var isSplit: Bool {
-        activity.hasCompanion && !isExpanded && !slots.isEmpty
-    }
-
     var body: some View {
 
         ZStack(alignment: .topLeading) {
 
-            if isSplit {
+            IslandShape(
+                topRadius: isExpanded
+                    ? DesignTokens.Shape.expandedTopRadius
+                    : DesignTokens.Shape.compactTopRadius,
+                bottomRadius: isExpanded
+                    ? DesignTokens.Shape.expandedBottomRadius
+                    : DesignTokens.Shape.compactBottomRadius
+            )
+            .fill(DesignTokens.Color.islandBackground)
+            .frame(width: visibleSize.width, height: visibleSize.height)
+            .position(x: canvasSize.width / 2, y: visibleSize.height / 2)
 
-                splitLayout
-
-            } else {
-
-                IslandShape(
-                    topRadius: isExpanded
-                        ? DesignTokens.Shape.expandedTopRadius
-                        : DesignTokens.Shape.compactTopRadius,
-                    bottomRadius: isExpanded
-                        ? DesignTokens.Shape.expandedBottomRadius
-                        : DesignTokens.Shape.compactBottomRadius
-                )
-                .fill(DesignTokens.Color.islandBackground)
-                .frame(width: visibleSize.width, height: visibleSize.height)
-                .position(x: canvasSize.width / 2, y: visibleSize.height / 2)
-
-                Group {
-                    if isExpanded {
-                        expandedPanel
-                    } else {
-                        compactRow
-                    }
+            Group {
+                if isExpanded {
+                    expandedPanel
+                } else {
+                    compactRow
                 }
-                .frame(width: visibleSize.width, height: visibleSize.height)
-                .offset(x: horizontalInset, y: 0)
             }
+            .frame(width: visibleSize.width, height: visibleSize.height)
+            .offset(x: horizontalInset, y: 0)
         }
         .frame(
             width: canvasSize.width,
@@ -82,49 +69,7 @@ struct TimerIslandView: View {
         // Starting or ending the second clock resizes the pill smoothly
         // instead of snapping.
         .animation(AnimationTokens.shapeSpring, value: visibleSize.width)
-        .animation(AnimationTokens.ownershipChange, value: activity.hasCompanion)
         .animation(AnimationTokens.shapeSpring, value: slots.count)
-    }
-
-    // MARK: - Split (timer left of the notch)
-
-    @ViewBuilder
-    private var splitLayout: some View {
-
-        let wing = activity.splitWingWidth
-        let notchHalf = DesignTokens.FileDropMetrics.notchWidth / 2
-        let centerX = canvasSize.width / 2
-        let height = Metrics.compactHeight
-
-        if let slot = slots.first {
-
-            // The half-pill: from the wing's outer edge to the middle of
-            // the notch (the hardware covers the rest).
-            UnevenRoundedRectangle(
-                topLeadingRadius: 0,
-                bottomLeadingRadius: DesignTokens.Shape.compactBottomRadius,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 0,
-                style: .continuous
-            )
-            .fill(DesignTokens.Color.islandBackground)
-            .frame(width: wing + notchHalf, height: height)
-            .position(x: centerX - (wing + notchHalf) / 2, y: height / 2)
-
-            HStack(spacing: Metrics.compactGlyphToTime) {
-
-                Image(systemName: slot.glyph)
-                    .font(.system(size: Metrics.compactGlyphSize, weight: .semibold))
-                    .foregroundStyle(slot.accent)
-                    .symbolEffect(.pulse, isActive: slot.phase == .finished)
-                    .frame(width: Metrics.compactIconSlot, height: Metrics.compactIconSlot)
-
-                compactTime(slot)
-            }
-            .padding(.leading, Metrics.compactEdgePadding)
-            .frame(width: wing, height: height, alignment: .leading)
-            .position(x: centerX - notchHalf - wing / 2, y: height / 2)
-        }
     }
 
     // MARK: - Compact

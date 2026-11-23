@@ -21,6 +21,8 @@ final class AnyActivity: Identifiable {
     private let _expandedSize: () -> CGSize
     private let _compactCenterShift: () -> CGFloat
     private let _minimalView: (() -> AnyView)?
+    private let _earWidth: (() -> CGFloat)?
+    private let _earView: ((EarSide) -> AnyView)?
 
     init<A: Activity>(_ activity: A) {
         self.kind = A.kind
@@ -35,8 +37,12 @@ final class AnyActivity: Identifiable {
 
         if let presentable = activity as? MinimalPresentable {
             self._minimalView = { presentable.minimalView() }
+            self._earWidth = { presentable.earWidth }
+            self._earView = { presentable.earView(side: $0) }
         } else {
             self._minimalView = nil
+            self._earWidth = nil
+            self._earView = nil
         }
     }
 
@@ -53,6 +59,12 @@ final class AnyActivity: Identifiable {
     /// The small detached bubble this activity shows while another one
     /// owns the notch, or `nil` if it has no such presentation.
     var minimalView: AnyView? { _minimalView?() }
+
+    /// Width of this activity's half of a shared pill, or `nil` if it
+    /// can't share the notch that way.
+    var earWidth: CGFloat? { _earWidth?() }
+
+    func earView(side: EarSide) -> AnyView? { _earView?(side) }
     var compactCenterShift: CGFloat { _compactCenterShift() }
     var compactSize: CGSize { _compactSize() }
     var expandedSize: CGSize { _expandedSize() }
