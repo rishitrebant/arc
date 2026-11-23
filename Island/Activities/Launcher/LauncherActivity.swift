@@ -46,6 +46,14 @@ final class LauncherActivity: ObservableObject {
         isActiveSubject.eraseToAnyPublisher()
     }
 
+    /// Set by `AppDelegate`: raises the launcher above whatever else is
+    /// on the island while it's open.
+    var requestElevation: (Bool) -> Void = { _ in }
+
+    /// Whether the launcher currently holds the raised priority, so it
+    /// asks for it once and gives it back once — never repeatedly.
+    private var isElevated = false
+
     /// Set by `AppDelegate` — the menu never closes under the cursor.
     var isIslandCurrentlyHovered: () -> Bool = { false }
 
@@ -115,6 +123,11 @@ final class LauncherActivity: ObservableObject {
         hasBeenHovered = false
         leftAt = nil
 
+        if !isElevated {
+            isElevated = true
+            requestElevation(true)
+        }
+
         setActive(true)
         startHoverWatch()
     }
@@ -125,6 +138,11 @@ final class LauncherActivity: ObservableObject {
         hoverTimer = nil
 
         setActive(false)
+
+        if isElevated {
+            isElevated = false
+            requestElevation(false)
+        }
     }
 
     /// Collapses the launcher shortly after the cursor leaves it — and

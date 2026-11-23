@@ -188,6 +188,11 @@ final class ChargingActivity: ObservableObject {
     /// it as is (the same way the iPhone's charging pill doesn't
     /// change on touch). Reporting the same size for both keeps the
     /// AppKit hit region matched to what's actually drawn.
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        DesignTokens.Color.chargingAccent
+    }
+
     var compactSize: CGSize {
         CGSize(
             width: DesignTokens.ChargingMetrics.compactWidth,

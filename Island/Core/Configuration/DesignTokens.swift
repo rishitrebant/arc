@@ -598,6 +598,16 @@ enum DesignTokens {
         /// Resting (compact) island: a soft ambient shadow plus a tight
         /// contact shadow, the way Apple lifts the Dynamic Island off the
         /// content behind it.
+        /// The activity-colour glow around a compact pill: faint at rest,
+        /// prominent on hover (while the card is about to open).
+        static let accentRestOpacity: Double = 0.2
+        static let accentHoverOpacity: Double = 0.62
+        /// Open card: a little above the resting level, no more.
+        static let accentExpandedOpacity: Double = 0.3
+        static let accentExpandedRadius: CGFloat = 22
+        static let accentRestRadius: CGFloat = 9
+        static let accentHoverRadius: CGFloat = 16
+
         static let restOpacity: Double = 0.34
         static let hoverOpacity: Double = 0.48
         static let expandedOpacity: Double = 0.55

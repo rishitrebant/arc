@@ -277,6 +277,11 @@ final class BluetoothActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        DesignTokens.Color.airDropAccent
+    }
+
     /// One card — AirDrop's measured 312×74 oval — for the whole
     /// moment. Hovering doesn't resize it, so the hit region is exactly
     /// the card.

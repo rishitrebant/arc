@@ -280,6 +280,11 @@ final class CalendarActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        DesignTokens.Color.calendarAccent
+    }
+
     var compactSize: CGSize {
         CGSize(
             width: DesignTokens.StatusPillMetrics.compactWidth,

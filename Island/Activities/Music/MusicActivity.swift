@@ -12,6 +12,12 @@ final class MusicActivity: ObservableObject {
     var playbackState:
         MusicPlaybackState?
 
+    /// The album's dominant colour — what the island's shadow glows.
+    private var albumAccent: Color = DesignTokens.Color.musicAccent
+    private var albumAccentKey = ""
+
+    var shadowAccent: Color? { albumAccent }
+
     private let isActiveSubject =
         CurrentValueSubject<
             Bool,
@@ -99,6 +105,18 @@ final class MusicActivity: ObservableObject {
 
         playbackState =
             state
+
+        // Recompute only when the track (or its artwork arriving)
+        // changes — this runs on every progress tick.
+        let key = "\(state?.title ?? "")|\(state?.artist ?? "")|\(state?.artwork != nil)"
+
+        if key != albumAccentKey {
+            albumAccentKey = key
+            albumAccent = ArtworkColorExtractor.dominantColor(
+                from: state?.artwork,
+                fallback: DesignTokens.Color.musicAccent
+            )
+        }
 
         if state?.isPlaying == true {
 

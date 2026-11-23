@@ -90,6 +90,32 @@ struct IslandRootView: View {
     /// (it once turned Music's spring into a slow ease).
     @State private var shadowExpansion: CGFloat = 0
 
+    /// The colour the island's shadow glows — the accent of whatever is
+    /// showing. `nil` is the plain black shadow. Updated on its own
+    /// state so it can fade between colours without touching any other
+    /// animation.
+    @State private var shadowAccent: Color?
+
+    /// The right half's accent while two activities share the pill.
+    @State private var shadowAccentRight: Color?
+
+    /// The shared pill is shown from this state, flipped INSIDE a
+    /// `withAnimation`, so swapping between the single and shared pill
+    /// actually animates (a view swap driven by a derived property has
+    /// no animation context and just pops).
+    @State private var showsSplitContent = false
+
+    /// The notch ears are drawn for the FINAL size the instant it
+    /// changes, while the pill itself is still animating toward it — so
+    /// they're held back until the size has settled.
+    @State private var earsSettled = true
+    @State private var earsWorkItem: DispatchWorkItem?
+
+    /// Both halves of the shared pill, captured while it's up — so when
+    /// the second activity ends, its half is still there to fade out
+    /// instead of vanishing the instant the manager forgets it.
+    @State private var splitSnapshot: SplitSnapshot?
+
     /// Duration for the very small horizontal enter/exit animation.
     ///
     /// This is intentionally separate from the existing morph animation.
@@ -188,12 +214,93 @@ struct IslandRootView: View {
         )
     }
 
+    /// Left and right glow colours while two activities share the pill;
+    /// `nil` otherwise.
+    private var splitGlow: (left: Color, right: Color)? {
+
+        guard isSplitMode, let left = shadowAccent, let right = shadowAccentRight else {
+            return nil
+        }
+
+        return (left, right)
+    }
+
     private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
         a + (b - a) * t
     }
 
     private func lerp(_ a: Double, _ b: Double, _ t: CGFloat) -> Double {
         a + (b - a) * Double(t)
+    }
+
+    // MARK: - Shadow values
+    //
+    // Broken out of `body`: inlined, the nested `lerp`s were more than
+    // the type-checker would take.
+
+    private var ambientShadowColor: Color {
+
+        let resting = isPrimed
+            ? DesignTokens.Shadow.hoverOpacity
+            : DesignTokens.Shadow.restOpacity
+
+        let opacity = lerp(resting, DesignTokens.Shadow.expandedOpacity, shadowExpansion)
+
+        return Color.black.opacity(opacity)
+    }
+
+    private var ambientShadowRadius: CGFloat {
+
+        let resting = isPrimed
+            ? DesignTokens.Shadow.hoverRadius
+            : DesignTokens.Shadow.restRadius
+
+        return lerp(resting, DesignTokens.Shadow.expandedRadius, shadowExpansion)
+    }
+
+    private var ambientShadowY: CGFloat {
+
+        let resting = isPrimed
+            ? DesignTokens.Shadow.hoverYOffset
+            : DesignTokens.Shadow.restYOffset
+
+        return lerp(resting, DesignTokens.Shadow.expandedYOffset, shadowExpansion)
+    }
+
+    private var accentShadowColor: Color {
+
+        // A shared pill draws its own two-colour glow instead.
+        guard splitGlow == nil, let accent = shadowAccent else {
+            return Color.clear
+        }
+
+        // Faint at rest, strong on hover, and settling — once the card
+        // is open — a touch above the resting level.
+        let base = isPrimed
+            ? DesignTokens.Shadow.accentHoverOpacity
+            : DesignTokens.Shadow.accentRestOpacity
+
+        let level = lerp(base, DesignTokens.Shadow.accentExpandedOpacity, shadowExpansion)
+
+        return accent.opacity(level)
+    }
+
+    private var accentShadowRadius: CGFloat {
+
+        let base = isPrimed
+            ? DesignTokens.Shadow.accentHoverRadius
+            : DesignTokens.Shadow.accentRestRadius
+
+        return lerp(base, DesignTokens.Shadow.accentExpandedRadius, shadowExpansion)
+    }
+
+    private var accentShadowY: CGFloat {
+
+        let base = isPrimed
+            ? DesignTokens.Shadow.hoverYOffset
+            : DesignTokens.Shadow.restYOffset
+
+        return lerp(base, DesignTokens.Shadow.expandedYOffset, shadowExpansion)
     }
 
     // MARK: - Notch ears
@@ -209,6 +316,8 @@ struct IslandRootView: View {
         return ZStack(alignment: .top) {
 
             if !isDocked,
+               earsSettled,
+               !showHandoverBackdrop,
                renderedActivity != nil,
                visibleSize.height <= 40 {
 
@@ -267,7 +376,8 @@ struct IslandRootView: View {
         )
     }
 
-    var body: some View {
+    /// The island itself: content, scale-in, side bubbles.
+    private var islandVisual: some View {
 
         Group {
 
@@ -294,18 +404,26 @@ struct IslandRootView: View {
                         .allowsHitTesting(false)
                     }
 
-                    if isSplitMode,
-                       let earWidth = activityManager.splitEarWidth,
-                       let leading = activityManager.ownedActivity?.earView(side: .leading),
-                       let trailing = activityManager.secondaryActivity?.earView(side: .trailing) {
+                    if showsSplitContent, let split = splitSnapshot {
 
+                        // Laid out at its final width but revealed
+                        // through the live surface, so nothing pokes out
+                        // of the black while the pill is still growing.
                         SplitIslandContent(
-                            leading: leading,
-                            trailing: trailing,
-                            earWidth: earWidth
+                            leading: split.leading,
+                            trailing: split.trailing,
+                            earWidth: split.earWidth
                         )
                         .id("split")
-                        .transition(.opacity)
+                        .mask(alignment: .top) {
+                            surfaceMask
+                        }
+                        .transition(
+                            .opacity.animation(
+                                .easeOut(duration: 0.18)
+                                    .delay(AnimationTokens.contentRevealDelay + 0.04)
+                            )
+                        )
 
                     } else {
 
@@ -316,6 +434,9 @@ struct IslandRootView: View {
                                 isExpanded
                         )
                         .id(shown.id)
+                        .mask(alignment: .top) {
+                            surfaceMask
+                        }
                         .transition(
                             .opacity.combined(
                                 with: .scale(scale: 0.94, anchor: .top)
@@ -435,10 +556,44 @@ struct IslandRootView: View {
         // Watch ownership separately so we can keep the old island
         // mounted while it shrinks to the centre.
         // ---------------------------------------------------------
+    }
+
+    /// Lifecycle, shadow, glow — everything that styles the island.
+    private var islandStyled: some View {
+
+        islandVisual
 
         .onAppear {
 
             syncInitialPresentation()
+
+            if isSplitMode {
+                captureSplit()
+                showsSplitContent = true
+            }
+        }
+
+        .task {
+
+            while !Task.isCancelled {
+
+                let accent = (isSplitMode
+                    ? activityManager.ownedActivity
+                    : presentedActivity)?.shadowAccent
+
+                let rightAccent = isSplitMode
+                    ? activityManager.secondaryActivity?.shadowAccent
+                    : nil
+
+                if accent != shadowAccent || rightAccent != shadowAccentRight {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        shadowAccent = accent
+                        shadowAccentRight = rightAccent
+                    }
+                }
+
+                try? await Task.sleep(nanoseconds: 300_000_000)
+            }
         }
 
         .onChange(
@@ -465,55 +620,30 @@ struct IslandRootView: View {
         // EXISTING SHADOW
         // ---------------------------------------------------------
 
-        // Two layers, like Apple's own floating surfaces: a large soft
-        // ambient shadow that grows as the island opens, plus a tight
-        // contact shadow that keeps its edge crisp.
+        // Floating-surface shadows, like Apple's: a large soft ambient
+        // shadow that grows as the island opens, a tight contact shadow
+        // that keeps its edge crisp (both neutral black), and — while the
+        // compact pill sits there — a glow in the activity's colour that
+        // swells on hover and is gone once the card is open.
         .shadow(
-            color:
-                Color.black.opacity(
-                    lerp(
-                        isPrimed
-                            ? DesignTokens.Shadow.hoverOpacity
-                            : DesignTokens.Shadow.restOpacity,
-                        DesignTokens.Shadow.expandedOpacity,
-                        shadowExpansion
-                    )
-                ),
-
-            radius:
-                lerp(
-                    isPrimed
-                        ? DesignTokens.Shadow.hoverRadius
-                        : DesignTokens.Shadow.restRadius,
-                    DesignTokens.Shadow.expandedRadius,
-                    shadowExpansion
-                ),
-
-            x:
-                0,
-
-            y:
-                lerp(
-                    isPrimed
-                        ? DesignTokens.Shadow.hoverYOffset
-                        : DesignTokens.Shadow.restYOffset,
-                    DesignTokens.Shadow.expandedYOffset,
-                    shadowExpansion
-                )
+            color: ambientShadowColor,
+            radius: ambientShadowRadius,
+            x: 0,
+            y: ambientShadowY
         )
 
         .shadow(
-            color:
-                DesignTokens.Shadow.contactColor,
+            color: accentShadowColor,
+            radius: accentShadowRadius,
+            x: 0,
+            y: accentShadowY
+        )
 
-            radius:
-                DesignTokens.Shadow.contactRadius,
-
-            x:
-                0,
-
-            y:
-                DesignTokens.Shadow.contactYOffset
+        .shadow(
+            color: DesignTokens.Shadow.contactColor,
+            radius: DesignTokens.Shadow.contactRadius,
+            x: 0,
+            y: DesignTokens.Shadow.contactYOffset
         )
 
         .animation(
@@ -522,11 +652,52 @@ struct IslandRootView: View {
                 isPrimed
         )
 
+        // Shared pill: the glow is split down the middle — each half
+        // takes its own activity's colour.
+        .background(alignment: .top) {
+
+            if let glow = splitGlow {
+
+                IslandShape(
+                    topRadius: DesignTokens.Shape.compactTopRadius,
+                    bottomRadius: DesignTokens.Shape.compactBottomRadius
+                )
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: glow.left, location: 0),
+                            .init(color: glow.left, location: 0.46),
+                            .init(color: glow.right, location: 0.54),
+                            .init(color: glow.right, location: 1)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: visibleSize.width, height: visibleSize.height)
+                .blur(radius: isPrimed ? 14 : 11)
+                .offset(y: isPrimed ? 7 : 5)
+                .opacity(
+                    isPrimed
+                        ? DesignTokens.Shadow.accentHoverOpacity
+                        : DesignTokens.Shadow.accentRestOpacity
+                )
+                .animation(AnimationTokens.hoverPrimeTransition, value: isPrimed)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
+        }
+
 
 
         // ---------------------------------------------------------
         // EXISTING HOVER
         // ---------------------------------------------------------
+    }
+
+    var body: some View {
+
+        islandStyled
 
         // Only used to know WHICH half of a shared pill the cursor is on
         // — whether to expand at all is `WindowManager`'s call below.
@@ -546,6 +717,24 @@ struct IslandRootView: View {
 
             previousVisibleSize = old
 
+            // Hide the ears while the size is changing; bring them back
+            // once it has settled.
+            earsSettled = false
+            earsWorkItem?.cancel()
+
+            let settle = DispatchWorkItem {
+                earsSettled = true
+            }
+
+            earsWorkItem = settle
+
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.55,
+                execute: settle
+            )
+
+            if isSplitMode { captureSplit() }
+
             // A shared pill's width can change while it's up (the timer
             // passing an hour) — keep the surface under it in step.
             if isSplitMode, showHandoverBackdrop {
@@ -557,8 +746,30 @@ struct IslandRootView: View {
 
         // Going into / out of a shared pill (or into an expanded panel
         // from one) is a morph of the surface, not a pop.
-        .onChange(of: isSplitMode) { _, _ in
+        .onChange(of: isSplitMode) { _, now in
+
+            if now { captureSplit() }
+
+            // The content swap goes in an animation of its own, picked by
+            // direction like the surface's (springy growing, no overshoot
+            // shrinking).
+            withAnimation(
+                AnimationTokens.handover(from: previousVisibleSize, to: visibleSize)
+            ) {
+                showsSplitContent = now
+            }
+
             morphSurface()
+        }
+
+        // The two halves can change while the pill is up (the second
+        // activity swapped for another) — keep the snapshot current.
+        .onChange(of: activityManager.secondaryActivity?.id) { _, _ in
+            if isSplitMode { captureSplit() }
+        }
+
+        .onChange(of: activityManager.ownedActivity?.id) { _, _ in
+            if isSplitMode { captureSplit() }
         }
 
         // Hover comes from `WindowManager`'s geometry, not SwiftUI's
@@ -697,34 +908,12 @@ struct IslandRootView: View {
         // CLICK TO EXPAND / UNDOCK
         // ---------------------------------------------------------
 
-        .onTapGesture {
-
-            // A tap on the docked island brings it back immediately.
-            if isDocked {
-
-                undock()
-
-                return
-            }
-
-            // Nothing on the island: a tap on the notch opens the
-            // launcher (now playing, timers).
-            if renderedActivity == nil {
-
-                NotificationCenter.default.post(
-                    name: .islandOpenLauncher,
-                    object: nil
-                )
-
-                return
-            }
-
-            // A tap on the compact island bypasses the hover delay.
-            if !isExpanded {
-
-                expandImmediately()
-            }
-        }
+        .gesture(
+            SpatialTapGesture()
+                .onEnded { value in
+                    handleTap(at: value.location)
+                }
+        )
 
         // ---------------------------------------------------------
         // DRAG TO DOCK / UNDOCK
@@ -973,6 +1162,59 @@ struct IslandRootView: View {
         }
     }
 
+    // MARK: - Surface mask
+
+    /// What the island's content is revealed through. While the surface
+    /// is morphing it is the live surface itself, so nothing — content,
+    /// or an activity's own pill and its flare — can draw outside it.
+    /// Otherwise it's a rectangle far bigger than any island, which
+    /// clips nothing (the notch flare spills outside a view's own
+    /// bounds, so a tight mask would cut it off).
+    private var surfaceMask: some View {
+
+        ZStack(alignment: .top) {
+
+            if showHandoverBackdrop {
+
+                IslandShape(
+                    topRadius: surfaceTopRadius,
+                    bottomRadius: surfaceBottomRadius
+                )
+                .fill(Color.black)
+                .frame(
+                    width: max(handoverBackdropSize.width, backdropFloor.width),
+                    height: max(handoverBackdropSize.height, backdropFloor.height)
+                )
+
+            } else {
+
+                Rectangle()
+                    .fill(Color.black)
+                    .frame(width: 1400, height: 700)
+            }
+        }
+        .frame(width: 1400, height: 700, alignment: .top)
+    }
+
+    // MARK: - Shared pill snapshot
+
+    private func captureSplit() {
+
+        guard
+            let earWidth = activityManager.splitEarWidth,
+            let leading = activityManager.ownedActivity?.earView(side: .leading),
+            let trailing = activityManager.secondaryActivity?.earView(side: .trailing)
+        else {
+            return
+        }
+
+        splitSnapshot = SplitSnapshot(
+            leading: leading,
+            trailing: trailing,
+            earWidth: earWidth
+        )
+    }
+
     // MARK: - Surface morph
 
     /// Starts the black surface at the size the island WAS and springs it
@@ -1111,6 +1353,50 @@ struct IslandRootView: View {
             execute:
                 workItem
         )
+    }
+
+    // MARK: - Tap
+
+    /// A click on the notch itself — the middle of the island, where the
+    /// hardware notch sits — opens (or closes) the launcher, whatever is
+    /// on the island. A click anywhere else on the pill expands it, as
+    /// before.
+    private func handleTap(at point: CGPoint) {
+
+        // A tap on the docked island brings it back immediately.
+        if isDocked {
+
+            undock()
+
+            return
+        }
+
+        let frameWidth = max(
+            DesignTokens.sharedCanvasSize.width,
+            visibleSize.width
+        )
+
+        let isOnNotch =
+            abs(point.x - frameWidth / 2)
+                <= DesignTokens.FileDropMetrics.notchWidth / 2
+            && point.y <= DesignTokens.FileDropMetrics.notchKeepClearHeight
+
+        // Nothing on the island, or the click is on the notch.
+        if renderedActivity == nil || isOnNotch {
+
+            NotificationCenter.default.post(
+                name: .islandToggleLauncher,
+                object: nil
+            )
+
+            return
+        }
+
+        // A tap on the compact island bypasses the hover delay.
+        if !isExpanded {
+
+            expandImmediately()
+        }
     }
 
     // MARK: - Immediate Tap Expansion
@@ -1336,4 +1622,13 @@ private struct VisibleIslandShape: Shape {
             )
         )
     }
+}
+
+
+/// Both halves of a shared pill, kept so they can fade out after the
+/// activity manager has already moved on.
+private struct SplitSnapshot {
+    let leading: AnyView
+    let trailing: AnyView
+    let earWidth: CGFloat
 }

@@ -110,6 +110,11 @@ final class CapsLockActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        DesignTokens.Color.capsLockAccent
+    }
+
     /// Reuses AirDrop's measured pill (icon left, status right).
     var compactSize: CGSize {
         CGSize(

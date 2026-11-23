@@ -317,6 +317,11 @@ final class LowBatteryActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        DesignTokens.Color.lowBatteryAccent
+    }
+
     var compactSize: CGSize {
         CGSize(
             width: DesignTokens.LowBatteryMetrics.compactWidth,

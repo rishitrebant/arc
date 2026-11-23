@@ -214,6 +214,12 @@ final class AppDelegate:
                 bluetooth: bluetoothActivity
             )
 
+        launcherActivity.requestElevation =
+            { [weak self] elevated in
+
+                self?.activityManager.setElevated(.launcher, elevated)
+            }
+
         launcherActivity.isIslandCurrentlyHovered =
             { [weak windowManager] in
 

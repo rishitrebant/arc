@@ -508,6 +508,11 @@ final class TimerActivity: ObservableObject {
         return hasHours ? Metrics.flankWidthHours : Metrics.flankWidth
     }
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        (activeSlots.first ?? stopwatch).accent
+    }
+
     var compactSize: CGSize {
 
         return CGSize(

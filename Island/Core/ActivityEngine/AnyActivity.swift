@@ -20,6 +20,7 @@ final class AnyActivity: Identifiable {
     private let _compactSize: () -> CGSize
     private let _expandedSize: () -> CGSize
     private let _compactCenterShift: () -> CGFloat
+    private let _shadowAccent: () -> Color?
     private let _minimalView: (() -> AnyView)?
     private let _earWidth: (() -> CGFloat)?
     private let _earView: ((EarSide) -> AnyView)?
@@ -34,6 +35,7 @@ final class AnyActivity: Identifiable {
         self._compactSize = { activity.compactSize }
         self._expandedSize = { activity.expandedSize }
         self._compactCenterShift = { activity.compactCenterShift }
+        self._shadowAccent = { activity.shadowAccent }
 
         if let presentable = activity as? MinimalPresentable {
             self._minimalView = { presentable.minimalView() }
@@ -66,6 +68,7 @@ final class AnyActivity: Identifiable {
 
     func earView(side: EarSide) -> AnyView? { _earView?(side) }
     var compactCenterShift: CGFloat { _compactCenterShift() }
+    var shadowAccent: Color? { _shadowAccent() }
     var compactSize: CGSize { _compactSize() }
     var expandedSize: CGSize { _expandedSize() }
 }

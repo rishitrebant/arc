@@ -82,10 +82,59 @@ final class ActivityManager: ObservableObject {
     /// Golden Rule that ownership changes must always be animated, callers
     /// (WindowManager / IslandRootView) are expected to wrap their reaction
     /// to `ownedActivity` changes in `AnimationTokens.ownershipChange`.
+    /// Kinds the user explicitly asked for (the launcher, opened by a
+    /// click on the notch). They outrank everything while they're up, so
+    /// opening the launcher over a playing song or a running timer works,
+    /// and the song / timer comes straight back when it closes.
+    private var elevatedKinds: Set<ActivityKind> = []
+
+    func setElevated(_ kind: ActivityKind, _ elevated: Bool) {
+
+        // Already in that state: nothing to recompute. (Without this a
+        // launcher resigning → asking to be un-elevated → recomputing →
+        // resigning… recursed until the stack overflowed.)
+        guard elevatedKinds.contains(kind) != elevated else { return }
+
+        if elevated {
+            elevatedKinds.insert(kind)
+        } else {
+            elevatedKinds.remove(kind)
+        }
+
+        recomputeOwnership()
+    }
+
+    private func rank(_ activity: AnyActivity) -> Int {
+        elevatedKinds.contains(activity.kind) ? -1 : activity.kind.rawValue
+    }
+
+    /// `recomputeOwnership` can be asked to run again from inside itself
+    /// (an activity's `didResignActive` may change state that triggers a
+    /// recompute). Re-entering would recurse; instead the request is
+    /// queued and the loop runs once more after the current pass.
+    private var isRecomputing = false
+    private var recomputeAgain = false
+
     private func recomputeOwnership() {
+
+        guard !isRecomputing else {
+            recomputeAgain = true
+            return
+        }
+
+        isRecomputing = true
+        defer { isRecomputing = false }
+
+        repeat {
+            recomputeAgain = false
+            recomputeOwnershipOnce()
+        } while recomputeAgain
+    }
+
+    private func recomputeOwnershipOnce() {
         let winner = registered
             .filter { $0.isActive }
-            .min { $0.kind < $1.kind }
+            .min { rank($0) < rank($1) }
 
         let secondary = registered
             .filter { $0.isActive && $0.id != winner?.id && $0.minimalView != nil }

@@ -193,6 +193,11 @@ final class DownloadsActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        isComplete ? DesignTokens.Color.chargingAccent : DesignTokens.Color.airDropAccent
+    }
+
     var compactSize: CGSize {
         CGSize(
             width: DesignTokens.StatusPillMetrics.compactWidth,

@@ -61,9 +61,15 @@ protocol Activity: AnyObject, ObservableObject {
     /// for the timer's split layout, which hugs the left of the notch.
     /// `WindowManager` shifts its hit region by this.
     var compactCenterShift: CGFloat { get }
+
+    /// The colour of this activity — what the island's shadow glows.
+    /// `nil` keeps the plain black shadow.
+    var shadowAccent: Color? { get }
 }
 
 extension Activity {
+
+    var shadowAccent: Color? { nil }
 
     var compactCenterShift: CGFloat { 0 }
 

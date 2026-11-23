@@ -130,6 +130,15 @@ final class PrivacyActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        newest.contains(.camera)
+            ? DesignTokens.Color.cameraIndicator
+            : (newest.contains(.screen)
+               ? DesignTokens.Color.screenIndicator
+               : DesignTokens.Color.microphoneIndicator)
+    }
+
     var compactSize: CGSize {
         CGSize(
             width: DesignTokens.StatusPillMetrics.compactWidth,

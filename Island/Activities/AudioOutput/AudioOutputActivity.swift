@@ -134,6 +134,11 @@ final class AudioOutputActivity: ObservableObject {
 
     // MARK: - Sizing
 
+    /// The colour the island's shadow glows while this is showing.
+    var shadowAccent: Color? {
+        DesignTokens.Color.airDropAccent
+    }
+
     var compactSize: CGSize {
         CGSize(
             width: DesignTokens.StatusPillMetrics.compactWidth,
