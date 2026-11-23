@@ -147,9 +147,8 @@ final class BluetoothActivity: ObservableObject {
 
         guard AppSettings.showBluetoothAlert else { return }
 
-        if info.isInputDevice && !AppSettings.showBluetoothInputDevices {
-            return
-        }
+        // Speakers and headphones only — never mice, keyboards, etc.
+        guard info.isAudio else { return }
 
         if let last = lastShown[info.address],
            Date().timeIntervalSince(last) < Self.repeatSuppression {

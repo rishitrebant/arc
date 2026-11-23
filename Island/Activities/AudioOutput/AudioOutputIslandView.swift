@@ -32,39 +32,15 @@ struct AudioOutputIslandView: View {
 
     var body: some View {
 
-        ZStack(alignment: .topLeading) {
-
-            IslandShape(
-                topRadius: isExpanded
-                    ? DesignTokens.Shape.expandedTopRadius
-                    : DesignTokens.Shape.compactTopRadius,
-                bottomRadius: isExpanded
-                    ? DesignTokens.Shape.expandedBottomRadius
-                    : DesignTokens.Shape.compactBottomRadius
-            )
-            .fill(DesignTokens.Color.islandBackground)
-            .frame(width: visibleSize.width, height: visibleSize.height)
-            .position(x: canvasSize.width / 2, y: visibleSize.height / 2)
-
-            Group {
-                if isExpanded {
-                    expandedPanel
-                } else {
-                    compactRow
-                }
-            }
-            .frame(width: visibleSize.width, height: visibleSize.height)
-            .offset(x: horizontalInset, y: 0)
+        IslandMorphSurface(
+            isExpanded: isExpanded,
+            compactSize: activity.compactSize,
+            expandedSize: activity.expandedSize
+        ) {
+            compactRow
+        } expanded: {
+            expandedPanel
         }
-        .frame(
-            width: canvasSize.width,
-            height: canvasSize.height,
-            alignment: .topLeading
-        )
-        .animation(
-            AnimationTokens.shapeMorph(isExpanding: isExpanded),
-            value: isExpanded
-        )
     }
 
     // MARK: - Compact
@@ -79,6 +55,7 @@ struct AudioOutputIslandView: View {
                 .foregroundStyle(DesignTokens.Color.primaryText)
                 .symbolEffect(.bounce, value: activity.device?.id)
                 .frame(width: Compact.iconSlot, height: Compact.iconSlot)
+                .padding(.leading, -3)
 
             Spacer(minLength: 0)
 

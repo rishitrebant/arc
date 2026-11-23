@@ -63,8 +63,6 @@ struct GeneralSettingsTab: View {
     private var alwaysShowIcon = AppSettings.Default.alwaysShowMenuBarIcon
     @AppStorage(AppSettings.Key.showBluetoothAlert)
     private var showBluetooth = AppSettings.Default.showBluetoothAlert
-    @AppStorage(AppSettings.Key.showBluetoothInputDevices)
-    private var showBluetoothInputs = AppSettings.Default.showBluetoothInputDevices
     @AppStorage(AppSettings.Key.showCapsLockIndicator)
     private var showCapsLock = AppSettings.Default.showCapsLockIndicator
     @AppStorage(AppSettings.Key.showCalendarAlerts)
@@ -108,13 +106,9 @@ struct GeneralSettingsTab: View {
 
             SettingsRow(
                 "Bluetooth:",
-                detail: "Briefly shows the device in the notch when it connects. Hover over it to see the name and disconnect. Keyboards, mice and trackpads reconnect whenever your Mac wakes, so you may want those off."
+                detail: "Briefly shows speakers, headphones and AirPods in the notch when they connect, with their battery when macOS reports it. Hover over it to disconnect. Mice and keyboards aren't included."
             ) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Toggle("Show when a device connects", isOn: $showBluetooth)
-                    Toggle("Include keyboards, mice and trackpads", isOn: $showBluetoothInputs)
-                        .disabled(!showBluetooth)
-                }
+                Toggle("Show when audio devices connect", isOn: $showBluetooth)
             }
 
             SettingsRow(

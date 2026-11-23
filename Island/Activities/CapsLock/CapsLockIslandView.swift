@@ -46,6 +46,7 @@ struct CapsLockIslandView: View {
                     .foregroundStyle(tint)
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: Compact.compactIconSize, height: Compact.compactIconSize)
+                .padding(.leading, -3)
 
                 Spacer(minLength: 0)
 

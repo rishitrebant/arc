@@ -80,11 +80,21 @@ struct IslandRootView: View {
     /// The pill's size one change ago — where a morph starts from.
     @State private var previousVisibleSize: CGSize = .zero
 
+    /// A morph's surface is never allowed to be smaller than the smaller
+    /// of its start and end sizes, whatever the spring does in between.
+    @State private var backdropFloor: CGSize = .zero
+
+    /// 0 = compact shadow, 1 = expanded shadow. Its OWN state, animated
+    /// by its own `withAnimation` — an `.animation(value:)` modifier on
+    /// the island would override the animation of everything beneath it
+    /// (it once turned Music's spring into a slow ease).
+    @State private var shadowExpansion: CGFloat = 0
+
     /// Duration for the very small horizontal enter/exit animation.
     ///
     /// This is intentionally separate from the existing morph animation.
     private let presentationAnimationDuration:
-        TimeInterval = 0.18
+        TimeInterval = AnimationTokens.exitSettleDuration
 
     private var compactSize: CGSize {
 
@@ -120,6 +130,29 @@ struct IslandRootView: View {
         return renderedActivity
     }
 
+    /// Corner radii for the black surface, derived CONTINUOUSLY from its
+    /// height: a 33pt pill has the flat notch-flared top and small bottom
+    /// corners; a tall card is fully rounded. Because the radii follow
+    /// the (animated) height, they morph with the size — the top edge
+    /// never snaps from round to flat.
+    private var surfaceRoundness: CGFloat {
+        let compact: CGFloat = 33
+        let card: CGFloat = 74
+        return min(1, max(0, (handoverBackdropSize.height - compact) / (card - compact)))
+    }
+
+    private var surfaceTopRadius: CGFloat {
+        DesignTokens.Shape.compactTopRadius
+            + (DesignTokens.Shape.expandedTopRadius - DesignTokens.Shape.compactTopRadius)
+            * surfaceRoundness
+    }
+
+    private var surfaceBottomRadius: CGFloat {
+        DesignTokens.Shape.compactBottomRadius
+            + (DesignTokens.Shape.expandedBottomRadius - DesignTokens.Shape.compactBottomRadius)
+            * surfaceRoundness
+    }
+
     /// The size of the pill actually on screen right now.
     private var visibleSize: CGSize {
 
@@ -153,6 +186,49 @@ struct IslandRootView: View {
                 max(0.001, DesignTokens.Shape.collapsedNotchHeight / max(size.height, 1))
             )
         )
+    }
+
+    private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
+        a + (b - a) * t
+    }
+
+    private func lerp(_ a: Double, _ b: Double, _ t: CGFloat) -> Double {
+        a + (b - a) * Double(t)
+    }
+
+    // MARK: - Notch ears
+
+    /// The two small concave fillets where a flat-topped pill meets the
+    /// top of the screen, drawn at the root so EVERY activity — Music
+    /// included — gets exactly the same curve. Only for compact pills; a
+    /// tall card has rounded top corners instead.
+    private var notchEars: some View {
+
+        let flare = DesignTokens.Shape.notchFlare
+
+        return ZStack(alignment: .top) {
+
+            if !isDocked,
+               renderedActivity != nil,
+               visibleSize.height <= 40 {
+
+                NotchEarShape(isLeft: true)
+                    .fill(DesignTokens.Color.islandBackground)
+                    .frame(width: flare, height: flare)
+                    .offset(x: -(visibleSize.width / 2 + flare / 2))
+
+                NotchEarShape(isLeft: false)
+                    .fill(DesignTokens.Color.islandBackground)
+                    .frame(width: flare, height: flare)
+                    .offset(x: visibleSize.width / 2 + flare / 2)
+            }
+        }
+        .frame(
+            width: max(DesignTokens.sharedCanvasSize.width, visibleSize.width + flare * 2),
+            height: flare,
+            alignment: .top
+        )
+        .allowsHitTesting(false)
     }
 
     // MARK: - Side bubbles
@@ -207,17 +283,13 @@ struct IslandRootView: View {
                     if showHandoverBackdrop {
 
                         IslandShape(
-                            topRadius: isExpanded
-                                ? DesignTokens.Shape.expandedTopRadius
-                                : DesignTokens.Shape.compactTopRadius,
-                            bottomRadius: isExpanded
-                                ? DesignTokens.Shape.expandedBottomRadius
-                                : DesignTokens.Shape.compactBottomRadius
+                            topRadius: surfaceTopRadius,
+                            bottomRadius: surfaceBottomRadius
                         )
                         .fill(DesignTokens.Color.islandBackground)
                         .frame(
-                            width: handoverBackdropSize.width,
-                            height: handoverBackdropSize.height
+                            width: max(handoverBackdropSize.width, backdropFloor.width),
+                            height: max(handoverBackdropSize.height, backdropFloor.height)
                         )
                         .allowsHitTesting(false)
                     }
@@ -244,9 +316,20 @@ struct IslandRootView: View {
                                 isExpanded
                         )
                         .id(shown.id)
-                        .transition(.opacity)
+                        .transition(
+                            .opacity.combined(
+                                with: .scale(scale: 0.94, anchor: .top)
+                            )
+                        )
                     }
                 }
+                // At least canvas-wide: a pill exactly as wide as itself
+                // (Music's) would clip the notch flare and shadow that
+                // spill just outside its edges.
+                .frame(
+                    minWidth: DesignTokens.sharedCanvasSize.width,
+                    alignment: .top
+                )
                 .offset(
                     y:
                         isDocked
@@ -326,11 +409,12 @@ struct IslandRootView: View {
                 .top
         )
 
+        // Grows out of the notch with a little spring; shrinks back into
+        // it without bouncing.
         .animation(
-            .easeOut(
-                duration:
-                    presentationAnimationDuration
-            ),
+            isPresentationVisible
+                ? AnimationTokens.enterSpring
+                : AnimationTokens.exitSpring,
 
             value:
                 isPresentationVisible
@@ -339,7 +423,10 @@ struct IslandRootView: View {
         // Detached bubbles beside the island. Deliberately OUTSIDE the
         // notch scale above, so they don't squash with the pill.
         .overlay(alignment: .top) {
-            sideBubbles
+            ZStack(alignment: .top) {
+                notchEars
+                sideBubbles
+            }
         }
 
         // ---------------------------------------------------------
@@ -383,34 +470,36 @@ struct IslandRootView: View {
         // contact shadow that keeps its edge crisp.
         .shadow(
             color:
-                isExpanded
-                    ? DesignTokens.Shadow.expandedColor
-                    : (
+                Color.black.opacity(
+                    lerp(
                         isPrimed
-                            ? DesignTokens.Shadow.hoverColor
-                            : DesignTokens.Shadow.restColor
-                    ),
+                            ? DesignTokens.Shadow.hoverOpacity
+                            : DesignTokens.Shadow.restOpacity,
+                        DesignTokens.Shadow.expandedOpacity,
+                        shadowExpansion
+                    )
+                ),
 
             radius:
-                isExpanded
-                    ? DesignTokens.Shadow.expandedRadius
-                    : (
-                        isPrimed
-                            ? DesignTokens.Shadow.hoverRadius
-                            : DesignTokens.Shadow.restRadius
-                    ),
+                lerp(
+                    isPrimed
+                        ? DesignTokens.Shadow.hoverRadius
+                        : DesignTokens.Shadow.restRadius,
+                    DesignTokens.Shadow.expandedRadius,
+                    shadowExpansion
+                ),
 
             x:
                 0,
 
             y:
-                isExpanded
-                    ? DesignTokens.Shadow.expandedYOffset
-                    : (
-                        isPrimed
-                            ? DesignTokens.Shadow.hoverYOffset
-                            : DesignTokens.Shadow.restYOffset
-                    )
+                lerp(
+                    isPrimed
+                        ? DesignTokens.Shadow.hoverYOffset
+                        : DesignTokens.Shadow.restYOffset,
+                    DesignTokens.Shadow.expandedYOffset,
+                    shadowExpansion
+                )
         )
 
         .shadow(
@@ -433,11 +522,7 @@ struct IslandRootView: View {
                 isPrimed
         )
 
-        .animation(
-            AnimationTokens.shapeSpring,
-            value:
-                isExpanded
-        )
+
 
         // ---------------------------------------------------------
         // EXISTING HOVER
@@ -448,7 +533,10 @@ struct IslandRootView: View {
         .onContinuousHover { phase in
 
             if case .active(let point) = phase {
-                hoverSide = point.x < visibleSize.width / 2
+                hoverSide = point.x < max(
+                    DesignTokens.sharedCanvasSize.width,
+                    visibleSize.width
+                ) / 2
                     ? .leading
                     : .trailing
             }
@@ -516,6 +604,10 @@ struct IslandRootView: View {
 
             if !expanded {
                 activityManager.expandsSecondary = false
+            }
+
+            withAnimation(.easeInOut(duration: 0.25)) {
+                shadowExpansion = expanded ? 1 : 0
             }
 
             // Only opening is felt — closing (hover-off) is silent.
@@ -809,16 +901,24 @@ struct IslandRootView: View {
 
             handoverWorkItem?.cancel()
 
-            handoverBackdropSize = visibleSize
+            let oldSize = visibleSize
+
+            let newSize = isExpanded
+                ? newActivity.expandedSize
+                : newActivity.compactSize
+
+            handoverBackdropSize = oldSize
+            backdropFloor = CGSize(
+                width: min(oldSize.width, newSize.width),
+                height: min(oldSize.height, newSize.height)
+            )
             showHandoverBackdrop = true
 
-            withAnimation(AnimationTokens.ownershipChange) {
+            withAnimation(AnimationTokens.handover(from: oldSize, to: newSize)) {
 
                 renderedActivity = newActivity
 
-                handoverBackdropSize = isExpanded
-                    ? newActivity.expandedSize
-                    : newActivity.compactSize
+                handoverBackdropSize = newSize
             }
 
             let work = DispatchWorkItem {
@@ -882,16 +982,23 @@ struct IslandRootView: View {
 
         handoverWorkItem?.cancel()
 
+        let from = previousVisibleSize
+        let to = visibleSize
+
         var instant = Transaction()
         instant.disablesAnimations = true
 
         withTransaction(instant) {
-            handoverBackdropSize = previousVisibleSize
+            handoverBackdropSize = from
+            backdropFloor = CGSize(
+                width: min(from.width, to.width),
+                height: min(from.height, to.height)
+            )
             showHandoverBackdrop = true
         }
 
         DispatchQueue.main.async {
-            withAnimation(AnimationTokens.shapeSpring) {
+            withAnimation(AnimationTokens.handover(from: from, to: to)) {
                 handoverBackdropSize = visibleSize
             }
         }

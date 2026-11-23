@@ -473,7 +473,8 @@ final class TimerActivity: ObservableObject {
 
     private func refreshActive() {
 
-        let shouldBeActive = countdown.isActive || stopwatch.isActive
+        let shouldBeActive =
+            pomodoro.isActive || countdown.isActive || stopwatch.isActive
 
         guard shouldBeActive != isActive else { return }
 

@@ -46,6 +46,7 @@ struct FocusIslandView: View {
                     .foregroundStyle(tint)
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: Metrics.iconSlot, height: Metrics.iconSlot)
+                .padding(.leading, -3)
 
                 Spacer(minLength: 0)
 

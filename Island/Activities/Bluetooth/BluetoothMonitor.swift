@@ -19,6 +19,11 @@ struct BluetoothDeviceInfo: Equatable, Identifiable {
     /// wakes, so the user can choose to not be told about them.
     let isInputDevice: Bool
 
+    /// Speakers, headphones, earbuds, headsets — the only devices the
+    /// island shows. Mice, keyboards and the like reconnect on their own
+    /// and aren't something to manage from the notch.
+    let isAudio: Bool
+
     var id: String { address }
 }
 
@@ -51,6 +56,7 @@ final class BluetoothMonitor: NSObject {
             .compactMap { address in
                 devices[address].map { Self.info(for: $0, address: address) }
             }
+            .filter(\.isAudio)
             .sorted { $0.name < $1.name }
     }
 
@@ -234,11 +240,21 @@ final class BluetoothMonitor: NSObject {
         // Peripheral (0x05): minor bits 4–5 say keyboard / pointing.
         let isInputDevice = major == 0x05 && (minor & 0x30) != 0
 
+        // Audio / Video major class (0x04), or a name that says so.
+        let lowered = rawName.lowercased()
+        let namedAudio = [
+            "airpods", "beats", "buds", "headphone", "headset", "earbud",
+            "speaker", "soundbar", "homepod"
+        ].contains { lowered.contains($0) }
+
+        let isAudio = !isInputDevice && (major == 0x04 || namedAudio)
+
         return BluetoothDeviceInfo(
             address: address,
             name: rawName.isEmpty ? "Bluetooth Device" : rawName,
             symbolName: symbol(name: rawName, major: major, minor: minor),
-            isInputDevice: isInputDevice
+            isInputDevice: isInputDevice,
+            isAudio: isAudio
         )
     }
 

@@ -95,6 +95,10 @@ enum DesignTokens {
         static let compactTopRadius: CGFloat = 0
         static let compactBottomRadius: CGFloat = 12
 
+        /// How far a flat-topped pill flares out where it meets the top
+        /// of the screen — the concave sweep the real notch has.
+        static let notchFlare: CGFloat = 8
+
         /// Height the island collapses to when it leaves — the physical
         /// notch's own height. Width is `FileDropMetrics.notchWidth`.
         static let collapsedNotchHeight: CGFloat = 29
@@ -594,7 +598,10 @@ enum DesignTokens {
         /// Resting (compact) island: a soft ambient shadow plus a tight
         /// contact shadow, the way Apple lifts the Dynamic Island off the
         /// content behind it.
-        static let restColor = SwiftUI.Color.black.opacity(0.34)
+        static let restOpacity: Double = 0.34
+        static let hoverOpacity: Double = 0.48
+        static let expandedOpacity: Double = 0.55
+        static let restColor = SwiftUI.Color.black.opacity(restOpacity)
         static let restRadius: CGFloat = 8
         static let restYOffset: CGFloat = 3
 

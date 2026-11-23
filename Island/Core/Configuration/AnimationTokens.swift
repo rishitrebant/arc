@@ -16,9 +16,36 @@ enum AnimationTokens {
     /// the shared-geometry elements. ~200ms per Apple's Dynamic Island
     /// timing target (180-220ms), spring rather than a fixed ease so it
     /// feels physically responsive rather than mechanically animated.
-    static let shapeDuration: TimeInterval = 0.20
-    static let shapeDampingFraction: Double = 0.88
+    static let shapeDuration: TimeInterval = 0.22
+    static let shapeDampingFraction: Double = 0.84
     static var shapeSpring: Animation { .spring(response: shapeDuration, dampingFraction: shapeDampingFraction) }
+
+    /// The island growing out of the notch when an activity arrives:
+    /// a touch of bounce at the end, like the Dynamic Island.
+    static var enterSpring: Animation { .spring(response: 0.28, dampingFraction: 0.78) }
+
+    /// The island shrinking back into the notch: no bounce — it should
+    /// settle into the notch, not rebound out of it.
+    static var exitSpring: Animation { .spring(response: 0.22, dampingFraction: 1) }
+
+    /// How long the exit spring takes to be safely out of sight.
+    static let exitSettleDuration: TimeInterval = 0.26
+
+    /// One activity handing the island to another (launcher → music,
+    /// timer → charging…): a springier, slower morph than hover, with a
+    /// visible settle — the Dynamic Island's signature bounce.
+    static var handoverSpring: Animation { .spring(response: 0.36, dampingFraction: 0.74) }
+
+    /// Chooses the hand-over spring by direction: bouncy when the island
+    /// grows or stays the same height, critically damped when it shrinks.
+    static func handover(from old: CGSize, to new: CGSize) -> Animation {
+        new.height < old.height - 0.5
+            ? .spring(response: 0.3, dampingFraction: 1)
+            : handoverSpring
+    }
+
+    /// Content waits for the shape to open up before it fades in.
+    static let contentRevealDelay: TimeInterval = 0.04
 
     /// On collapse, content must clear out FIRST, and the shape only
     /// shrinks once it does — otherwise text/controls would visibly clip
@@ -29,8 +56,14 @@ enum AnimationTokens {
     /// shape leads (grows immediately) and content follows once there's
     /// room. On collapse, content clears first (see `collapseShapeDelay`).
     static func shapeMorph(isExpanding: Bool) -> Animation {
-        isExpanding ? shapeSpring : shapeSpring.delay(collapseShapeDelay)
+        isExpanding ? shapeSpring : collapseSpring.delay(collapseShapeDelay)
     }
+
+    /// Anything shrinking: critically damped, so it eases into its final
+    /// size and never dips below it. (A bouncy spring overshoots its
+    /// target — fine when growing, but shrinking it would make the
+    /// island briefly smaller than the pill it is becoming.)
+    static var collapseSpring: Animation { .spring(response: shapeDuration, dampingFraction: 1) }
 
     /// Builds the asymmetric insertion/removal transition for one piece of
     /// expanded-only content (header text, progress bar, controls).

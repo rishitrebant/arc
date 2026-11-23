@@ -33,39 +33,15 @@ struct TimerIslandView: View {
 
     var body: some View {
 
-        ZStack(alignment: .topLeading) {
-
-            IslandShape(
-                topRadius: isExpanded
-                    ? DesignTokens.Shape.expandedTopRadius
-                    : DesignTokens.Shape.compactTopRadius,
-                bottomRadius: isExpanded
-                    ? DesignTokens.Shape.expandedBottomRadius
-                    : DesignTokens.Shape.compactBottomRadius
-            )
-            .fill(DesignTokens.Color.islandBackground)
-            .frame(width: visibleSize.width, height: visibleSize.height)
-            .position(x: canvasSize.width / 2, y: visibleSize.height / 2)
-
-            Group {
-                if isExpanded {
-                    expandedPanel
-                } else {
-                    compactRow
-                }
-            }
-            .frame(width: visibleSize.width, height: visibleSize.height)
-            .offset(x: horizontalInset, y: 0)
+        IslandMorphSurface(
+            isExpanded: isExpanded,
+            compactSize: activity.compactSize,
+            expandedSize: activity.expandedSize
+        ) {
+            compactRow
+        } expanded: {
+            expandedPanel
         }
-        .frame(
-            width: canvasSize.width,
-            height: canvasSize.height,
-            alignment: .topLeading
-        )
-        .animation(
-            AnimationTokens.shapeMorph(isExpanding: isExpanded),
-            value: isExpanded
-        )
         // Starting or ending the second clock resizes the pill smoothly
         // instead of snapping.
         .animation(AnimationTokens.shapeSpring, value: visibleSize.width)
@@ -94,6 +70,7 @@ struct TimerIslandView: View {
                     .foregroundStyle(slot.accent)
                     .symbolEffect(.pulse, isActive: slot.phase == .finished)
                     .frame(width: Metrics.compactIconSlot, height: Metrics.compactIconSlot)
+                .padding(.leading, -3)
 
                 Spacer(minLength: 0)
 
@@ -112,6 +89,7 @@ struct TimerIslandView: View {
                 .foregroundStyle(slot.accent)
                 .symbolEffect(.pulse, isActive: slot.phase == .finished)
                 .frame(width: Metrics.compactIconSlot, height: Metrics.compactIconSlot)
+                .padding(.leading, -3)
 
             compactTime(slot)
         }

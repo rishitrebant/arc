@@ -51,7 +51,17 @@ struct SplitIslandContent: View {
 }
 
 private enum Ear {
-    static let edge: CGFloat = 10
+
+    /// Edge padding. Slightly more than a bare pill's 10pt because the
+    /// shared pill's outer corners flare and its content is optically
+    /// closer to the edge.
+    static let edge: CGFloat = 12
+
+    /// A 20pt slot whose glyph is ~14pt leaves ~3pt of air on each
+    /// side; pulling the outer edge in by this much makes the VISIBLE
+    /// padding match the text on the other side.
+    static let glyphAir: CGFloat = 3
+
     static let slot: CGFloat = 20
     static let gap: CGFloat = 5
 }
@@ -134,10 +144,12 @@ private struct TimerEar: View {
             HStack(spacing: Ear.gap) {
                 if side == .leading {
                     glyph
+                        .padding(.leading, -Ear.glyphAir)
                     time
                 } else {
                     time
                     glyph
+                        .padding(.trailing, -Ear.glyphAir)
                 }
             }
             .padding(.horizontal, Ear.edge)
@@ -253,11 +265,15 @@ private struct MusicEar: View {
                 cornerRadius: DesignTokens.MusicMetrics.compactIconCornerRadius
             )
 
-            Waveform(
+            LiveWaveform(
                 isPlaying: activity.playbackState?.isPlaying ?? false,
                 color: accent
             )
             .frame(width: Ear.slot, height: Ear.slot)
+            // The waveform keeps ~3pt of its own margin inside its slot;
+            // trim it so the visible edge gap equals the art's on the
+            // other side.
+            .padding(.trailing, -Ear.glyphAir)
         }
         .onAppear { refreshAccent() }
         .onChange(of: artworkKey) { _, _ in refreshAccent() }
