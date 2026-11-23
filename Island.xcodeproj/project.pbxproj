@@ -571,13 +571,15 @@
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Island;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Island needs permission to control Apple Music and Spotify for playback controls.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Island shows your next meeting in the notch, with a Join button when it has a video link.";
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Island shows the progress of files downloading to your Downloads folder.";
 				INFOPLIST_KEY_NSFocusStatusUsageDescription = "Island shows a pill in the notch when your Focus turns on or off.";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Rishit Rebant. All rights reserved.";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -607,13 +609,15 @@
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Island;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Island needs permission to control Apple Music and Spotify for playback controls.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Island shows your next meeting in the notch, with a Join button when it has a video link.";
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Island shows the progress of files downloading to your Downloads folder.";
 				INFOPLIST_KEY_NSFocusStatusUsageDescription = "Island shows a pill in the notch when your Focus turns on or off.";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Rishit Rebant. All rights reserved.";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (

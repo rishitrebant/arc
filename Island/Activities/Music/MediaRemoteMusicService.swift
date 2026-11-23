@@ -50,9 +50,9 @@ final class MediaRemoteMusicService:
             )
         else {
 
-            fatalError(
-                "mediaremote-adapter.pl was not found in the app bundle."
-            )
+            debugLog("mediaremote-adapter.pl was not found in the app bundle.")
+
+            return ""
         }
 
         return path
@@ -71,9 +71,9 @@ final class MediaRemoteMusicService:
             )
         else {
 
-            fatalError(
-                "MediaRemoteAdapter.framework was not found in the app bundle."
-            )
+            debugLog("MediaRemoteAdapter.framework was not found in the app bundle.")
+
+            return ""
         }
 
         return path
@@ -310,11 +310,11 @@ final class MediaRemoteMusicService:
             )
         else {
 
-            print(
+            debugLog(
                 "❌ Adapter script not found:"
             )
 
-            print(
+            debugLog(
                 adapterScriptPath
             )
 
@@ -328,11 +328,11 @@ final class MediaRemoteMusicService:
             )
         else {
 
-            print(
+            debugLog(
                 "❌ Adapter framework not found:"
             )
 
-            print(
+            debugLog(
                 frameworkPath
             )
 
@@ -378,17 +378,17 @@ final class MediaRemoteMusicService:
 
             try newProcess.run()
 
-            print(
+            debugLog(
                 "✅ MediaRemote Adapter started"
             )
 
         } catch {
 
-            print(
+            debugLog(
                 "❌ Failed to start MediaRemote Adapter:"
             )
 
-            print(
+            debugLog(
                 error
             )
 
@@ -514,7 +514,7 @@ final class MediaRemoteMusicService:
             String
     ) {
 
-        print(
+        debugLog(
             "📦 ADAPTER:",
             line
         )
@@ -559,19 +559,19 @@ final class MediaRemoteMusicService:
 
         } catch {
 
-            print(
+            debugLog(
                 "❌ Adapter JSON decode failed:"
             )
 
-            print(
+            debugLog(
                 error
             )
 
-            print(
+            debugLog(
                 "RAW:"
             )
 
-            print(
+            debugLog(
                 line
             )
         }
@@ -587,7 +587,7 @@ final class MediaRemoteMusicService:
         let bundleIdentifier =
             payload.bundleIdentifier
 
-        print(
+        debugLog(
             "🎯 BUNDLE ID:",
             bundleIdentifier ?? "NIL"
         )
@@ -612,7 +612,7 @@ final class MediaRemoteMusicService:
                 )
         else {
 
-            print(
+            debugLog(
                 "ℹ️ Unsupported Now Playing source:"
                 + " \(bundleIdentifier ?? "unknown")"
             )
@@ -691,26 +691,26 @@ final class MediaRemoteMusicService:
             isCompetingMedia =
                 true
 
-            print(
+            debugLog(
                 "🎬 Competing media detected."
             )
 
-            print(
+            debugLog(
                 "   Source:"
                 + " \(payload.bundleIdentifier ?? "unknown")"
             )
 
-            print(
+            debugLog(
                 "   Title:"
                 + " \(payload.title ?? "")"
             )
 
-            print(
+            debugLog(
                 "   Duration:"
                 + " \(duration)s"
             )
 
-            print(
+            debugLog(
                 "🚫 Hiding music island."
             )
 
@@ -770,11 +770,11 @@ final class MediaRemoteMusicService:
                 return
             }
 
-            print(
+            debugLog(
                 "↩️ Competing media stopped."
             )
 
-            print(
+            debugLog(
                 "🎵 Restoring:"
                 + " \(savedState.app.rawValue)"
             )
@@ -804,11 +804,11 @@ final class MediaRemoteMusicService:
         // will therefore not kill the island.
         // -------------------------------------------------------------
 
-        print(
+        debugLog(
             "🔔 Short/unimportant unsupported event."
         )
 
-        print(
+        debugLog(
             "   Keeping current music state."
         )
     }
@@ -991,7 +991,7 @@ final class MediaRemoteMusicService:
                     state
                 )
 
-                print(
+                debugLog(
                     "✅ Restored \(state.app.rawValue) as"
                     + " \(playing ? "playing" : "paused")"
                 )
@@ -1041,7 +1041,7 @@ final class MediaRemoteMusicService:
             eventDate < lastAppliedEventDate
         {
 
-            print(
+            debugLog(
                 "⏮️ Ignoring stale/out-of-order music event"
                 + " (\(eventDate) before \(lastAppliedEventDate))."
             )
@@ -1174,7 +1174,7 @@ final class MediaRemoteMusicService:
             state
         )
 
-        print(
+        debugLog(
             "🎵 \(state.title)"
             + " | \(app.rawValue)"
             + " | playing: \(isPlaying)"
@@ -1324,7 +1324,7 @@ final class MediaRemoteMusicService:
                 ?? lastSupportedState
         else {
 
-            print(
+            debugLog(
                 "🚫 No supported music state available for seek."
             )
 
@@ -1339,7 +1339,7 @@ final class MediaRemoteMusicService:
                     state.duration
             )
 
-        print(
+        debugLog(
             "⏩ Seeking \(state.app.rawValue) to "
             + "\(clampedPosition)s"
         )
@@ -1371,7 +1371,7 @@ final class MediaRemoteMusicService:
                 ?? lastSupportedState
         else {
 
-            print(
+            debugLog(
                 "🚫 No supported music state available."
             )
 
@@ -1389,7 +1389,7 @@ final class MediaRemoteMusicService:
                 == targetBundle
         {
 
-            print(
+            debugLog(
                 "🎯 Sending MediaRemote command to:"
                 + " \(targetBundle)"
             )
@@ -1407,7 +1407,7 @@ final class MediaRemoteMusicService:
         // Send directly to the remembered music app.
         // -------------------------------------------------------------
 
-        print(
+        debugLog(
             "🔀 Current Now Playing:"
             + " \(currentNowPlayingBundleIdentifier ?? "unknown")"
             + " | Target music app:"
@@ -1460,11 +1460,11 @@ final class MediaRemoteMusicService:
 
         } catch {
 
-            print(
+            debugLog(
                 "❌ Failed to send MediaRemote command:"
             )
 
-            print(
+            debugLog(
                 error
             )
         }
@@ -1493,7 +1493,7 @@ final class MediaRemoteMusicService:
             !script.isEmpty
         else {
 
-            print(
+            debugLog(
                 "🚫 No direct command available."
             )
 
@@ -1723,7 +1723,7 @@ final class MediaRemoteMusicService:
 
             } catch {
 
-                print("❌ Could not run osascript: \(error)")
+                debugLog("❌ Could not run osascript: \(error)")
                 return
             }
 
@@ -1736,11 +1736,11 @@ final class MediaRemoteMusicService:
 
             if process.terminationStatus != 0 {
 
-                print("❌ AppleScript \(label) failed: \(errorText)")
+                debugLog("❌ AppleScript \(label) failed: \(errorText)")
 
                 if errorText.contains("-1743") {
 
-                    print(
+                    debugLog(
                         "⚠️ Automation permission required for:"
                         + " \(app.rawValue) — System Settings →"
                         + " Privacy & Security → Automation"
@@ -1749,7 +1749,7 @@ final class MediaRemoteMusicService:
 
             } else {
 
-                print("✅ Direct music \(label) sent: \(app.rawValue)")
+                debugLog("✅ Direct music \(label) sent: \(app.rawValue)")
             }
         }
     }

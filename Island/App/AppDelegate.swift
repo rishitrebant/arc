@@ -85,6 +85,16 @@ final class AppDelegate:
 
         hotKeys.start()
 
+        // First launch: the island only appears when something happens,
+        // so open Settings once so there's something to see and the
+        // permissions are explained.
+        if !UserDefaults.standard.bool(forKey: "hasCompletedFirstLaunch") {
+
+            UserDefaults.standard.set(true, forKey: "hasCompletedFirstLaunch")
+
+            SettingsWindowController.shared.show()
+        }
+
         musicActivity =
             MusicActivity()
 

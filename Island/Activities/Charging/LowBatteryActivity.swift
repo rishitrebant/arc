@@ -161,7 +161,7 @@ final class LowBatteryActivity: ObservableObject {
 
         if summary != lastLoggedSummary {
             lastLoggedSummary = summary
-            print("🔋 LowBattery — " + summary)
+            debugLog("🔋 LowBattery — " + summary)
         }
         #endif
 

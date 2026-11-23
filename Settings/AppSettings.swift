@@ -193,7 +193,7 @@ enum AppSettings {
                 try SMAppService.mainApp.unregister()
             }
         } catch {
-            print("⚠️ Launch at login change failed: \(error)")
+            debugLog("⚠️ Launch at login change failed: \(error)")
         }
         return launchAtLoginEnabled == enabled
     }

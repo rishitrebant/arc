@@ -122,45 +122,59 @@ This makes the island feel continuous rather than notification-driven.
 
 ## Current state
 
-ARC is currently in **Sprint 1**.
+**Version 1.0.** ARC runs as a regular macOS app (Dock icon, Settings window) and draws the island as a borderless, non-activating window anchored to the notch.
 
-The first implementation establishes the core architecture and the Music experience.
+### Activities
 
-### Implemented
+| Activity | What it does |
+| --- | --- |
+| **Music** | Apple Music and Spotify now playing, playback controls, progress, album-colour accent |
+| **Timer · Stopwatch · Pomodoro** | Run side by side; share the notch with music as one even pill |
+| **Charging · Low battery** | Plug-in moment, "not charging", Low Power Mode shortcut |
+| **Bluetooth audio** | Speakers, headphones and AirPods connecting, with battery where macOS reports it, and a Disconnect button |
+| **Sound output** | A pill when the output device changes (AirPods, AirPlay, display) |
+| **Calendar** | Next meeting countdown, with a Join button for Zoom / Meet / Teams / Webex / FaceTime |
+| **Downloads** | Progress for Safari, Chrome-family and Firefox downloads, with *Go to download* and *Show in Finder* |
+| **Privacy** | Microphone, camera and screen-recording pill |
+| **Caps Lock · Focus** | Status pills |
+| **File shelf · AirDrop** | Drag a file to the notch to park it or send it |
+| **Launcher** | Click the notch: now playing, timers, clipboard history, connected device |
 
-- Native Swift / SwiftUI / AppKit architecture
-- Floating borderless island window
-- Window anchored to the physical notch
-- No Dock icon
-- No normal application window
-- No `⌘Tab` presence
-- Non-activating panel
-- Compact Music activity
-- Expanded Music activity
-- Hover-based expansion and collapse
-- Animated waveform
-- Album-art component
-- Playback controls
-- Playback progress UI
-- Centralized design tokens
-- Centralized animation tokens
-- Activity abstraction
-- Activity priority system
-- Activity ownership management
-- Type-erased activity storage
-- Clean separation between feature logic and rendering
+### Interaction
 
-The current repository deliberately uses a `HardcodedMusicService` so the UI and architecture can be developed without coupling the first sprint to system-level now-playing APIs. 
+- Hover to expand; click the notch (or press `⌃⌥Space`) for the launcher.
+- The island's shadow glows in the current activity's accent colour.
+- Haptic feedback on a Force Touch trackpad.
+- Siri, Spotlight and Shortcuts actions: *Start Island Timer*, *Pomodoro*, *Stopwatch*.
 
-### Current prototype
+### Keyboard shortcuts
 
-The Music activity currently renders a fixed playback state based on the design reference:
+| Shortcut | Action |
+| --- | --- |
+| `⌃⌥Space` | Open / close the launcher |
+| `⌃⌥T` | Start a timer (last length used) |
+| `⌃⌥S` | Start / stop the stopwatch |
+| `⌃⌥P` | Start a 25/5 pomodoro |
 
-**Pepas — Farruko**
+### Permissions
 
-The playback state is intentionally mocked at this stage.
+macOS asks for each of these the first time the feature needs it. Everything works without them except the feature that needs it.
 
-That means the project currently demonstrates the **experience and architecture**, not complete system-wide media detection.
+| Permission | Used for |
+| --- | --- |
+| Bluetooth | Detecting audio devices and reading their battery |
+| Calendars | The meeting countdown |
+| Downloads folder | Download progress |
+| Automation (Music, Spotify) | Playback controls when another app owns Now Playing |
+| Focus status | The Focus pill |
+
+### Known limitations
+
+- Apple's Clock app has no public API on Mac, so timers started there can't be mirrored.
+- Browser downloads can't be paused from outside the browser.
+- macOS reports only *whether* a Focus is on, not which one.
+- Screen-recording detection is best-effort.
+- Battery levels aren't available for every Bluetooth device (classic Bluetooth speakers often don't report one).
 
 ---
 
@@ -394,44 +408,25 @@ That means the rendering layer does not need to know where playback information 
 
 ## Roadmap
 
-ARC is being built incrementally around the activity system.
+ARC is built incrementally around the activity system.
 
-### Now
+### Version 1.0 — shipped
 
-**Music**
-
-- Compact state
-- Expanded state
-- Hover interaction
-- Playback controls
-- Progress UI
-- Activity ownership architecture
+Everything in **Current state** above.
 
 ### Next
 
-**System integrations**
-
-- Real now-playing detection
-- Spotify integration
-- Apple Music integration
-- Incoming calls
-- Active calls
-- Bluetooth device states
-- AirDrop
-- Downloads
-- Focus Mode
+- Volume and brightness HUD
+- Incoming and active calls
+- Customisable keyboard shortcuts
+- Per-activity settings (durations, priorities)
+- Weather and world clock in the launcher
 
 ### Later
 
-Potential activities include:
-
-- Timers
-- Screen recording
-- Battery alerts
-- Navigation
-- Sports scores
-- Flight tracking
-- Food delivery
+- Screen recording controls
+- Navigation, sports scores, flight tracking, food delivery
+- A small API so other apps can show a Live Activity
 
 The goal is not to maximize the number of features.
 
@@ -441,17 +436,10 @@ A feature belongs in ARC only when it naturally behaves like a **Live Activity**
 
 ## Requirements
 
-ARC is currently intended for modern MacBooks with a physical notch.
-
-Development requires:
-
-- macOS 13+
-- Xcode 15+
-- Swift
-- SwiftUI
-- AppKit
-
-The project is currently built as a native macOS application and intentionally avoids web-based UI technologies.
+- A MacBook with a notch (an external display gets a drawn notch if you enable it in Settings)
+- macOS 14 or later
+- Xcode (current release) to build from source
+- Swift, SwiftUI, AppKit — no web technologies, no third-party Swift packages
 
 ---
 
@@ -464,19 +452,17 @@ git clone https://github.com/rishitrebant/arc.git
 cd arc
 ```
 
-Open the Xcode project:
+Open the Xcode project and run:
 
 ```bash
 open Island.xcodeproj
 ```
 
-Then run:
-
 ```text
 ⌘R
 ```
 
-The current sprint uses a hardcoded music state, so no Spotify or Apple Music configuration is required to preview the Music experience.
+On first launch Settings opens once. Play something in Music or Spotify, plug in a charger, or press `⌃⌥Space` to see the island.
 
 ---
 
@@ -532,11 +518,7 @@ The objective is to build the **most believable one**.
 
 ## Status
 
-ARC is an early-stage experimental project and is actively being developed.
-
-The current repository represents the first architectural/product sprint rather than a finished application.
-
-Expect APIs, architecture, UI, and features to evolve as the project moves toward real system integrations.
+ARC **1.0** is the first release. Behaviour that depends on private system features (the media adapter that reads Now Playing) can change with a macOS update.
 
 ---
 

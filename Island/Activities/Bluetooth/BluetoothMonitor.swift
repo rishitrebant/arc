@@ -91,7 +91,7 @@ final class BluetoothMonitor: NSObject {
         guard Bundle.main.object(
             forInfoDictionaryKey: "NSBluetoothAlwaysUsageDescription"
         ) != nil else {
-            print(
+            debugLog(
                 "⚠️ Bluetooth popups are off: add \"Privacy - Bluetooth Always"
                 + " Usage Description\" (NSBluetoothAlwaysUsageDescription)"
                 + " to the Island target's Info settings, then rebuild."
