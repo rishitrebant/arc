@@ -384,7 +384,7 @@ final class AppDelegate:
 
         appMenu.addItem(
             NSMenuItem(
-                title: "Hide Island",
+                title: "Hide ARC",
                 action: #selector(NSApplication.hide(_:)),
                 keyEquivalent: "h"
             )
@@ -394,7 +394,7 @@ final class AppDelegate:
 
         appMenu.addItem(
             NSMenuItem(
-                title: "Quit Island",
+                title: "Quit ARC",
                 action: #selector(NSApplication.terminate(_:)),
                 keyEquivalent: "q"
             )

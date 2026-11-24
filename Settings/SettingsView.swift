@@ -87,7 +87,7 @@ struct GeneralSettingsTab: View {
     var body: some View {
         TabContainer {
             SettingsRow("Startup:") {
-                Toggle("Launch Island at login", isOn: $launchAtLogin)
+                Toggle("Launch ARC at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, wanted in
                         let applied = AppSettings.setLaunchAtLogin(wanted)
                         if !applied { launchAtLogin = AppSettings.launchAtLoginEnabled }
@@ -96,7 +96,7 @@ struct GeneralSettingsTab: View {
 
             SettingsRow(
                 "Menu bar icon:",
-                detail: "By default the icon only appears while an external display is connected. Turn this on to keep it visible on the MacBook screen too. If the icon is hidden, opening Island again from Spotlight or Finder brings up these settings."
+                detail: "By default the icon only appears while an external display is connected. Turn this on to keep it visible on the MacBook screen too. If the icon is hidden, opening ARC again from Spotlight or Finder brings up these settings."
             ) {
                 Toggle("Always show menu bar icon", isOn: $alwaysShowIcon)
                     .onChange(of: alwaysShowIcon) { _, _ in
@@ -120,7 +120,7 @@ struct GeneralSettingsTab: View {
 
             SettingsRow(
                 "Calendar:",
-                detail: "Shows your next meeting in the notch shortly before it starts, with a Join button when it has a video link. Island asks for calendar access the first time."
+                detail: "Shows your next meeting in the notch shortly before it starts, with a Join button when it has a video link. ARC asks for calendar access the first time."
             ) {
                 VStack(alignment: .leading, spacing: 6) {
                     Toggle("Show upcoming meetings", isOn: $showCalendar)
@@ -150,7 +150,7 @@ struct GeneralSettingsTab: View {
 
             SettingsRow(
                 "Focus:",
-                detail: "Briefly shows when a Focus turns on or off. macOS tells apps only whether a Focus is on, not which one. Island asks for permission the first time."
+                detail: "Briefly shows when a Focus turns on or off. macOS tells apps only whether a Focus is on, not which one. ARC asks for permission the first time."
             ) {
                 Toggle("Show when Focus changes", isOn: $showFocus)
             }
@@ -178,7 +178,7 @@ struct GeneralSettingsTab: View {
 
             SettingsRow(
                 "Downloads:",
-                detail: "Shows progress while a file downloads to your Downloads folder (Safari, Chrome and Firefox). Island asks for Downloads folder access the first time."
+                detail: "Shows progress while a file downloads to your Downloads folder (Safari, Chrome and Firefox). ARC asks for Downloads folder access the first time."
             ) {
                 Toggle("Show download progress", isOn: $showDownloads)
             }
@@ -265,8 +265,8 @@ struct DisplaySettingsTab: View {
     var body: some View {
         TabContainer {
             SettingsRow(
-                "Show Island on:",
-                detail: "The built-in display is the default. External monitors have no real notch, so Island draws one there when you opt in."
+                "Show ARC on:",
+                detail: "The built-in display is the default. External monitors have no real notch, so ARC draws one there when you opt in."
             ) {
                 Picker("", selection: $mode) {
                     ForEach(NotchDisplayMode.allCases, id: \.self) { mode in
@@ -437,7 +437,7 @@ struct AboutSettingsTab: View {
             Image(systemName: "macwindow")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(.secondary)
-            Text("Island")
+            Text("ARC")
                 .font(.title.weight(.semibold))
             Text(version)
                 .foregroundStyle(.secondary)

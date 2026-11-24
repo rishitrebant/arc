@@ -94,7 +94,7 @@ final class BluetoothMonitor: NSObject {
             debugLog(
                 "⚠️ Bluetooth popups are off: add \"Privacy - Bluetooth Always"
                 + " Usage Description\" (NSBluetoothAlwaysUsageDescription)"
-                + " to the Island target's Info settings, then rebuild."
+                + " to the app target's Info settings, then rebuild."
             )
             return
         }

@@ -464,6 +464,14 @@ open Island.xcodeproj
 
 On first launch Settings opens once. Play something in Music or Spotify, plug in a charger, or press `⌃⌥Space` to see the island.
 
+### Building a release
+
+```bash
+./scripts/make-dmg.sh
+```
+
+builds ARC in Release and writes `dist/ARC-<version>.dmg`. To produce a build other people can open without Gatekeeper warnings, sign and notarize it with a Developer ID (see the comments at the top of the script).
+
 ---
 
 ## Project philosophy

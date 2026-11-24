@@ -9,7 +9,7 @@ import Foundation
 
 struct StartTimerIntent: AppIntent {
 
-    static let title: LocalizedStringResource = "Start Island Timer"
+    static let title: LocalizedStringResource = "Start ARC Timer"
     static let description = IntentDescription(
         "Starts a countdown timer in the notch."
     )
@@ -35,7 +35,7 @@ struct StartTimerIntent: AppIntent {
 
 struct StartPomodoroIntent: AppIntent {
 
-    static let title: LocalizedStringResource = "Start Island Pomodoro"
+    static let title: LocalizedStringResource = "Start ARC Pomodoro"
     static let description = IntentDescription(
         "Starts a focus session followed by a break, repeating until you cancel."
     )
@@ -70,7 +70,7 @@ struct StartPomodoroIntent: AppIntent {
 
 struct StartStopwatchIntent: AppIntent {
 
-    static let title: LocalizedStringResource = "Start Island Stopwatch"
+    static let title: LocalizedStringResource = "Start ARC Stopwatch"
     static let description = IntentDescription(
         "Starts a stopwatch in the notch."
     )
@@ -93,7 +93,7 @@ struct IslandShortcuts: AppShortcutsProvider {
                 "Start a timer in \(.applicationName)",
                 "Start a \(.applicationName) timer"
             ],
-            shortTitle: "Island Timer",
+            shortTitle: "ARC Timer",
             systemImageName: "timer"
         )
 
@@ -103,7 +103,7 @@ struct IslandShortcuts: AppShortcutsProvider {
                 "Start a pomodoro in \(.applicationName)",
                 "Start focus in \(.applicationName)"
             ],
-            shortTitle: "Island Pomodoro",
+            shortTitle: "ARC Pomodoro",
             systemImageName: "brain.head.profile"
         )
 
@@ -113,7 +113,7 @@ struct IslandShortcuts: AppShortcutsProvider {
                 "Start a stopwatch in \(.applicationName)",
                 "Start the \(.applicationName) stopwatch"
             ],
-            shortTitle: "Island Stopwatch",
+            shortTitle: "ARC Stopwatch",
             systemImageName: "stopwatch"
         )
     }

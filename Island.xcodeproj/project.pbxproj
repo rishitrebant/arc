@@ -63,7 +63,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		000000000000000000100005 /* Island.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Island.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000100005 /* ARC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ARC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		000000000000000000100010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		000000000000000000100012 /* IslandApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandApp.swift; sourceTree = "<group>"; };
 		000000000000000000100014 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -196,7 +196,7 @@
 		000000000000000000100004 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				000000000000000000100005 /* Island.app */,
+				000000000000000000100005 /* ARC.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -448,7 +448,7 @@
 			);
 			name = Island;
 			productName = Island;
-			productReference = 000000000000000000100005 /* Island.app */;
+			productReference = 000000000000000000100005 /* ARC.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -571,14 +571,14 @@
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Island;
+				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Island needs permission to control Apple Music and Spotify for playback controls.";
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Island shows your next meeting in the notch, with a Join button when it has a video link.";
-				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Island shows the progress of files downloading to your Downloads folder.";
-				INFOPLIST_KEY_NSFocusStatusUsageDescription = "Island shows a pill in the notch when your Focus turns on or off.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "ARC needs permission to control Apple Music and Spotify for playback controls.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "ARC shows speakers and headphones in the notch when they connect, with their battery level.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ARC shows your next meeting in the notch, with a Join button when it has a video link.";
+				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "ARC shows the progress of files downloading to your Downloads folder.";
+				INFOPLIST_KEY_NSFocusStatusUsageDescription = "ARC shows a pill in the notch when your Focus turns on or off.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Rishit Rebant. All rights reserved.";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -589,7 +589,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = ARC;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -609,14 +609,14 @@
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Island;
+				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Island needs permission to control Apple Music and Spotify for playback controls.";
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Island shows a popup when a Bluetooth device connects.";
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Island shows your next meeting in the notch, with a Join button when it has a video link.";
-				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Island shows the progress of files downloading to your Downloads folder.";
-				INFOPLIST_KEY_NSFocusStatusUsageDescription = "Island shows a pill in the notch when your Focus turns on or off.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "ARC needs permission to control Apple Music and Spotify for playback controls.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "ARC shows speakers and headphones in the notch when they connect, with their battery level.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ARC shows your next meeting in the notch, with a Join button when it has a video link.";
+				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "ARC shows the progress of files downloading to your Downloads folder.";
+				INFOPLIST_KEY_NSFocusStatusUsageDescription = "ARC shows a pill in the notch when your Focus turns on or off.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Rishit Rebant. All rights reserved.";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -627,7 +627,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = ARC;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

@@ -34,7 +34,7 @@ final class MenuBarController: NSObject {
         if let button = statusItem.button {
             let image = NSImage(
                 systemSymbolName: "macwindow",
-                accessibilityDescription: "Island"
+                accessibilityDescription: "ARC"
             )
             image?.isTemplate = true
             button.image = image
