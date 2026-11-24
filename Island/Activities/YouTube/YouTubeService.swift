@@ -30,6 +30,10 @@ final class MediaRemoteYouTubeService {
     private var process: Process?
     private var isRunning = false
 
+    /// Set by `start()`, cleared by `stop()` — so an adapter that dies on
+    /// its own is restarted, but one we stopped is not.
+    private var shouldRun = false
+
     private var adapterScriptPath: String {
         Bundle.main.path(forResource: "mediaremote-adapter", ofType: "pl") ?? ""
     }
@@ -57,6 +61,8 @@ final class MediaRemoteYouTubeService {
 
     func start() {
 
+        shouldRun = true
+
         guard !isRunning else { return }
 
         guard
@@ -76,6 +82,33 @@ final class MediaRemoteYouTubeService {
         let pipe = Pipe()
         newProcess.standardOutput = pipe
         newProcess.standardError = FileHandle.nullDevice
+
+        // If the adapter exits on its own the stream goes quiet and the
+        // island would never hear about the video again — start it over.
+        newProcess.terminationHandler = { [weak self] finished in
+
+            Task { @MainActor in
+
+                guard
+                    let self,
+                    self.shouldRun,
+                    self.process === finished
+                else {
+                    return
+                }
+
+                debugLog("YouTube: adapter exited, restarting.")
+
+                self.progressTimer?.invalidate()
+                self.progressTimer = nil
+                self.process = nil
+                self.isRunning = false
+
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+
+                if self.shouldRun { self.start() }
+            }
+        }
 
         do {
             try newProcess.run()
@@ -99,6 +132,7 @@ final class MediaRemoteYouTubeService {
 
     func stop() {
 
+        shouldRun = false
         isRunning = false
 
         progressTimer?.invalidate()
@@ -189,7 +223,9 @@ final class MediaRemoteYouTubeService {
         // print infinity — it logs an error and sends the update with the
         // duration LEFT OUT. So "no duration" from a browser means live;
         // a duration that IS present but tiny is a notification chime.
-        let isLive = payload.duration == nil
+        // A live stream can also report a zero duration on a later update,
+        // which must not be mistaken for a chime and drop the video.
+        let isLive = payload.duration == nil || payload.duration == 0
         let duration = max(payload.duration ?? 0, 0)
 
         guard isLive || duration >= Self.minimumDuration else {
@@ -197,8 +233,13 @@ final class MediaRemoteYouTubeService {
             return
         }
 
-        let rate = payload.playbackRate ?? 0
-        let isPlaying = payload.playing ?? (rate > 0.01)
+        // An update that doesn't say whether it's playing keeps the last
+        // known answer — a live stream isn't re-announced, so guessing
+        // "paused" would hide it for good after the linger time.
+        let isPlaying = payload.playing
+            ?? payload.playbackRate.map { $0 > 0.01 }
+            ?? current?.isPlaying
+            ?? false
 
         let reportedElapsed = max(payload.elapsedTimeNow ?? payload.elapsedTime ?? 0, 0)
 

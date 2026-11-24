@@ -14,15 +14,16 @@ final class WindowManager {
 
         IslandWindow.allowsKeyboardFocus = false
 
-        for window in windows.values where window.isKeyWindow {
-
-            window.makeFirstResponder(nil)
-
-            // Ordering out and straight back in drops key status without
-            // a visible change.
-            window.orderOut(nil)
-            window.orderFrontRegardless()
+        guard let keyWindow = windows.values.first(where: { $0.isKeyWindow }) else {
+            return
         }
+
+        keyWindow.makeFirstResponder(nil)
+
+        // Hand key status back to the app in front. (Ordering the window
+        // out and back in does the same, but blanks it for a frame —
+        // visible as the island vanishing and returning.)
+        NSApp.deactivate()
     }
 
     private var localMouseMonitor: Any?

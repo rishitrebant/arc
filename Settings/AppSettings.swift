@@ -32,6 +32,13 @@ enum AppSettings {
         static let expandedTopCorners = "expandedTopCorners"
         static let launcherOpensOnHover = "launcherOpensOnHover"
         static let launcherTrigger = "launcherTrigger"
+        static let showDockIcon = "showDockIcon"
+        static let notchGlowEnabled = "notchGlowEnabled"
+        static let notchGlowColor = "notchGlowColor"
+        static let notchGlowIntensity = "notchGlowIntensity"
+        static let notchGlowOnHover = "notchGlowOnHover"
+        static let hasSeenIntroGlow = "hasSeenIntroGlow"
+        static let openClipboardOnPaste = "openClipboardOnPaste"
         static let hapticsEnabled = "hapticsEnabled"
         static let showAudioOutputChanges = "showAudioOutputChanges"
         static let globalShortcutsEnabled = "globalShortcutsEnabled"
@@ -61,6 +68,12 @@ enum AppSettings {
         static let expandedTopCorners = ExpandedTopCorners.rounded.rawValue
         static let launcherOpensOnHover = false
         static let launcherTrigger = LauncherTrigger.notch.rawValue
+        static let showDockIcon = true
+        static let notchGlowEnabled = false
+        static let notchGlowColor = NotchGlowColor.white.rawValue
+        static let notchGlowIntensity: Double = 1
+        static let notchGlowOnHover = true
+        static let openClipboardOnPaste = false
         static let hapticsEnabled = true
         static let showAudioOutputChanges = true
         static let globalShortcutsEnabled = true
@@ -171,6 +184,20 @@ enum AppSettings {
         LauncherTrigger(
             rawValue: UserDefaults.standard.string(forKey: Key.launcherTrigger) ?? ""
         ) ?? .notch
+    }
+
+    /// Whether ARC shows in the Dock and the app switcher. Off, it keeps
+    /// running from the menu bar.
+    static var showDockIcon: Bool {
+        UserDefaults.standard.object(forKey: Key.showDockIcon) as? Bool
+            ?? Default.showDockIcon
+    }
+
+    /// Open the launcher's clipboard page whenever ⌘V is pressed. Needs
+    /// the Input Monitoring permission, so it's off until asked for.
+    static var openClipboardOnPaste: Bool {
+        UserDefaults.standard.object(forKey: Key.openClipboardOnPaste) as? Bool
+            ?? Default.openClipboardOnPaste
     }
 
     static var hapticsEnabled: Bool {
@@ -284,6 +311,31 @@ enum YouTubeDetection: String, CaseIterable {
         switch self {
         case .youtubeOnly: return "YouTube only"
         case .anyVideo: return "Any video in the browser"
+        }
+    }
+}
+
+/// The colour of the glow around the notch.
+enum NotchGlowColor: String, CaseIterable {
+    case white, blue, purple, pink, green, orange
+
+    /// Drifts through the colours below, one fading into the next.
+    case cycle
+
+    /// What `cycle` steps through.
+    static let cyclePalette: [NotchGlowColor] = [.blue, .purple, .pink, .orange, .green]
+
+    var title: String { self == .cycle ? "Cycle through colours" : rawValue.capitalized }
+
+    var color: Color {
+        switch self {
+        case .white: return Color.white
+        case .blue: return Color(red: 0.25, green: 0.55, blue: 1.0)
+        case .purple: return Color(red: 0.62, green: 0.38, blue: 1.0)
+        case .pink: return Color(red: 1.0, green: 0.38, blue: 0.7)
+        case .green: return Color(red: 0.25, green: 0.9, blue: 0.55)
+        case .orange: return Color(red: 1.0, green: 0.6, blue: 0.2)
+        case .cycle: return NotchGlowColor.blue.color
         }
     }
 }

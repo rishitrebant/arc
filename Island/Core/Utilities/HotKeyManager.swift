@@ -5,6 +5,12 @@ extension Notification.Name {
     /// Opens the launcher if it's closed, closes it if it's open.
     static let islandToggleLauncher = Notification.Name("IslandToggleLauncher")
 
+    /// Plays the notch glow's one-off first-launch fade.
+    static let islandIntroGlow = Notification.Name("IslandIntroGlow")
+
+    /// Opens the launcher on its clipboard page.
+    static let islandOpenClipboard = Notification.Name("IslandOpenClipboard")
+
     /// Starts the stopwatch if it isn't running, stops it if it is.
     static let islandToggleStopwatch = Notification.Name("IslandToggleStopwatch")
 }
@@ -21,11 +27,13 @@ extension Notification.Name {
 /// | ⌃⌥T      | start a timer (the last length you used) |
 /// | ⌃⌥S      | start / stop the stopwatch |
 /// | ⌃⌥P      | start a 25/5 pomodoro |
+/// | ⌥V       | open the clipboard |
 @MainActor
 final class HotKeyManager {
 
     private struct Binding {
         let keyCode: Int
+        var modifiers = HotKeyManager.modifiers
         let action: @MainActor () -> Void
     }
 
@@ -43,6 +51,9 @@ final class HotKeyManager {
         },
         4: Binding(keyCode: kVK_ANSI_P) {
             TimerPreset.startPomodoro(focus: 25 * 60, rest: 5 * 60)
+        },
+        5: Binding(keyCode: kVK_ANSI_V, modifiers: UInt32(optionKey)) {
+            NotificationCenter.default.post(name: .islandOpenClipboard, object: nil)
         }
     ]
 
@@ -83,7 +94,7 @@ final class HotKeyManager {
 
                 let status = RegisterEventHotKey(
                     UInt32(binding.keyCode),
-                    Self.modifiers,
+                    binding.modifiers,
                     EventHotKeyID(signature: Self.signature, id: id),
                     GetApplicationEventTarget(),
                     0,

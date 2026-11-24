@@ -25,6 +25,27 @@ struct IslandRootView: View {
 
     @Namespace private var morphNamespace
 
+    @AppStorage(AppSettings.Key.notchGlowEnabled)
+    private var notchGlowEnabled = AppSettings.Default.notchGlowEnabled
+
+    @AppStorage(AppSettings.Key.notchGlowColor)
+    private var notchGlowColor = AppSettings.Default.notchGlowColor
+
+    @AppStorage(AppSettings.Key.notchGlowIntensity)
+    private var notchGlowIntensity = AppSettings.Default.notchGlowIntensity
+
+    @AppStorage(AppSettings.Key.notchGlowOnHover)
+    private var notchGlowOnHover = AppSettings.Default.notchGlowOnHover
+
+    /// The cursor is resting on the notch.
+    @State private var isCursorOnNotch = false
+
+    /// 0...1 — the one-off glow shown the first time ARC opens.
+    @State private var introGlowLevel: Double = 0
+
+    /// Which colour of the cycle the glow is on.
+    @State private var glowCycleIndex = 0
+
     @State private var isHovering = false
     @State private var isExpanded = false
     @State private var hoverWorkItem: DispatchWorkItem?
@@ -343,6 +364,110 @@ struct IslandRootView: View {
             alignment: .top
         )
         .allowsHitTesting(false)
+    }
+
+    // MARK: - Notch glow
+
+    /// The glow's source shape: exactly this wide and this tall. The glow
+    /// itself spreads outward from it.
+    private static let notchGlowSize = CGSize(width: 176, height: 29)
+
+    /// The colour the glow is right now. Changing it (a new choice in
+    /// Settings, or the next step of the cycle) cross-fades.
+    private var notchGlowTint: Color {
+
+        let choice = NotchGlowColor(rawValue: notchGlowColor) ?? .white
+
+        if choice == .cycle {
+            let palette = NotchGlowColor.cyclePalette
+            return palette[glowCycleIndex % palette.count].color
+        }
+
+        return choice.color
+    }
+
+    /// Whether the glow is lit by the user's setting (as opposed to the
+    /// one-off first-launch glow).
+    private var glowIsOn: Bool {
+        notchGlowEnabled && renderedActivity == nil
+    }
+
+    /// A soft halo around the notch itself, drawn behind a notch-sized
+    /// black shape so it reads as light spilling out from behind it (the
+    /// real notch hides the part behind the screen's edge).
+    private var notchGlow: some View {
+
+        let size = Self.notchGlowSize
+
+        let tint = notchGlowTint
+        let intensity = max(notchGlowIntensity, 0)
+
+        let shape = IslandShape(
+            topRadius: DesignTokens.Shape.compactTopRadius,
+            bottomRadius: DesignTokens.Shape.compactBottomRadius
+        )
+
+        let hoverLit = notchGlowOnHover && isCursorOnNotch && renderedActivity == nil
+
+        let level = max(glowIsOn || hoverLit ? 1 : 0, introGlowLevel)
+
+        return ZStack(alignment: .top) {
+
+            // Wide, faint bloom.
+            shape
+                .fill(tint)
+                .frame(width: size.width, height: size.height)
+                .blur(radius: 18 * (0.6 + 0.4 * intensity))
+                .opacity(min(0.55 * intensity, 1))
+
+            // Tighter, brighter edge.
+            shape
+                .fill(tint)
+                .frame(width: size.width, height: size.height)
+                .blur(radius: 6 * (0.6 + 0.4 * intensity))
+                .opacity(min(0.8 * intensity, 1))
+
+            // The notch itself, over the top.
+            shape
+                .fill(DesignTokens.Color.islandBackground)
+                .frame(width: size.width, height: size.height)
+        }
+        .frame(width: size.width, height: size.height, alignment: .top)
+        .opacity(level)
+        .animation(.easeInOut(duration: 0.6), value: tint)
+        .animation(.easeInOut(duration: 0.4), value: glowIsOn)
+        .animation(.easeInOut(duration: 0.3), value: hoverLit)
+        .allowsHitTesting(false)
+        // Steps the cycle colour on, slowly, only while it can be seen.
+        .task(id: notchGlowColor == NotchGlowColor.cycle.rawValue && (level > 0)) {
+
+            guard notchGlowColor == NotchGlowColor.cycle.rawValue, level > 0 else {
+                return
+            }
+
+            while !Task.isCancelled {
+
+                try? await Task.sleep(nanoseconds: 3_500_000_000)
+
+                if Task.isCancelled { break }
+
+                glowCycleIndex += 1
+            }
+        }
+    }
+
+    /// The first-launch glow: fades in, holds a moment, fades out.
+    private func playIntroGlow() {
+
+        withAnimation(.easeInOut(duration: 1.0)) {
+            introGlowLevel = 1
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+            withAnimation(.easeInOut(duration: 1.6)) {
+                introGlowLevel = 0
+            }
+        }
     }
 
     // MARK: - Side bubbles
@@ -695,6 +820,12 @@ struct IslandRootView: View {
 
 
 
+        // Optional glow around the bare notch — only while nothing else
+        // is on the island (activities bring their own glow).
+        .background(alignment: .top) {
+            notchGlow
+        }
+
         // ---------------------------------------------------------
         // EXISTING HOVER
         // ---------------------------------------------------------
@@ -719,9 +850,13 @@ struct IslandRootView: View {
                     ? .leading
                     : .trailing
 
+                isCursorOnNotch = isOnNotch(point)
+
                 updateNotchHover(at: point)
 
             case .ended:
+
+                isCursorOnNotch = false
 
                 cancelNotchHover()
             }
@@ -848,6 +983,14 @@ struct IslandRootView: View {
                     "expanded": expanded
                 ]
             )
+        }
+
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .islandIntroGlow
+            )
+        ) { _ in
+            playIntroGlow()
         }
 
         .onReceive(
@@ -1040,45 +1183,67 @@ struct IslandRootView: View {
             // Only AFTER the animation completes do we remove it.
             // ---------------------------------------------------------
 
-            isPresentationVisible =
-                false
-
-            let workItem =
+            // A short grace period first: when one activity hands the
+            // island straight to another (the launcher closing as a
+            // timer starts), the owner is briefly nil in between.
+            // Shrinking into the notch for that gap, then growing back
+            // out, is the glitch — so only start the exit if nobody
+            // takes over. A new owner cancels this and morphs instead.
+            let exit =
                 DispatchWorkItem { [self] in
 
-                    // Only remove the rendered activity if there still
-                    // isn't a new owner waiting for the island.
-
-                    guard
-                        activityManager
-                            .ownedActivity
-                        == nil
-                    else {
+                    guard activityManager.ownedActivity == nil else {
                         return
                     }
 
-                    renderedActivity =
-                        nil
+                    isPresentationVisible =
+                        false
 
-                    // Nothing left to be expanded — otherwise the hover
-                    // region stays expanded-sized around an empty notch.
-                    hoverWorkItem?.cancel()
-                    hoverWorkItem = nil
-                    isHovering = false
-                    isPrimed = false
-                    isExpanded = false
+                    let workItem =
+                        DispatchWorkItem { [self] in
+
+                            // Only remove the rendered activity if there
+                            // still isn't a new owner waiting.
+                            guard
+                                activityManager
+                                    .ownedActivity
+                                == nil
+                            else {
+                                return
+                            }
+
+                            renderedActivity =
+                                nil
+
+                            // Nothing left to be expanded — otherwise the
+                            // hover region stays expanded-sized around an
+                            // empty notch.
+                            hoverWorkItem?.cancel()
+                            hoverWorkItem = nil
+                            isHovering = false
+                            isPrimed = false
+                            isExpanded = false
+                        }
+
+                    presentationWorkItem =
+                        workItem
+
+                    DispatchQueue.main.asyncAfter(
+                        deadline:
+                            .now()
+                            + presentationAnimationDuration,
+
+                        execute:
+                            workItem
+                    )
                 }
 
             presentationWorkItem =
-                workItem
+                exit
 
             DispatchQueue.main.asyncAfter(
-                deadline:
-                    .now()
-                    + presentationAnimationDuration,
-
-                execute:
-                    workItem
+                deadline: .now() + 0.12,
+                execute: exit
             )
 
             return
@@ -1110,18 +1275,31 @@ struct IslandRootView: View {
                 ? newActivity.expandedSize
                 : newActivity.compactSize
 
-            handoverBackdropSize = oldSize
-            backdropFloor = CGSize(
-                width: min(oldSize.width, newSize.width),
-                height: min(oldSize.height, newSize.height)
-            )
-            showHandoverBackdrop = true
+            // Plant the surface at the OLD size first, with no animation
+            // and a frame of its own. Setting it and springing it to the
+            // new size in one go makes SwiftUI animate from the last
+            // RENDERED size instead — the surface would start at the
+            // smaller of the two and the old card would just vanish.
+            var instant = Transaction()
+            instant.disablesAnimations = true
 
-            withAnimation(AnimationTokens.handover(from: oldSize, to: newSize)) {
+            withTransaction(instant) {
+                handoverBackdropSize = oldSize
+                backdropFloor = CGSize(
+                    width: min(oldSize.width, newSize.width),
+                    height: min(oldSize.height, newSize.height)
+                )
+                showHandoverBackdrop = true
+            }
 
-                renderedActivity = newActivity
+            DispatchQueue.main.async {
 
-                handoverBackdropSize = newSize
+                withAnimation(AnimationTokens.handover(from: oldSize, to: newSize)) {
+
+                    renderedActivity = newActivity
+
+                    handoverBackdropSize = newSize
+                }
             }
 
             let work = DispatchWorkItem {

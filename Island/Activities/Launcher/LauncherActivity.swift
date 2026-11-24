@@ -122,6 +122,14 @@ final class LauncherActivity: ObservableObject {
             }
         })
 
+        observers.append(Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: .islandOpenClipboard
+            ) {
+                self?.showClipboard()
+            }
+        })
+
         // Click anywhere else on screen.
         observers.append(Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(
@@ -161,6 +169,17 @@ final class LauncherActivity: ObservableObject {
 
         setActive(true)
         startHoverWatch()
+    }
+
+    /// Opens the launcher straight onto the clipboard page (or switches
+    /// to it if the launcher is already up).
+    private func showClipboard() {
+
+        guard AppSettings.launcherTrigger != .off else { return }
+
+        if !isActive { show() }
+
+        page = .clipboard
     }
 
     func hide() {

@@ -32,15 +32,73 @@ final class MenuBarController: NSObject {
         super.init()
 
         if let button = statusItem.button {
-            let image = NSImage(
-                systemSymbolName: "macwindow",
-                accessibilityDescription: "ARC"
-            )
-            image?.isTemplate = true
-            button.image = image
+            button.image = Self.makeIcon()
         }
 
         statusItem.menu = buildMenu()
+    }
+
+    /// A screen with a notch hanging from its top edge — what ARC is. Drawn
+    /// as a template image, so macOS tints it for light and dark menu bars.
+    private static func makeIcon() -> NSImage {
+
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+
+            context.setStrokeColor(NSColor.black.cgColor)
+            context.setFillColor(NSColor.black.cgColor)
+
+            // Screen outline.
+            context.setLineWidth(1.3)
+            context.addPath(
+                CGPath(
+                    roundedRect: CGRect(x: 1.8, y: 3.8, width: 14.4, height: 10.4),
+                    cornerWidth: 2.4,
+                    cornerHeight: 2.4,
+                    transform: nil
+                )
+            )
+            context.strokePath()
+
+            // The notch: flat top, flared top corners, rounded bottom.
+            let left: CGFloat = 6.2, right: CGFloat = 11.8
+            let top: CGFloat = 3.6, bottom: CGFloat = 7.6
+            let flare: CGFloat = 1.0, radius: CGFloat = 1.2
+
+            let notch = CGMutablePath()
+            notch.move(to: CGPoint(x: left - flare, y: top))
+            notch.addQuadCurve(
+                to: CGPoint(x: left, y: top + flare),
+                control: CGPoint(x: left, y: top)
+            )
+            notch.addLine(to: CGPoint(x: left, y: bottom - radius))
+            notch.addQuadCurve(
+                to: CGPoint(x: left + radius, y: bottom),
+                control: CGPoint(x: left, y: bottom)
+            )
+            notch.addLine(to: CGPoint(x: right - radius, y: bottom))
+            notch.addQuadCurve(
+                to: CGPoint(x: right, y: bottom - radius),
+                control: CGPoint(x: right, y: bottom)
+            )
+            notch.addLine(to: CGPoint(x: right, y: top + flare))
+            notch.addQuadCurve(
+                to: CGPoint(x: right + flare, y: top),
+                control: CGPoint(x: right, y: top)
+            )
+            notch.closeSubpath()
+
+            context.addPath(notch)
+            context.fillPath()
+
+            return true
+        }
+
+        image.isTemplate = true
+        image.accessibilityDescription = "ARC"
+
+        return image
     }
 
     private func buildMenu() -> NSMenu {

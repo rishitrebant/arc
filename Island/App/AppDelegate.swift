@@ -55,6 +55,12 @@ final class AppDelegate:
     private let hotKeys =
         HotKeyManager()
 
+    private let pasteMonitor =
+        PasteMonitor()
+
+    private var dockObserver:
+        Task<Void, Never>?
+
     private var privacyActivity:
         PrivacyActivity!
 
@@ -80,13 +86,21 @@ final class AppDelegate:
         // clicking its Dock icon opens Settings (see
         // `applicationShouldHandleReopen`). The island itself is still
         // a borderless overlay window, unaffected by this.
-        NSApp.setActivationPolicy(
-            .regular
-        )
+        applyDockPreference()
+
+        // Follow the "Show ARC in the Dock" setting live.
+        dockObserver = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: UserDefaults.didChangeNotification
+            ) {
+                self?.applyDockPreference()
+            }
+        }
 
         installMainMenu()
 
         hotKeys.start()
+        pasteMonitor.start()
 
         // First launch: the island only appears when something happens,
         // so open Settings once so there's something to see and the
@@ -359,9 +373,35 @@ final class AppDelegate:
             }
 
         reconcileIslands()
+
+        // First time ARC opens: the notch glows once, fading in and out.
+        if !UserDefaults.standard.bool(forKey: AppSettings.Key.hasSeenIntroGlow) {
+
+            UserDefaults.standard.set(true, forKey: AppSettings.Key.hasSeenIntroGlow)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                NotificationCenter.default.post(name: .islandIntroGlow, object: nil)
+            }
+        }
     }
 
     // MARK: - Dock
+
+    /// Shows or hides the Dock icon per Settings. Hidden, ARC is an
+    /// accessory app: still running, reachable from the menu bar icon.
+    private func applyDockPreference() {
+
+        let policy: NSApplication.ActivationPolicy =
+            AppSettings.showDockIcon ? .regular : .accessory
+
+        guard NSApp.activationPolicy() != policy else { return }
+
+        NSApp.setActivationPolicy(policy)
+
+        // Changing policy deactivates the app; bring the Settings window
+        // (where the switch was flipped) back to the front.
+        NSApp.activate(ignoringOtherApps: true)
+    }
 
     /// Clicking the Dock icon (or relaunching from Finder/Spotlight)
     /// opens Settings.

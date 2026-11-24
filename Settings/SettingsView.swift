@@ -68,6 +68,10 @@ struct GeneralSettingsTab: View {
     private var launcherOnHover = AppSettings.Default.launcherOpensOnHover
     @AppStorage(AppSettings.Key.launcherTrigger)
     private var launcherTrigger = AppSettings.Default.launcherTrigger
+    @AppStorage(AppSettings.Key.showDockIcon)
+    private var showDockIcon = AppSettings.Default.showDockIcon
+    @AppStorage(AppSettings.Key.openClipboardOnPaste)
+    private var clipboardOnPaste = AppSettings.Default.openClipboardOnPaste
     @AppStorage(AppSettings.Key.globalShortcutsEnabled)
     private var shortcuts = AppSettings.Default.globalShortcutsEnabled
 
@@ -84,6 +88,15 @@ struct GeneralSettingsTab: View {
                     let applied = AppSettings.setLaunchAtLogin(wanted)
                     if !applied { launchAtLogin = AppSettings.launchAtLoginEnabled }
                 }
+            }
+
+            Section("Dock") {
+
+                SettingToggle(
+                    title: "Show ARC in the Dock",
+                    detail: "Turn this off and ARC keeps running from the menu bar, with no Dock icon. Open these settings from the menu bar icon.",
+                    isOn: $showDockIcon
+                )
             }
 
             Section("Menu bar") {
@@ -119,6 +132,31 @@ struct GeneralSettingsTab: View {
                 .disabled(launcherTrigger == LauncherTrigger.off.rawValue)
 
                 SettingToggle(
+                    title: "Open the clipboard when I paste",
+                    detail: "Pressing ⌘V also opens the clipboard in the launcher. macOS asks for Input Monitoring permission the first time — ARC only watches for ⌘V, and you may need to reopen ARC after allowing it. ⌥V opens the clipboard without it.",
+                    isOn: $clipboardOnPaste
+                )
+                .disabled(launcherTrigger == LauncherTrigger.off.rawValue)
+
+                if clipboardOnPaste, !PasteMonitor.hasAccess {
+
+                    HStack {
+
+                        Text("ARC doesn't have Input Monitoring access yet, so ⌘V can't be seen.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Button("Open Settings…") {
+                            NSWorkspace.shared.open(
+                                URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!
+                            )
+                        }
+                    }
+                }
+
+                SettingToggle(
                     title: "Haptic feedback",
                     detail: "A subtle trackpad tap when the island opens, a new activity appears, or you press a button.",
                     isOn: $haptics
@@ -126,7 +164,7 @@ struct GeneralSettingsTab: View {
 
                 SettingToggle(
                     title: "Global keyboard shortcuts",
-                    detail: "⌃⌥Space opens the launcher  ·  ⌃⌥T starts your last timer  ·  ⌃⌥S starts or stops the stopwatch  ·  ⌃⌥P starts a pomodoro.",
+                    detail: "⌃⌥Space opens the launcher  ·  ⌃⌥T starts your last timer  ·  ⌃⌥S starts or stops the stopwatch  ·  ⌃⌥P starts a pomodoro  ·  ⌥V opens the clipboard.",
                     isOn: $shortcuts
                 )
             }
@@ -141,6 +179,14 @@ struct DisplaySettingsTab: View {
     @State private var mode = NotchDisplayMode.current
     @AppStorage(AppSettings.Key.expandedTopCorners)
     private var topCorners = AppSettings.Default.expandedTopCorners
+    @AppStorage(AppSettings.Key.notchGlowEnabled)
+    private var glowEnabled = AppSettings.Default.notchGlowEnabled
+    @AppStorage(AppSettings.Key.notchGlowColor)
+    private var glowColor = AppSettings.Default.notchGlowColor
+    @AppStorage(AppSettings.Key.notchGlowIntensity)
+    private var glowIntensity = AppSettings.Default.notchGlowIntensity
+    @AppStorage(AppSettings.Key.notchGlowOnHover)
+    private var glowOnHover = AppSettings.Default.notchGlowOnHover
 
     var body: some View {
         SettingsPage {
@@ -175,6 +221,33 @@ struct DisplaySettingsTab: View {
                         detail: "Rounded keeps the open island a floating card. Blended makes its top edge flat and sweeps it into the top of the screen, the way the compact pill meets the notch. Applies the next time the island opens."
                     )
                 }
+            }
+
+            Section("Notch glow") {
+
+                SettingToggle(
+                    title: "Glow around the notch",
+                    detail: "A soft glow around the notch while nothing else is on the island.",
+                    isOn: $glowEnabled
+                )
+
+                SettingToggle(
+                    title: "Glow when I hover over the notch",
+                    detail: "The notch lights up while the cursor is on it, even with the glow above turned off.",
+                    isOn: $glowOnHover
+                )
+
+                Picker("Glow colour", selection: $glowColor) {
+                    ForEach(NotchGlowColor.allCases, id: \.rawValue) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+                .disabled(!glowEnabled && !glowOnHover)
+
+                Slider(value: $glowIntensity, in: 0.2...2) {
+                    Text("Glow intensity")
+                }
+                .disabled(!glowEnabled && !glowOnHover)
             }
         }
     }
