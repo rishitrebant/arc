@@ -31,6 +31,7 @@ enum AppSettings {
         static let youtubeDetection = "youtubeDetection"
         static let expandedTopCorners = "expandedTopCorners"
         static let launcherOpensOnHover = "launcherOpensOnHover"
+        static let launcherTrigger = "launcherTrigger"
         static let hapticsEnabled = "hapticsEnabled"
         static let showAudioOutputChanges = "showAudioOutputChanges"
         static let globalShortcutsEnabled = "globalShortcutsEnabled"
@@ -59,6 +60,7 @@ enum AppSettings {
         static let youtubeDetection = YouTubeDetection.youtubeOnly.rawValue
         static let expandedTopCorners = ExpandedTopCorners.rounded.rawValue
         static let launcherOpensOnHover = false
+        static let launcherTrigger = LauncherTrigger.notch.rawValue
         static let hapticsEnabled = true
         static let showAudioOutputChanges = true
         static let globalShortcutsEnabled = true
@@ -162,6 +164,13 @@ enum AppSettings {
     static var launcherOpensOnHover: Bool {
         UserDefaults.standard.object(forKey: Key.launcherOpensOnHover) as? Bool
             ?? Default.launcherOpensOnHover
+    }
+
+    /// Where a click opens the launcher (or whether it opens at all).
+    static var launcherTrigger: LauncherTrigger {
+        LauncherTrigger(
+            rawValue: UserDefaults.standard.string(forKey: Key.launcherTrigger) ?? ""
+        ) ?? .notch
     }
 
     static var hapticsEnabled: Bool {
@@ -275,6 +284,27 @@ enum YouTubeDetection: String, CaseIterable {
         switch self {
         case .youtubeOnly: return "YouTube only"
         case .anyVideo: return "Any video in the browser"
+        }
+    }
+}
+
+/// Where the launcher can be opened from.
+enum LauncherTrigger: String, CaseIterable {
+
+    /// Anywhere on the notch.
+    case notch
+
+    /// Only the very top edge of the screen, near the center.
+    case topEdge
+
+    /// Never — the launcher menu is turned off, shortcut included.
+    case off
+
+    var title: String {
+        switch self {
+        case .notch: return "Click the notch"
+        case .topEdge: return "Click the top edge only"
+        case .off: return "Off"
         }
     }
 }

@@ -568,6 +568,10 @@ enum DesignTokens {
         static let bottomPadding: CGFloat = 16
         static let sectionSpacing: CGFloat = 12
 
+        /// The home page with no Bluetooth device row (its height plus
+        /// the spacing above it).
+        static let heightWithoutDevice: CGFloat = height - sectionSpacing - deviceCardHeight
+
         static let artSize: CGFloat = 48
         static let artCornerRadius: CGFloat = 11
         static let transportButtonSize: CGFloat = 40

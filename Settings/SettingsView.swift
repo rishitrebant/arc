@@ -66,6 +66,8 @@ struct GeneralSettingsTab: View {
     private var haptics = AppSettings.Default.hapticsEnabled
     @AppStorage(AppSettings.Key.launcherOpensOnHover)
     private var launcherOnHover = AppSettings.Default.launcherOpensOnHover
+    @AppStorage(AppSettings.Key.launcherTrigger)
+    private var launcherTrigger = AppSettings.Default.launcherTrigger
     @AppStorage(AppSettings.Key.globalShortcutsEnabled)
     private var shortcuts = AppSettings.Default.globalShortcutsEnabled
 
@@ -98,11 +100,23 @@ struct GeneralSettingsTab: View {
 
             Section("Interaction") {
 
+                Picker(selection: $launcherTrigger) {
+                    ForEach(LauncherTrigger.allCases, id: \.rawValue) { trigger in
+                        Text(trigger.title).tag(trigger.rawValue)
+                    }
+                } label: {
+                    SettingLabel(
+                        title: "Open the launcher by",
+                        detail: "Click the notch, or only the very top edge of the screen near the center — so a click on the notch never opens it by accident. Off turns the launcher menu off completely, including ⌃⌥Space."
+                    )
+                }
+
                 SettingToggle(
                     title: "Open the launcher when I hover over the notch",
-                    detail: "Rest the cursor on the notch and the launcher opens by itself — no click. Clicking the notch (or ⌃⌥Space) still works either way.",
+                    detail: "Rest the cursor on the notch (or the top edge, if that's selected above) and the launcher opens by itself — no click.",
                     isOn: $launcherOnHover
                 )
+                .disabled(launcherTrigger == LauncherTrigger.off.rawValue)
 
                 SettingToggle(
                     title: "Haptic feedback",

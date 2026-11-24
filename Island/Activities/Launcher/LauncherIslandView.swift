@@ -73,6 +73,7 @@ struct LauncherIslandView: View {
             alignment: .topLeading
         )
         .animation(.easeInOut(duration: 0.2), value: activity.page)
+        .animation(.easeInOut(duration: 0.2), value: bluetooth.connected.isEmpty)
     }
 
     // MARK: - Home

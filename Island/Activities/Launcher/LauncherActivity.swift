@@ -142,6 +142,9 @@ final class LauncherActivity: ObservableObject {
 
     private func show() {
 
+        // Turned off in Settings — this covers the shortcut and hover too.
+        guard AppSettings.launcherTrigger != .off else { return }
+
         page = .home
         timerMinutes = AppSettings.lastTimerMinutes
 
@@ -261,9 +264,16 @@ final class LauncherActivity: ObservableObject {
     /// One fixed panel — hovering doesn't change it, so the hit region
     /// is exactly the panel.
     var compactSize: CGSize {
-        CGSize(
+
+        // The home page has a Bluetooth row at the bottom only while a
+        // device is connected; without one, don't leave its space empty.
+        let hasDevice = !bluetooth.connected.isEmpty
+
+        return CGSize(
             width: DesignTokens.LauncherMetrics.width,
-            height: DesignTokens.LauncherMetrics.height
+            height: page == .home && !hasDevice
+                ? DesignTokens.LauncherMetrics.heightWithoutDevice
+                : DesignTokens.LauncherMetrics.height
         )
     }
 

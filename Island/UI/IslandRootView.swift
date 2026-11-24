@@ -1385,6 +1385,26 @@ struct IslandRootView: View {
             && point.y <= NotchGeometry.targetHeight
     }
 
+    /// How far down from the top of the screen counts as "the very top
+    /// edge" for the top-edge-only launcher trigger.
+    private static let topEdgeHeight: CGFloat = 6
+
+    /// The centered strip along the top of the screen.
+    private func isOnTopEdge(_ point: CGPoint) -> Bool {
+        isOnNotch(point) && point.y <= Self.topEdgeHeight
+    }
+
+    /// Whether `point` is somewhere the launcher may be opened from, per
+    /// the "Open the launcher by" setting.
+    private func isOnLauncherTrigger(_ point: CGPoint) -> Bool {
+
+        switch AppSettings.launcherTrigger {
+        case .notch: return isOnNotch(point)
+        case .topEdge: return isOnTopEdge(point)
+        case .off: return false
+        }
+    }
+
     /// With "open the launcher on hover" on, resting the cursor on the
     /// notch for a moment opens it. Off, this does nothing.
     private func updateNotchHover(at point: CGPoint) {
@@ -1392,7 +1412,7 @@ struct IslandRootView: View {
         guard
             AppSettings.launcherOpensOnHover,
             !isDocked,
-            isOnNotch(point)
+            isOnLauncherTrigger(point)
         else {
             cancelNotchHover()
             return
@@ -1449,11 +1469,18 @@ struct IslandRootView: View {
             return
         }
 
-        // Same target as hovering — measured notch plus margin.
-        let isOnNotch = self.isOnNotch(point)
+        // Whether this click opens the launcher, per the "Open the
+        // launcher by" setting. By default that's the notch (measured
+        // notch plus margin), or any click on an empty island.
+        let opensLauncher: Bool
 
-        // Nothing on the island, or the click is on the notch.
-        if renderedActivity == nil || isOnNotch {
+        switch AppSettings.launcherTrigger {
+        case .notch: opensLauncher = renderedActivity == nil || isOnNotch(point)
+        case .topEdge: opensLauncher = isOnTopEdge(point)
+        case .off: opensLauncher = false
+        }
+
+        if opensLauncher {
 
             NotificationCenter.default.post(
                 name: .islandToggleLauncher,
@@ -1462,6 +1489,9 @@ struct IslandRootView: View {
 
             return
         }
+
+        // Nothing on the island and not a launcher click: nothing to do.
+        if renderedActivity == nil { return }
 
         // A tap on the compact island bypasses the hover delay.
         if !isExpanded {
