@@ -176,7 +176,12 @@ final class YouTubeActivity: ObservableObject {
     }
 
     func skipBack() {
-        service.skip(by: -Self.skipSeconds)
+
+        if video?.isLive == true {
+            service.rewindLive()
+        } else {
+            service.skip(by: -Self.skipSeconds)
+        }
     }
 
     func skipForward() {

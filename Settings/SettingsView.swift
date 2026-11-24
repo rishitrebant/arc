@@ -64,6 +64,8 @@ struct GeneralSettingsTab: View {
     private var alwaysShowIcon = AppSettings.Default.alwaysShowMenuBarIcon
     @AppStorage(AppSettings.Key.hapticsEnabled)
     private var haptics = AppSettings.Default.hapticsEnabled
+    @AppStorage(AppSettings.Key.launcherOpensOnHover)
+    private var launcherOnHover = AppSettings.Default.launcherOpensOnHover
     @AppStorage(AppSettings.Key.globalShortcutsEnabled)
     private var shortcuts = AppSettings.Default.globalShortcutsEnabled
 
@@ -95,6 +97,12 @@ struct GeneralSettingsTab: View {
             }
 
             Section("Interaction") {
+
+                SettingToggle(
+                    title: "Open the launcher when I hover over the notch",
+                    detail: "Rest the cursor on the notch and the launcher opens by itself — no click. Clicking the notch (or ⌃⌥Space) still works either way.",
+                    isOn: $launcherOnHover
+                )
 
                 SettingToggle(
                     title: "Haptic feedback",

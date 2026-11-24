@@ -105,6 +105,11 @@ struct IslandRootView: View {
     /// no animation context and just pops).
     @State private var showsSplitContent = false
 
+    /// Hover-to-open launcher: the cursor is resting on the notch, and a
+    /// short dwell is running (so brushing past it doesn't open anything).
+    @State private var isPointerOnNotch = false
+    @State private var notchHoverWork: DispatchWorkItem?
+
     /// The notch ears are drawn for the FINAL size the instant it
     /// changes, while the pill itself is still animating toward it — so
     /// they're held back until the size has settled.
@@ -703,13 +708,22 @@ struct IslandRootView: View {
         // — whether to expand at all is `WindowManager`'s call below.
         .onContinuousHover { phase in
 
-            if case .active(let point) = phase {
+            switch phase {
+
+            case .active(let point):
+
                 hoverSide = point.x < max(
                     DesignTokens.sharedCanvasSize.width,
                     visibleSize.width
                 ) / 2
                     ? .leading
                     : .trailing
+
+                updateNotchHover(at: point)
+
+            case .ended:
+
+                cancelNotchHover()
             }
         }
 
@@ -1355,6 +1369,70 @@ struct IslandRootView: View {
         )
     }
 
+    // MARK: - Hover the notch → launcher
+
+    /// Whether `point` (in the island's own coordinates) is on the notch.
+    private func isOnNotch(_ point: CGPoint) -> Bool {
+
+        let frameWidth = max(
+            DesignTokens.sharedCanvasSize.width,
+            visibleSize.width
+        )
+
+        // The measured notch, plus a generous margin: the cursor slips
+        // behind the notch, so a target exactly its size is hard to hit.
+        return abs(point.x - frameWidth / 2) <= NotchGeometry.targetHalfWidth
+            && point.y <= NotchGeometry.targetHeight
+    }
+
+    /// With "open the launcher on hover" on, resting the cursor on the
+    /// notch for a moment opens it. Off, this does nothing.
+    private func updateNotchHover(at point: CGPoint) {
+
+        guard
+            AppSettings.launcherOpensOnHover,
+            !isDocked,
+            isOnNotch(point)
+        else {
+            cancelNotchHover()
+            return
+        }
+
+        guard !isPointerOnNotch else { return }
+
+        isPointerOnNotch = true
+
+        // Already the launcher: nothing to open.
+        guard activityManager.ownedActivity?.kind != .launcher else { return }
+
+        let work = DispatchWorkItem {
+
+            // The launcher takes the island: drop any pending "expand".
+            hoverWorkItem?.cancel()
+            hoverWorkItem = nil
+
+            NotificationCenter.default.post(
+                name: .islandOpenLauncher,
+                object: nil
+            )
+        }
+
+        notchHoverWork = work
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 0.25,
+            execute: work
+        )
+    }
+
+    private func cancelNotchHover() {
+
+        isPointerOnNotch = false
+
+        notchHoverWork?.cancel()
+        notchHoverWork = nil
+    }
+
     // MARK: - Tap
 
     /// A click on the notch itself — the middle of the island, where the
@@ -1371,15 +1449,8 @@ struct IslandRootView: View {
             return
         }
 
-        let frameWidth = max(
-            DesignTokens.sharedCanvasSize.width,
-            visibleSize.width
-        )
-
-        let isOnNotch =
-            abs(point.x - frameWidth / 2)
-                <= DesignTokens.FileDropMetrics.notchWidth / 2
-            && point.y <= DesignTokens.FileDropMetrics.notchKeepClearHeight
+        // Same target as hovering — measured notch plus margin.
+        let isOnNotch = self.isOnNotch(point)
 
         // Nothing on the island, or the click is on the notch.
         if renderedActivity == nil || isOnNotch {

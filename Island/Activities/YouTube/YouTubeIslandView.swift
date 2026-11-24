@@ -67,6 +67,10 @@ struct YouTubeCompactIconView: View {
 ///   - compact: logo / thumbnail on the left, waveform on the right
 ///   - expanded: thumbnail, title, channel, progress, and the controls —
 ///     back 5 s, play / pause, forward 5 s — plus the output picker.
+///
+/// A LIVE stream has no timeline: the progress bar and the forward button
+/// are dropped, "back" becomes a 15-second rewind, a small LIVE tag sits
+/// beside the channel name, and the transport row moves up.
 struct YouTubeIslandView: View {
 
     @ObservedObject var activity: YouTubeActivity
@@ -78,9 +82,33 @@ struct YouTubeIslandView: View {
 
     private var video: WebVideoState? { activity.video }
 
+    private var isLive: Bool { video?.isLive == true }
+
     private var compactSize: CGSize { activity.compactSize }
 
     private var expandedSize: CGSize { activity.expandedSize }
+
+    // Geometry. A recorded video has a progress bar between the header and
+    // the transport row. A live stream doesn't, so its header grows (a
+    // bigger thumbnail) and the two blocks are centred in the card —
+    // otherwise there's a dead band where the bar would be.
+
+    private var thumbnailSize: CGSize {
+        isLive ? CGSize(width: 112, height: 63) : CGSize(width: 96, height: 54)
+    }
+
+    private var headerCenterY: CGFloat { isLive ? 84 : 67 }
+
+    private var transportY: CGFloat { isLive ? 156 : 164 }
+
+    private var titleX: CGFloat {
+        24 + thumbnailSize.width + 14
+    }
+
+    private var titleWidth: CGFloat {
+        // Up to the top-right slot (waveform, or LIVE on a live stream).
+        (isLive ? 326 : 330) - titleX
+    }
 
     var body: some View {
 
@@ -120,6 +148,28 @@ struct YouTubeIslandView: View {
     // thumbnail at the left, waveform at the top right, the progress bar
     // under them, the transport row at the bottom.
 
+    /// The red "LIVE" tag — in the top-right slot, where the waveform sits
+    /// on a recorded video.
+    private var liveTag: some View {
+
+        HStack(spacing: 5) {
+
+            Circle()
+                .fill(DesignTokens.Color.youtubeRed)
+                .frame(width: 7, height: 7)
+
+            Text("LIVE")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(0.6)
+                .foregroundStyle(DesignTokens.Color.primaryText)
+        }
+        .padding(.horizontal, 9)
+        .frame(height: 22)
+        .background(
+            Capsule().fill(DesignTokens.Color.youtubeRed.opacity(0.3))
+        )
+    }
+
     private var expandedPanel: some View {
 
         ZStack(alignment: .topLeading) {
@@ -135,9 +185,12 @@ struct YouTubeIslandView: View {
                         .overlay { YouTubeLogoMark(height: 20) }
                 }
             }
-            .frame(width: 96, height: 54)
+            .frame(width: thumbnailSize.width, height: thumbnailSize.height)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .position(x: 24 + 48, y: 40 + 27)
+            .position(
+                x: 24 + thumbnailSize.width / 2,
+                y: headerCenterY
+            )
 
             // Title and channel.
             VStack(alignment: .leading, spacing: 3) {
@@ -154,33 +207,49 @@ struct YouTubeIslandView: View {
                     .foregroundStyle(DesignTokens.Color.secondaryText)
                     .lineLimit(1)
             }
-            .frame(width: 198, alignment: .leading)
-            .position(x: 132 + 99, y: 40 + 27)
+            .frame(width: titleWidth, alignment: .leading)
+            .position(x: titleX + titleWidth / 2, y: headerCenterY)
 
-            // Waveform, top right — as in Music.
-            LiveWaveform(
-                isPlaying: video?.isPlaying ?? false,
-                color: DesignTokens.Color.youtubeRed
+            // Top right: the waveform — or, on a live stream, LIVE.
+            Group {
+                if isLive {
+                    liveTag
+                } else {
+                    LiveWaveform(
+                        isPlaying: video?.isPlaying ?? false,
+                        color: DesignTokens.Color.youtubeRed
+                    )
+                    .frame(width: 25.57, height: 24)
+                }
+            }
+            .position(
+                x: isLive ? expandedSize.width - 24 - 28 : 338.85 + 25.57 / 2,
+                y: isLive ? headerCenterY - thumbnailSize.height / 2 + 11 : 40 + 12
             )
-            .frame(width: 25.57, height: 24)
-            .position(x: 338.85 + 25.57 / 2, y: 40 + 12)
 
-            // Progress.
-            ProgressBar(
-                elapsed: video?.elapsed ?? 0,
-                duration: video?.duration ?? 0
-            )
-            .position(x: expandedSize.width / 2, y: 118)
+            // Progress. A live stream has no timeline to show.
+            if !isLive {
+                ProgressBar(
+                    elapsed: video?.elapsed ?? 0,
+                    duration: video?.duration ?? 0
+                )
+                .position(x: expandedSize.width / 2, y: 118)
+            }
 
-            // Transport: back 5s · play/pause · forward 5s.
+            // Transport. On a live stream "back" is 15 s (a relative
+            // rewind — there's no position to seek from) and there is no
+            // forward.
             PlaybackButton(
-                systemName: "gobackward.5",
+                systemName: isLive ? "gobackward.15" : "gobackward.5",
                 action: { activity.skipBack() },
                 size: 24,
                 buttonSize: 44
             )
-            .position(x: expandedSize.width / 2 - Metrics.playbackButtonSpacingExpanded, y: 164)
-            .accessibilityLabel("Back 5 seconds")
+            .position(
+                x: expandedSize.width / 2 - Metrics.playbackButtonSpacingExpanded,
+                y: transportY
+            )
+            .accessibilityLabel(isLive ? "Back 15 seconds" : "Back 5 seconds")
 
             PlaybackButton(
                 systemName: (video?.isPlaying ?? false) ? "pause.fill" : "play.fill",
@@ -188,17 +257,22 @@ struct YouTubeIslandView: View {
                 size: 32,
                 buttonSize: 50
             )
-            .position(x: expandedSize.width / 2, y: 164)
+            .position(x: expandedSize.width / 2, y: transportY)
             .accessibilityLabel((video?.isPlaying ?? false) ? "Pause" : "Play")
 
-            PlaybackButton(
-                systemName: "goforward.5",
-                action: { activity.skipForward() },
-                size: 24,
-                buttonSize: 44
-            )
-            .position(x: expandedSize.width / 2 + Metrics.playbackButtonSpacingExpanded, y: 164)
-            .accessibilityLabel("Forward 5 seconds")
+            if !isLive {
+                PlaybackButton(
+                    systemName: "goforward.5",
+                    action: { activity.skipForward() },
+                    size: 24,
+                    buttonSize: 44
+                )
+                .position(
+                    x: expandedSize.width / 2 + Metrics.playbackButtonSpacingExpanded,
+                    y: transportY
+                )
+                .accessibilityLabel("Forward 5 seconds")
+            }
 
             // Output picker, bottom right — as in Music.
             Image(systemName: "airplayaudio")
@@ -206,7 +280,7 @@ struct YouTubeIslandView: View {
                 .foregroundStyle(DesignTokens.Color.primaryText)
                 .frame(width: Metrics.airplayIconSize, height: Metrics.airplayIconSize)
                 .contentShape(Rectangle())
-                .position(x: 335.5, y: 164)
+                .position(x: 335.5, y: transportY)
                 .onTapGesture {
                     outputDeviceManager.refresh()
                     OutputDevicePanelController.shared.toggle(manager: outputDeviceManager)

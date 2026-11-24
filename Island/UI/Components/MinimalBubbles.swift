@@ -144,12 +144,12 @@ private struct TimerEar: View {
             HStack(spacing: Ear.gap) {
                 if side == .leading {
                     glyph
-                        .padding(.leading, -Ear.glyphAir)
+                        .padding(.leading, slot.kind == .pomodoro ? 2 : -Ear.glyphAir)
                     time
                 } else {
                     time
                     glyph
-                        .padding(.trailing, -Ear.glyphAir)
+                        .padding(.trailing, slot.kind == .pomodoro ? 2 : -Ear.glyphAir)
                 }
             }
             .padding(.horizontal, Ear.edge)

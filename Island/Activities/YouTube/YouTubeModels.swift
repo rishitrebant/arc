@@ -67,6 +67,11 @@ struct WebVideoState: Equatable {
     var elapsed: TimeInterval
     var duration: TimeInterval
 
+    /// A live stream: its length is infinite, which the system's Now
+    /// Playing feed can't express, so no duration (and a meaningless
+    /// elapsed time) comes through. There is nothing to seek in.
+    var isLive: Bool = false
+
     /// `true` confirmed on YouTube, `false` confirmed NOT, `nil` couldn't
     /// be checked (no scripting, or access denied).
     var isYouTube: Bool?
@@ -79,6 +84,7 @@ struct WebVideoState: Equatable {
             && lhs.isPlaying == rhs.isPlaying
             && lhs.elapsed == rhs.elapsed
             && lhs.duration == rhs.duration
+            && lhs.isLive == rhs.isLive
             && lhs.isYouTube == rhs.isYouTube
         // Thumbnail identity isn't meaningful for change detection.
     }

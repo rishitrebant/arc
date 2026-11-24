@@ -81,7 +81,10 @@ final class LauncherActivity: ObservableObject {
             for await _ in NotificationCenter.default.notifications(
                 named: .islandOpenLauncher
             ) {
-                self?.show()
+                // Hovering the notch can ask repeatedly — don't restart a
+                // launcher that's already up.
+                guard let self, !self.isActive else { return }
+                self.show()
             }
         })
 

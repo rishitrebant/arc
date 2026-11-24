@@ -185,9 +185,14 @@ final class MediaRemoteYouTubeService {
             return
         }
 
+        // A live stream's duration is infinite, and the adapter can't
+        // print infinity — it logs an error and sends the update with the
+        // duration LEFT OUT. So "no duration" from a browser means live;
+        // a duration that IS present but tiny is a notification chime.
+        let isLive = payload.duration == nil
         let duration = max(payload.duration ?? 0, 0)
 
-        guard duration >= Self.minimumDuration else {
+        guard isLive || duration >= Self.minimumDuration else {
             clear()
             return
         }
@@ -195,10 +200,9 @@ final class MediaRemoteYouTubeService {
         let rate = payload.playbackRate ?? 0
         let isPlaying = payload.playing ?? (rate > 0.01)
 
-        let elapsed = min(
-            max(payload.elapsedTimeNow ?? payload.elapsedTime ?? 0, 0),
-            duration
-        )
+        let reportedElapsed = max(payload.elapsedTimeNow ?? payload.elapsedTime ?? 0, 0)
+
+        let elapsed = isLive ? 0 : min(reportedElapsed, duration)
 
         var thumbnail: NSImage?
 
@@ -222,6 +226,7 @@ final class MediaRemoteYouTubeService {
             isPlaying: isPlaying,
             elapsed: elapsed,
             duration: duration,
+            isLive: isLive,
             isYouTube: youtubeCache[key] ?? nil,
             browser: browser
         )
@@ -282,7 +287,8 @@ final class MediaRemoteYouTubeService {
 
     private func advanceProgress() {
 
-        guard isRunning, var state = current, state.isPlaying else { return }
+        // A live stream has no timeline to advance.
+        guard isRunning, var state = current, state.isPlaying, !state.isLive else { return }
 
         let elapsed = baseElapsed + max(Date().timeIntervalSince(baseTimestamp), 0)
 
@@ -301,7 +307,9 @@ final class MediaRemoteYouTubeService {
     /// Jumps by `seconds` (negative to go back), clamped to the video.
     func skip(by seconds: TimeInterval) {
 
-        guard let state = current else { return }
+        // Nothing to seek in on a live stream — and seeking to
+        // "elapsed + 5" with elapsed 0 would jump to its very start.
+        guard let state = current, !state.isLive else { return }
 
         let target = min(max(state.elapsed + seconds, 0), state.duration)
 
@@ -314,6 +322,14 @@ final class MediaRemoteYouTubeService {
         stateSubject.send(updated)
 
         runAdapter(["seek", "\(Int(target * 1_000_000))"])
+    }
+
+    /// Rewinds a LIVE stream. There's no timeline position to seek from
+    /// (the stream's length is infinite and elapsed time reads 0), so this
+    /// asks the player itself to go back — MediaRemote's "Rewind 15
+    /// Seconds" (command 12), the one relative skip the adapter accepts.
+    func rewindLive() {
+        runAdapter(["send", "12"])
     }
 
     private func runAdapter(_ arguments: [String]) {

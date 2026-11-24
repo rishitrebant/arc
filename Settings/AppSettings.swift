@@ -30,6 +30,7 @@ enum AppSettings {
         static let youtubeCompactIcon = "youtubeCompactIcon"
         static let youtubeDetection = "youtubeDetection"
         static let expandedTopCorners = "expandedTopCorners"
+        static let launcherOpensOnHover = "launcherOpensOnHover"
         static let hapticsEnabled = "hapticsEnabled"
         static let showAudioOutputChanges = "showAudioOutputChanges"
         static let globalShortcutsEnabled = "globalShortcutsEnabled"
@@ -57,6 +58,7 @@ enum AppSettings {
         static let youtubeCompactIcon = YouTubeCompactIcon.logo.rawValue
         static let youtubeDetection = YouTubeDetection.youtubeOnly.rawValue
         static let expandedTopCorners = ExpandedTopCorners.rounded.rawValue
+        static let launcherOpensOnHover = false
         static let hapticsEnabled = true
         static let showAudioOutputChanges = true
         static let globalShortcutsEnabled = true
@@ -153,6 +155,13 @@ enum AppSettings {
         ExpandedTopCorners(
             rawValue: UserDefaults.standard.string(forKey: Key.expandedTopCorners) ?? ""
         ) ?? .rounded
+    }
+
+    /// Open the launcher as soon as the cursor rests on the notch,
+    /// instead of waiting for a click.
+    static var launcherOpensOnHover: Bool {
+        UserDefaults.standard.object(forKey: Key.launcherOpensOnHover) as? Bool
+            ?? Default.launcherOpensOnHover
     }
 
     static var hapticsEnabled: Bool {

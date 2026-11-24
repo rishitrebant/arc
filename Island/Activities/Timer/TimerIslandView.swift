@@ -70,7 +70,7 @@ struct TimerIslandView: View {
                     .foregroundStyle(slot.accent)
                     .symbolEffect(.pulse, isActive: slot.phase == .finished)
                     .frame(width: Metrics.compactIconSlot, height: Metrics.compactIconSlot)
-                .padding(.leading, -3)
+                .padding(.leading, slot.kind == .pomodoro ? 2 : -3)
 
                 Spacer(minLength: 0)
 
@@ -89,7 +89,7 @@ struct TimerIslandView: View {
                 .foregroundStyle(slot.accent)
                 .symbolEffect(.pulse, isActive: slot.phase == .finished)
                 .frame(width: Metrics.compactIconSlot, height: Metrics.compactIconSlot)
-                .padding(.leading, -3)
+                .padding(.leading, slot.kind == .pomodoro ? 2 : -3)
 
             compactTime(slot)
         }
