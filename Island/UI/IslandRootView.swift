@@ -126,6 +126,10 @@ struct IslandRootView: View {
     /// no animation context and just pops).
     @State private var showsSplitContent = false
 
+    /// The last shared-pill glow, kept so it can fade out when the pill
+    /// opens (or the second activity leaves) instead of being cut.
+    @State private var heldSplitGlow: SplitGlow?
+
     /// Hover-to-open launcher: the cursor is resting on the notch, and a
     /// short dwell is running (so brushing past it doesn't open anything).
     @State private var isPointerOnNotch = false
@@ -240,15 +244,21 @@ struct IslandRootView: View {
         )
     }
 
-    /// Left and right glow colours while two activities share the pill;
-    /// `nil` otherwise.
-    private var splitGlow: (left: Color, right: Color)? {
+    /// Left and right glow colours (and the pill they sit under) while
+    /// two activities share the pill; `nil` otherwise.
+    private struct SplitGlow: Equatable {
+        var left: Color
+        var right: Color
+        var size: CGSize
+    }
+
+    private var splitGlow: SplitGlow? {
 
         guard isSplitMode, let left = shadowAccent, let right = shadowAccentRight else {
             return nil
         }
 
-        return (left, right)
+        return SplitGlow(left: left, right: right, size: visibleSize)
     }
 
     private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
@@ -700,6 +710,7 @@ struct IslandRootView: View {
             if isSplitMode {
                 captureSplit()
                 showsSplitContent = true
+                heldSplitGlow = splitGlow
             }
         }
 
@@ -786,7 +797,9 @@ struct IslandRootView: View {
         // takes its own activity's colour.
         .background(alignment: .top) {
 
-            if let glow = splitGlow {
+            if let glow = splitGlow ?? heldSplitGlow {
+
+                let isLive = splitGlow != nil
 
                 IslandShape(
                     topRadius: DesignTokens.Shape.compactTopRadius,
@@ -804,21 +817,24 @@ struct IslandRootView: View {
                         endPoint: .trailing
                     )
                 )
-                .frame(width: visibleSize.width, height: visibleSize.height)
+                .frame(width: glow.size.width, height: glow.size.height)
                 .blur(radius: isPrimed ? 14 : 11)
                 .offset(y: isPrimed ? 7 : 5)
                 .opacity(
-                    isPrimed
-                        ? DesignTokens.Shadow.accentHoverOpacity
-                        : DesignTokens.Shadow.accentRestOpacity
+                    !isLive
+                        ? 0
+                        : isPrimed
+                            ? DesignTokens.Shadow.accentHoverOpacity
+                            : DesignTokens.Shadow.accentRestOpacity
                 )
                 .animation(AnimationTokens.hoverPrimeTransition, value: isPrimed)
+                // Fades out / in over its own curve — the pill's spring
+                // would otherwise snap it, and the layer must outlive
+                // the split so there's something left to fade.
+                .animation(.easeInOut(duration: 0.35), value: isLive)
                 .allowsHitTesting(false)
-                .transition(.opacity)
             }
         }
-
-
 
         // Optional glow around the bare notch — only while nothing else
         // is on the island (activities bring their own glow).
@@ -909,6 +925,10 @@ struct IslandRootView: View {
             }
 
             morphSurface()
+        }
+
+        .onChange(of: splitGlow) { _, glow in
+            if let glow { heldSplitGlow = glow }
         }
 
         // The two halves can change while the pill is up (the second
