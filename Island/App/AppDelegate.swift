@@ -403,6 +403,14 @@ final class AppDelegate:
         settings.target = self
         appMenu.addItem(settings)
 
+        let updates = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(UpdateController.checkForUpdates),
+            keyEquivalent: ""
+        )
+        updates.target = UpdateController.shared
+        appMenu.addItem(updates)
+
         appMenu.addItem(.separator())
 
         appMenu.addItem(

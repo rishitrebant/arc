@@ -64,6 +64,7 @@
 		A5FC92F130B5847B006B7C70 /* YouTubeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92F030B5847B006B7C70 /* YouTubeService.swift */; };
 		A5FC92F330B584A8006B7C70 /* YouTubeActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92F230B584A8006B7C70 /* YouTubeActivity.swift */; };
 		A5FC92F530B584B5006B7C70 /* YouTubeIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92F430B584B5006B7C70 /* YouTubeIslandView.swift */; };
+		A5FC933930B5C96C006B7C70 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A5FC933830B5C96C006B7C70 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -172,6 +173,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A5FC933930B5C96C006B7C70 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -467,6 +469,9 @@
 				A5B6EA8A30A4579D00F22126 /* Bluetooth */,
 			);
 			name = Island;
+			packageProductDependencies = (
+				A5FC933830B5C96C006B7C70 /* Sparkle */,
+			);
 			productName = Island;
 			productReference = 000000000000000000100005 /* ARC.app */;
 			productType = "com.apple.product-type.application";
@@ -494,6 +499,9 @@
 				Base,
 			);
 			mainGroup = 000000000000000000100002;
+			packageReferences = (
+				A5FC933730B5C96C006B7C70 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 56;
 			productRefGroup = 000000000000000000100004 /* Products */;
 			projectDirPath = "";
@@ -589,12 +597,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Info-Extra.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
@@ -611,7 +620,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
 				PRODUCT_NAME = ARC;
 				SDKROOT = macosx;
@@ -627,12 +636,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Island/Vendor",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Info-Extra.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
@@ -649,7 +659,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
 				PRODUCT_NAME = ARC;
 				SDKROOT = macosx;
@@ -753,6 +763,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A5FC933730B5C96C006B7C70 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A5FC933830B5C96C006B7C70 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A5FC933730B5C96C006B7C70 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 000000000000000000100001 /* Project object */;
 }

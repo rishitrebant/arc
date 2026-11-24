@@ -565,6 +565,9 @@ struct ShelfSettingsTab: View {
 
 struct AboutSettingsTab: View {
 
+    @State private var checksAutomatically =
+        UpdateController.shared.automaticallyChecksForUpdates
+
     private var version: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -588,6 +591,17 @@ struct AboutSettingsTab: View {
             Text("The notch, extended.")
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
+
+            Button("Check for Updates…") {
+                UpdateController.shared.checkForUpdates()
+            }
+            .padding(.top, 8)
+
+            Toggle("Check for updates automatically", isOn: $checksAutomatically)
+                .toggleStyle(.checkbox)
+                .onChange(of: checksAutomatically) { _, newValue in
+                    UpdateController.shared.automaticallyChecksForUpdates = newValue
+                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

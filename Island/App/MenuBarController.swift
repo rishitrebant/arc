@@ -95,6 +95,14 @@ final class MenuBarController: NSObject {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        let updatesItem = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(UpdateController.checkForUpdates),
+            keyEquivalent: ""
+        )
+        updatesItem.target = UpdateController.shared
+        menu.addItem(updatesItem)
+
         menu.addItem(.separator())
 
         menu.addItem(

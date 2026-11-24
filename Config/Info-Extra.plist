@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Sparkle: where the app looks for new versions. -->
+    <key>SUFeedURL</key>
+    <string>https://github.com/rishitrebant/arc/releases/latest/download/appcast.xml</string>
+    <!-- Sparkle: public half of the key from `generate_keys`. -->
+    <key>SUPublicEDKey</key>
+    <string>QWNC5OqyUdlk/1DFZ4BlFtrX3PcctJPhbhOt+m0DOmI=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+</dict>
+</plist>
