@@ -291,20 +291,23 @@ final class OutputDevicePanelController {
                 continue
             }
 
-            let canvasInsetX =
-                DesignTokens.Shadow.canvasInsetX
-
             let expandedWidth =
                 DesignTokens.MusicMetrics.expandedWidth
 
             let expandedHeight =
                 DesignTokens.MusicMetrics.expandedHeight
 
-            // The actual Island sits at the top of the hosting canvas.
+            // The island is centred at the top of the hosting canvas.
+            // (The canvas is much wider than the island — it has to
+            // cover the file-drag catch zone — so measuring from the
+            // window's left edge put this rectangle in the wrong place,
+            // and a click on the AirPlay icon read as "outside": the
+            // list closed on mouse-down and the icon's own click then
+            // reopened it.)
             let rect = NSRect(
                 x:
-                    islandWindow.frame.minX
-                    + canvasInsetX,
+                    islandWindow.frame.midX
+                    - expandedWidth / 2,
 
                 y:
                     islandWindow.frame.maxY

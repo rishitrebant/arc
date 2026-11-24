@@ -122,13 +122,14 @@ This makes the island feel continuous rather than notification-driven.
 
 ## Current state
 
-**Version 1.0.** ARC runs as a regular macOS app (Dock icon, Settings window) and draws the island as a borderless, non-activating window anchored to the notch.
+**Version 1.1.** ARC runs as a regular macOS app (Dock icon, Settings window) and draws the island as a borderless, non-activating window anchored to the notch.
 
 ### Activities
 
 | Activity | What it does |
 | --- | --- |
 | **Music** | Apple Music and Spotify now playing, playback controls, progress, album-colour accent |
+| **YouTube** | A video playing in your browser: thumbnail, title, progress, back 5 s · play/pause · forward 5 s (optional, in Settings) |
 | **Timer · Stopwatch · Pomodoro** | Run side by side; share the notch with music as one even pill |
 | **Charging · Low battery** | Plug-in moment, "not charging", Low Power Mode shortcut |
 | **Bluetooth audio** | Speakers, headphones and AirPods connecting, with battery where macOS reports it, and a Disconnect button |
@@ -165,7 +166,7 @@ macOS asks for each of these the first time the feature needs it. Everything wor
 | Bluetooth | Detecting audio devices and reading their battery |
 | Calendars | The meeting countdown |
 | Downloads folder | Download progress |
-| Automation (Music, Spotify) | Playback controls when another app owns Now Playing |
+| Automation (Music, Spotify, your browser) | Playback controls when another app owns Now Playing; checking that a browser video is on YouTube |
 | Focus status | The Focus pill |
 
 ### Known limitations
@@ -174,6 +175,7 @@ macOS asks for each of these the first time the feature needs it. Everything wor
 - Browser downloads can't be paused from outside the browser.
 - macOS reports only *whether* a Focus is on, not which one.
 - Screen-recording detection is best-effort.
+- YouTube controls need a video with a known length (live streams are ignored) and rely on the page's media session for the 5-second skips.
 - Battery levels aren't available for every Bluetooth device (classic Bluetooth speakers often don't report one).
 
 ---
@@ -410,9 +412,9 @@ That means the rendering layer does not need to know where playback information 
 
 ARC is built incrementally around the activity system.
 
-### Version 1.0 — shipped
+### Version 1.1 — shipped
 
-Everything in **Current state** above.
+Everything in **Current state** above. See [CHANGELOG.md](CHANGELOG.md).
 
 ### Next
 
@@ -526,7 +528,7 @@ The objective is to build the **most believable one**.
 
 ## Status
 
-ARC **1.0** is the first release. Behaviour that depends on private system features (the media adapter that reads Now Playing) can change with a macOS update.
+ARC **1.1** is the current release. Behaviour that depends on private system features (the media adapter that reads Now Playing) can change with a macOS update.
 
 ---
 

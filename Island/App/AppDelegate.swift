@@ -43,6 +43,9 @@ final class AppDelegate:
     private var audioOutputActivity:
         AudioOutputActivity!
 
+    private var youtubeActivity:
+        YouTubeActivity!
+
     private var focusActivity:
         FocusActivity!
 
@@ -108,6 +111,19 @@ final class AppDelegate:
 
         activityManager.register(
             musicActivity
+        )
+
+        youtubeActivity =
+            YouTubeActivity()
+
+        youtubeActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            youtubeActivity
         )
 
         chargingActivity =

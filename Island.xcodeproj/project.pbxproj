@@ -60,6 +60,10 @@
 		A5FC92E330B374EA006B7C70 /* MinimalBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92E230B374EA006B7C70 /* MinimalBubbles.swift */; };
 		A5FC92E630B378AE006B7C70 /* FocusActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92E530B378AE006B7C70 /* FocusActivity.swift */; };
 		A5FC92E830B378B2006B7C70 /* FocusIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92E730B378B2006B7C70 /* FocusIslandView.swift */; };
+		A5FC92EF30B58465006B7C70 /* YouTubeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92EE30B58465006B7C70 /* YouTubeModels.swift */; };
+		A5FC92F130B5847B006B7C70 /* YouTubeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92F030B5847B006B7C70 /* YouTubeService.swift */; };
+		A5FC92F330B584A8006B7C70 /* YouTubeActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92F230B584A8006B7C70 /* YouTubeActivity.swift */; };
+		A5FC92F530B584B5006B7C70 /* YouTubeIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FC92F430B584B5006B7C70 /* YouTubeIslandView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -117,6 +121,10 @@
 		A5FC92E230B374EA006B7C70 /* MinimalBubbles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimalBubbles.swift; sourceTree = "<group>"; };
 		A5FC92E530B378AE006B7C70 /* FocusActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusActivity.swift; sourceTree = "<group>"; };
 		A5FC92E730B378B2006B7C70 /* FocusIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusIslandView.swift; sourceTree = "<group>"; };
+		A5FC92EE30B58465006B7C70 /* YouTubeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeModels.swift; sourceTree = "<group>"; };
+		A5FC92F030B5847B006B7C70 /* YouTubeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeService.swift; sourceTree = "<group>"; };
+		A5FC92F230B584A8006B7C70 /* YouTubeActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeActivity.swift; sourceTree = "<group>"; };
+		A5FC92F430B584B5006B7C70 /* YouTubeIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeIslandView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -254,6 +262,7 @@
 				A5B6EAD930B2208200F22126 /* Downloads */,
 				A5FC92D930B37483006B7C70 /* AudioOutput */,
 				A5FC92E430B378A0006B7C70 /* Focus */,
+				A5FC92ED30B5845E006B7C70 /* YouTube */,
 			);
 			path = Activities;
 			sourceTree = "<group>";
@@ -422,6 +431,17 @@
 			path = Focus;
 			sourceTree = "<group>";
 		};
+		A5FC92ED30B5845E006B7C70 /* YouTube */ = {
+			isa = PBXGroup;
+			children = (
+				A5FC92EE30B58465006B7C70 /* YouTubeModels.swift */,
+				A5FC92F030B5847B006B7C70 /* YouTubeService.swift */,
+				A5FC92F230B584A8006B7C70 /* YouTubeActivity.swift */,
+				A5FC92F430B584B5006B7C70 /* YouTubeIslandView.swift */,
+			);
+			path = YouTube;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -537,6 +557,7 @@
 				000000000000000000100031 /* AlbumArtView.swift in Sources */,
 				000000000000000000100033 /* PlaybackButton.swift in Sources */,
 				A532698730440A5600EDDE1E /* OutputDevicePanelController.swift in Sources */,
+				A5FC92F330B584A8006B7C70 /* YouTubeActivity.swift in Sources */,
 				000000000000000000100035 /* ProgressBar.swift in Sources */,
 				A5FC92E830B378B2006B7C70 /* FocusIslandView.swift in Sources */,
 				000000000000000000100037 /* IslandShape.swift in Sources */,
@@ -546,12 +567,15 @@
 				A5B6EADD30B2209F00F22126 /* CalendarIslandView.swift in Sources */,
 				A5FC92E130B374B9006B7C70 /* ClipboardHistory.swift in Sources */,
 				A5B6EA9E30B1ECB600F22126 /* TimerIslandView.swift in Sources */,
+				A5FC92EF30B58465006B7C70 /* YouTubeModels.swift in Sources */,
 				A5B6EAA130B1F21900F22126 /* LauncherActivity.swift in Sources */,
 				00000000000000000010003B /* MusicExpandedView.swift in Sources */,
 				00000000000000000010003D /* IslandRootView.swift in Sources */,
 				A5B6EA9930B1EC9B00F22126 /* CapsLockActivity.swift in Sources */,
+				A5FC92F130B5847B006B7C70 /* YouTubeService.swift in Sources */,
 				00000000000000000010003F /* IslandNamespace.swift in Sources */,
 				A5FC92DF30B3749D006B7C70 /* AudioOutputIslandView.swift in Sources */,
+				A5FC92F530B584B5006B7C70 /* YouTubeIslandView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -565,7 +589,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Island/Vendor",
@@ -574,7 +598,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "ARC needs permission to control Apple Music and Spotify for playback controls.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "ARC needs permission to control Apple Music and Spotify, and to look at your browser's tabs to tell whether a video is on YouTube.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "ARC shows speakers and headphones in the notch when they connect, with their battery level.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ARC shows your next meeting in the notch, with a Join button when it has a video link.";
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "ARC shows the progress of files downloading to your Downloads folder.";
@@ -587,7 +611,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
 				PRODUCT_NAME = ARC;
 				SDKROOT = macosx;
@@ -603,7 +627,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Island/Vendor",
@@ -612,7 +636,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = ARC;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "ARC needs permission to control Apple Music and Spotify for playback controls.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "ARC needs permission to control Apple Music and Spotify, and to look at your browser's tabs to tell whether a video is on YouTube.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "ARC shows speakers and headphones in the notch when they connect, with their battery level.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ARC shows your next meeting in the notch, with a Join button when it has a video link.";
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "ARC shows the progress of files downloading to your Downloads folder.";
@@ -625,7 +649,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.island.app;
 				PRODUCT_NAME = ARC;
 				SDKROOT = macosx;

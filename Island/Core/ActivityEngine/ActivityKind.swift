@@ -60,16 +60,20 @@ enum ActivityKind: Int, Comparable, CaseIterable {
     /// Above `music` so a countdown stays visible while playing.
     case timer = 11
 
-    case music = 12
-    case airDrop = 13
+    /// A video playing in the browser (see `YouTubeActivity`). Just
+    /// above `music`: while one plays the other is paused anyway.
+    case youtube = 12
+
+    case music = 13
+    case airDrop = 14
 
     /// Files downloading (see `DownloadsActivity`). Below `music`: a
     /// long-running background task shouldn't push playback off the island.
-    case downloads = 14
+    case downloads = 15
 
     /// The notch's click-to-open menu (see `LauncherActivity`). Lowest
     /// priority: it only ever appears over an empty island.
-    case launcher = 15
+    case launcher = 16
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

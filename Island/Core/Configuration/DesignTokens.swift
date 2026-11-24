@@ -67,6 +67,7 @@ enum DesignTokens {
         static let cameraIndicator = SwiftUI.Color(red: 48/255, green: 209/255, blue: 88/255)  // derived — iOS camera-in-use green
         static let microphoneIndicator = SwiftUI.Color(red: 255/255, green: 159/255, blue: 10/255) // derived — iOS microphone-in-use orange
         static let screenIndicator = SwiftUI.Color(red: 191/255, green: 90/255, blue: 242/255) // derived — iOS system purple, screen recording
+        static let youtubeRed = SwiftUI.Color(red: 1.0, green: 0.0, blue: 0.0)               // YouTube's brand red
         static let pomodoroAccent = SwiftUI.Color(red: 255/255, green: 69/255, blue: 58/255)   // derived — iOS system red, a tomato
         static let timerAccent = SwiftUI.Color(red: 255/255, green: 159/255, blue: 10/255)     // derived — iOS system orange, the colour of the iPhone's timer activity
         static let capsLockAccent = SwiftUI.Color(red: 10/255, green: 132/255, blue: 255/255)  // derived — iOS system blue
@@ -103,7 +104,12 @@ enum DesignTokens {
         /// notch's own height. Width is `FileDropMetrics.notchWidth`.
         static let collapsedNotchHeight: CGFloat = 29
 
-        static let expandedTopRadius: CGFloat = 36
+        /// Rounded cards (36) or flat, notch-blended ones (0 — which also
+        /// turns on the top flare). Read from Settings every time, so a
+        /// change applies the next time a card is drawn.
+        static var expandedTopRadius: CGFloat {
+            AppSettings.expandedTopCorners == .blended ? 0 : 36
+        }
         static let expandedBottomRadius: CGFloat = 36
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
@@ -156,6 +162,11 @@ enum DesignTokens {
         /// since it's still real, measured data, even if unused for now.
         static let airplayGap: CGFloat = 43
         static let airplayIconSize: CGFloat = 23
+
+        /// Centre-to-centre distance of the transport buttons in the
+        /// expanded card — Music's measured spacing, widened a touch for
+        /// the 5-second buttons.
+        static let playbackButtonSpacingExpanded: CGFloat = 70
 
         static let waveformIconWidth: CGFloat = 34
 

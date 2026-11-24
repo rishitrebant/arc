@@ -50,7 +50,7 @@ struct SplitIslandContent: View {
     }
 }
 
-private enum Ear {
+enum Ear {
 
     /// Edge padding. Slightly more than a bare pill's 10pt because the
     /// shared pill's outer corners flare and its content is optically

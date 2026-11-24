@@ -1,0 +1,430 @@
+import Foundation
+import AppKit
+import Combine
+
+/// Reads a video playing in a browser from the system's Now Playing
+/// stream, and controls it.
+///
+/// It runs its own MediaRemote adapter stream (the same bundled helper
+/// the Music module uses) and keeps only media whose source is a browser.
+/// Play/pause is the standard MediaRemote toggle; ±5 seconds is a seek to
+/// the computed position, which YouTube's media session supports.
+///
+/// Whether a browser video is actually on YouTube is checked by looking
+/// through the browser's tabs for one with that title on a youtube.com
+/// address. That needs the user's Automation permission for that
+/// browser; without it the answer is "unknown" and the caller decides.
+@MainActor
+final class MediaRemoteYouTubeService {
+
+    // MARK: - Output
+
+    private let stateSubject = CurrentValueSubject<WebVideoState?, Never>(nil)
+
+    var statePublisher: AnyPublisher<WebVideoState?, Never> {
+        stateSubject.eraseToAnyPublisher()
+    }
+
+    // MARK: - Adapter
+
+    private var process: Process?
+    private var isRunning = false
+
+    private var adapterScriptPath: String {
+        Bundle.main.path(forResource: "mediaremote-adapter", ofType: "pl") ?? ""
+    }
+
+    private var frameworkPath: String {
+        Bundle.main.path(forResource: "MediaRemoteAdapter", ofType: "framework") ?? ""
+    }
+
+    // MARK: - Local progress
+
+    private var current: WebVideoState?
+    private var baseElapsed: TimeInterval = 0
+    private var baseTimestamp = Date()
+    private var progressTimer: Timer?
+
+    /// Cached YouTube check, keyed by "title|channel", so a track is
+    /// only looked up once.
+    private var youtubeCache: [String: Bool?] = [:]
+    private var pendingKey: String?
+
+    /// Anything shorter is a notification chime, not a video.
+    private static let minimumDuration: TimeInterval = 5
+
+    // MARK: - Lifecycle
+
+    func start() {
+
+        guard !isRunning else { return }
+
+        guard
+            FileManager.default.fileExists(atPath: adapterScriptPath),
+            FileManager.default.fileExists(atPath: frameworkPath)
+        else {
+            debugLog("YouTube: adapter not found in the app bundle.")
+            return
+        }
+
+        isRunning = true
+
+        let newProcess = Process()
+        newProcess.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
+        newProcess.arguments = [adapterScriptPath, frameworkPath, "stream", "--no-diff"]
+
+        let pipe = Pipe()
+        newProcess.standardOutput = pipe
+        newProcess.standardError = FileHandle.nullDevice
+
+        do {
+            try newProcess.run()
+        } catch {
+            debugLog("YouTube: failed to start adapter:", error)
+            isRunning = false
+            return
+        }
+
+        process = newProcess
+
+        read(from: pipe)
+
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.advanceProgress() }
+        }
+
+        RunLoop.main.add(timer, forMode: .common)
+        progressTimer = timer
+    }
+
+    func stop() {
+
+        isRunning = false
+
+        progressTimer?.invalidate()
+        progressTimer = nil
+
+        process?.terminate()
+        process = nil
+
+        current = nil
+        stateSubject.send(nil)
+    }
+
+    // MARK: - Reading
+
+    private func read(from pipe: Pipe) {
+
+        DispatchQueue(label: "com.island.youtube.reader", qos: .userInitiated).async {
+            [weak self] in
+
+            let handle = pipe.fileHandleForReading
+            var buffer = Data()
+
+            while true {
+
+                let chunk = handle.availableData
+                guard !chunk.isEmpty else { break }
+
+                buffer.append(chunk)
+
+                while let newline = buffer.range(of: Data([0x0A])) {
+
+                    let lineData = buffer.subdata(in: 0..<newline.lowerBound)
+                    buffer.removeSubrange(0...newline.lowerBound)
+
+                    guard !lineData.isEmpty else { continue }
+
+                    DispatchQueue.main.async {
+                        self?.handle(line: lineData)
+                    }
+                }
+            }
+        }
+    }
+
+    private struct Message: Decodable {
+        let type: String?
+        let payload: Payload?
+    }
+
+    private struct Payload: Decodable {
+        let bundleIdentifier: String?
+        let parentApplicationBundleIdentifier: String?
+        let playing: Bool?
+        let title: String?
+        let artist: String?
+        let duration: TimeInterval?
+        let elapsedTime: TimeInterval?
+        let elapsedTimeNow: TimeInterval?
+        let playbackRate: Double?
+        let artworkData: String?
+    }
+
+    private func handle(line: Data) {
+
+        guard
+            isRunning,
+            let message = try? JSONDecoder().decode(Message.self, from: line),
+            message.type == "data"
+        else {
+            return
+        }
+
+        guard let payload = message.payload else { return }
+
+        // Not a browser (or nothing playing): there's no video.
+        guard
+            let browser = WebBrowser.resolve(
+                bundleID: payload.bundleIdentifier,
+                parentBundleID: payload.parentApplicationBundleIdentifier
+            ),
+            let title = payload.title, !title.isEmpty
+        else {
+            clear()
+            return
+        }
+
+        let duration = max(payload.duration ?? 0, 0)
+
+        guard duration >= Self.minimumDuration else {
+            clear()
+            return
+        }
+
+        let rate = payload.playbackRate ?? 0
+        let isPlaying = payload.playing ?? (rate > 0.01)
+
+        let elapsed = min(
+            max(payload.elapsedTimeNow ?? payload.elapsedTime ?? 0, 0),
+            duration
+        )
+
+        var thumbnail: NSImage?
+
+        if
+            let base64 = payload.artworkData,
+            let data = Data(base64Encoded: base64)
+        {
+            thumbnail = NSImage(data: data)
+        }
+
+        let channel = payload.artist ?? ""
+        let key = "\(title)|\(channel)"
+
+        baseElapsed = elapsed
+        baseTimestamp = Date()
+
+        var state = WebVideoState(
+            title: title,
+            channel: channel,
+            thumbnail: thumbnail,
+            isPlaying: isPlaying,
+            elapsed: elapsed,
+            duration: duration,
+            isYouTube: youtubeCache[key] ?? nil,
+            browser: browser
+        )
+
+        // A video we haven't checked yet: look it up once, and publish
+        // nothing until the answer is in. (Publishing first would flash
+        // the wrong logo, or briefly show a video that isn't YouTube.)
+        // Progress keeps ticking underneath in the meantime.
+        if !youtubeCache.keys.contains(key) {
+
+            current = state
+
+            if pendingKey != key {
+
+                pendingKey = key
+
+                let wanted = browser
+
+                Task { [weak self] in
+
+                    let result = await BrowserTabInspector.isYouTube(
+                        browser: wanted,
+                        videoTitle: title
+                    )
+
+                    guard let self else { return }
+
+                    self.youtubeCache[key] = .some(result)
+                    self.pendingKey = nil
+
+                    if var latest = self.current, latest.title == title {
+                        latest.isYouTube = result
+                        self.current = latest
+                        self.stateSubject.send(latest)
+                    }
+                }
+            }
+
+            return
+        }
+
+        state.isYouTube = youtubeCache[key] ?? nil
+
+        current = state
+        stateSubject.send(state)
+    }
+
+    private func clear() {
+
+        guard current != nil else { return }
+
+        current = nil
+        pendingKey = nil
+        stateSubject.send(nil)
+    }
+
+    // MARK: - Progress
+
+    private func advanceProgress() {
+
+        guard isRunning, var state = current, state.isPlaying else { return }
+
+        let elapsed = baseElapsed + max(Date().timeIntervalSince(baseTimestamp), 0)
+
+        state.elapsed = min(elapsed, state.duration)
+
+        current = state
+        stateSubject.send(state)
+    }
+
+    // MARK: - Controls
+
+    func togglePlayPause() {
+        runAdapter(["send", "2"])
+    }
+
+    /// Jumps by `seconds` (negative to go back), clamped to the video.
+    func skip(by seconds: TimeInterval) {
+
+        guard let state = current else { return }
+
+        let target = min(max(state.elapsed + seconds, 0), state.duration)
+
+        baseElapsed = target
+        baseTimestamp = Date()
+
+        var updated = state
+        updated.elapsed = target
+        current = updated
+        stateSubject.send(updated)
+
+        runAdapter(["seek", "\(Int(target * 1_000_000))"])
+    }
+
+    private func runAdapter(_ arguments: [String]) {
+
+        guard
+            FileManager.default.fileExists(atPath: adapterScriptPath),
+            FileManager.default.fileExists(atPath: frameworkPath)
+        else {
+            return
+        }
+
+        let command = Process()
+        command.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
+        command.arguments = [adapterScriptPath, frameworkPath] + arguments
+        command.standardOutput = FileHandle.nullDevice
+        command.standardError = FileHandle.nullDevice
+
+        try? command.run()
+    }
+}
+
+// MARK: - Is this tab YouTube?
+
+/// Looks through a browser's tabs for the one playing a video and reports
+/// whether it's on YouTube.
+enum BrowserTabInspector {
+
+    /// `true` / `false` when the browser's tabs could be read, `nil` when
+    /// they couldn't (Firefox, Automation access denied, browser quit).
+    static func isYouTube(browser: WebBrowser, videoTitle: String) async -> Bool? {
+
+        guard let name = browser.scriptName else { return nil }
+
+        guard
+            NSWorkspace.shared.runningApplications.contains(where: {
+                browser.bundleIDs.contains($0.bundleIdentifier ?? "")
+            })
+        else {
+            return nil
+        }
+
+        let titleProperty = browser.isSafari ? "name" : "title"
+
+        // Never launches the browser: it's running, or we returned above.
+        let script = """
+        tell application "\(name)"
+            set out to ""
+            repeat with w in windows
+                repeat with t in tabs of w
+                    set out to out & (\(titleProperty) of t) & "||" & (URL of t) & linefeed
+                end repeat
+            end repeat
+            return out
+        end tell
+        """
+
+        guard let output = await run(script) else { return nil }
+
+        let wanted = videoTitle.lowercased()
+
+        for line in output.split(separator: "\n") {
+
+            let parts = line.components(separatedBy: "||")
+
+            guard parts.count >= 2 else { continue }
+
+            let tabTitle = parts[0].lowercased()
+            let url = parts[1].lowercased()
+
+            let onYouTube = url.contains("youtube.com") || url.contains("youtu.be")
+
+            if onYouTube, tabTitle.contains(wanted) || wanted.contains(tabTitle) {
+                return true
+            }
+        }
+
+        // The tabs were readable and none of them is this video on YouTube.
+        return false
+    }
+
+    private static func run(_ script: String) async -> String? {
+
+        await withCheckedContinuation { continuation in
+
+            DispatchQueue.global(qos: .userInitiated).async {
+
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                process.arguments = ["-e", script]
+
+                let out = Pipe()
+                process.standardOutput = out
+                process.standardError = FileHandle.nullDevice
+
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let data = out.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+
+                guard process.terminationStatus == 0 else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                continuation.resume(returning: String(data: data, encoding: .utf8))
+            }
+        }
+    }
+}

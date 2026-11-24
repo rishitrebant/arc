@@ -26,6 +26,10 @@ enum AppSettings {
         static let showPrivacyIndicators = "showPrivacyIndicators"
         static let showDownloadProgress = "showDownloadProgress"
         static let showFocusChanges = "showFocusChanges"
+        static let youtubeControlsEnabled = "youtubeControlsEnabled"
+        static let youtubeCompactIcon = "youtubeCompactIcon"
+        static let youtubeDetection = "youtubeDetection"
+        static let expandedTopCorners = "expandedTopCorners"
         static let hapticsEnabled = "hapticsEnabled"
         static let showAudioOutputChanges = "showAudioOutputChanges"
         static let globalShortcutsEnabled = "globalShortcutsEnabled"
@@ -49,6 +53,10 @@ enum AppSettings {
         static let showPrivacyIndicators = true
         static let showDownloadProgress = true
         static let showFocusChanges = true
+        static let youtubeControlsEnabled = true
+        static let youtubeCompactIcon = YouTubeCompactIcon.logo.rawValue
+        static let youtubeDetection = YouTubeDetection.youtubeOnly.rawValue
+        static let expandedTopCorners = ExpandedTopCorners.rounded.rawValue
         static let hapticsEnabled = true
         static let showAudioOutputChanges = true
         static let globalShortcutsEnabled = true
@@ -121,6 +129,30 @@ enum AppSettings {
     static var showFocusChanges: Bool {
         UserDefaults.standard.object(forKey: Key.showFocusChanges) as? Bool
             ?? Default.showFocusChanges
+    }
+
+    static var youtubeControlsEnabled: Bool {
+        UserDefaults.standard.object(forKey: Key.youtubeControlsEnabled) as? Bool
+            ?? Default.youtubeControlsEnabled
+    }
+
+    static var youtubeCompactIcon: YouTubeCompactIcon {
+        YouTubeCompactIcon(
+            rawValue: UserDefaults.standard.string(forKey: Key.youtubeCompactIcon) ?? ""
+        ) ?? .logo
+    }
+
+    static var youtubeDetection: YouTubeDetection {
+        YouTubeDetection(
+            rawValue: UserDefaults.standard.string(forKey: Key.youtubeDetection) ?? ""
+        ) ?? .youtubeOnly
+    }
+
+    /// How the top corners of every expanded card are drawn.
+    static var expandedTopCorners: ExpandedTopCorners {
+        ExpandedTopCorners(
+            rawValue: UserDefaults.standard.string(forKey: Key.expandedTopCorners) ?? ""
+        ) ?? .rounded
     }
 
     static var hapticsEnabled: Bool {
@@ -203,4 +235,55 @@ enum AppSettings {
     /// Posted when a setting changes that other parts of the app need to
     /// react to immediately (menu bar icon visibility, display mode).
     static let didChange = Notification.Name("AppSettingsDidChange")
+}
+
+
+/// What the compact YouTube pill shows on its left.
+enum YouTubeCompactIcon: String, CaseIterable {
+    case logo
+    case thumbnail
+
+    var title: String {
+        switch self {
+        case .logo: return "YouTube logo"
+        case .thumbnail: return "Video thumbnail"
+        }
+    }
+}
+
+/// Which browser media the YouTube controls take over.
+enum YouTubeDetection: String, CaseIterable {
+
+    /// Only videos ARC can confirm are on YouTube. (If a browser can't be
+    /// checked — Firefox, or Automation access denied — the video is
+    /// shown rather than silently ignored.)
+    case youtubeOnly
+
+    /// Any video or audio playing in a browser.
+    case anyVideo
+
+    var title: String {
+        switch self {
+        case .youtubeOnly: return "YouTube only"
+        case .anyVideo: return "Any video in the browser"
+        }
+    }
+}
+
+/// The top corners of an expanded card.
+enum ExpandedTopCorners: String, CaseIterable {
+
+    /// Fully rounded, like a floating card.
+    case rounded
+
+    /// Flat, flaring into the top of the screen — the same shape the
+    /// compact pill has, so the island reads as one piece with the notch.
+    case blended
+
+    var title: String {
+        switch self {
+        case .rounded: return "Rounded"
+        case .blended: return "Blended into the notch"
+        }
+    }
 }
