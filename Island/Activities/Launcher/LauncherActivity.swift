@@ -22,7 +22,9 @@ final class LauncherActivity: ObservableObject {
     }
 
     @Published private(set) var isActive: Bool = false
-    @Published var page: Page = .home
+    @Published var page: Page = .home {
+        didSet { updateKeyboardAccess() }
+    }
 
     // Remembered between openings, like the Clock app's last-used values.
     @Published var timerMinutes: Int = 10
@@ -32,6 +34,9 @@ final class LauncherActivity: ObservableObject {
     /// Read-only window onto what's playing; the launcher never owns
     /// playback, it just shows and forwards controls.
     let music: MusicActivity
+
+    /// A browser video — takes the Now Playing slot while it plays.
+    let youtube: YouTubeActivity
 
     /// Connected Bluetooth devices, shown subtly on the home page.
     let bluetooth: BluetoothActivity
@@ -49,6 +54,21 @@ final class LauncherActivity: ObservableObject {
     /// Set by `AppDelegate`: raises the launcher above whatever else is
     /// on the island while it's open.
     var requestElevation: (Bool) -> Void = { _ in }
+
+    /// Set by `AppDelegate`: hands the keyboard back to the app in front.
+    var releaseKeyboard: () -> Void = {}
+
+    /// The island window only accepts typing while a number field is up.
+    private func updateKeyboardAccess() {
+
+        let wantsKeyboard = isActive && (page == .timer || page == .pomodoro)
+
+        if wantsKeyboard {
+            IslandWindow.allowsKeyboardFocus = true
+        } else {
+            releaseKeyboard()
+        }
+    }
 
     /// Whether the launcher currently holds the raised priority, so it
     /// asks for it once and gives it back once — never repeatedly.
@@ -70,10 +90,15 @@ final class LauncherActivity: ObservableObject {
     private var leftAt: Date?
     private var observers: [Task<Void, Never>] = []
 
-    init(music: MusicActivity, bluetooth: BluetoothActivity) {
+    init(
+        music: MusicActivity,
+        bluetooth: BluetoothActivity,
+        youtube: YouTubeActivity
+    ) {
 
         self.music = music
         self.bluetooth = bluetooth
+        self.youtube = youtube
 
         clipboard.start()
 
@@ -141,6 +166,9 @@ final class LauncherActivity: ObservableObject {
         hoverTimer = nil
 
         setActive(false)
+
+        // No number field any more — give the keyboard back.
+        releaseKeyboard()
 
         if isElevated {
             isElevated = false
@@ -250,7 +278,8 @@ final class LauncherActivity: ObservableObject {
             activity: self,
             music: music,
             clipboard: clipboard,
-            bluetooth: bluetooth
+            bluetooth: bluetooth,
+            youtube: youtube
         )
     }
 }

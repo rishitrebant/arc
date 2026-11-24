@@ -298,6 +298,9 @@ struct TimerSettingsTab: View {
                     Stepper("", value: $customMinutes, in: 1...999)
                         .labelsHidden()
                     Text("min").foregroundStyle(.secondary)
+                        .onChange(of: customMinutes) { _, value in
+                            customMinutes = min(max(value, 1), 999)
+                        }
                     Button("Start") {
                         TimerPreset.start(TimeInterval(min(max(customMinutes, 1), 999) * 60))
                     }
@@ -306,12 +309,34 @@ struct TimerSettingsTab: View {
 
             Section("Pomodoro") {
 
-                Stepper(value: $focusMinutes, in: 1...180) {
-                    LabeledContent("Focus", value: "\(focusMinutes) min")
+                HStack(spacing: 8) {
+                    Text("Focus")
+                    Spacer()
+                    TextField("", value: $focusMinutes, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 56)
+                    Stepper("", value: $focusMinutes, in: 1...180)
+                        .labelsHidden()
+                    Text("min").foregroundStyle(.secondary)
+                }
+                .onChange(of: focusMinutes) { _, value in
+                    focusMinutes = min(max(value, 1), 180)
                 }
 
-                Stepper(value: $breakMinutes, in: 1...60) {
-                    LabeledContent("Break", value: "\(breakMinutes) min")
+                HStack(spacing: 8) {
+                    Text("Break")
+                    Spacer()
+                    TextField("", value: $breakMinutes, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 56)
+                    Stepper("", value: $breakMinutes, in: 1...60)
+                        .labelsHidden()
+                    Text("min").foregroundStyle(.secondary)
+                }
+                .onChange(of: breakMinutes) { _, value in
+                    breakMinutes = min(max(value, 1), 60)
                 }
 
                 HStack {

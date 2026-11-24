@@ -10,6 +10,7 @@ struct LauncherIslandView: View {
     @ObservedObject var music: MusicActivity
     @ObservedObject var clipboard: ClipboardHistory
     @ObservedObject var bluetooth: BluetoothActivity
+    @ObservedObject var youtube: YouTubeActivity
 
     /// The clipboard row just copied — shows a check for a moment.
     @State private var copiedID: UUID?
@@ -209,7 +210,96 @@ struct LauncherIslandView: View {
 
     // MARK: Now Playing
 
+    /// ONE thing at a time: a YouTube video while one is playing,
+    /// otherwise the last song from Music / Spotify.
+    @ViewBuilder
     private var nowPlayingRow: some View {
+
+        if let video = youtube.video, video.isPlaying {
+            youtubeRow(video)
+        } else {
+            musicRow
+        }
+    }
+
+    // MARK: YouTube
+
+    private func youtubeRow(_ video: WebVideoState) -> some View {
+
+        HStack(spacing: 12) {
+
+            // 16:9 thumbnail with a small YouTube mark in the corner.
+            ZStack(alignment: .bottomLeading) {
+
+                Group {
+                    if let thumbnail = video.thumbnail {
+                        Image(nsImage: thumbnail)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Rectangle().fill(DesignTokens.Color.deviceIconBackground)
+                    }
+                }
+                .frame(width: 80, height: 45)
+                .clipShape(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                )
+
+                YouTubeLogoMark(height: 9)
+                    .padding(4)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+
+                Text(video.title)
+                    .font(Metrics.titleFont)
+                    .tracking(DesignTokens.Typography.letterSpacingTight)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .lineLimit(1)
+
+                HStack(spacing: 5) {
+
+                    if video.isLive {
+                        Circle()
+                            .fill(DesignTokens.Color.youtubeRed)
+                            .frame(width: 6, height: 6)
+                    }
+
+                    Text(video.isLive
+                         ? "LIVE · \(video.channel)"
+                         : video.channel)
+                        .font(Metrics.subtitleFont)
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            PlaybackButton(
+                systemName: video.isPlaying ? "pause.fill" : "play.fill",
+                action: { youtube.togglePlayPause() },
+                size: 20,
+                buttonSize: Metrics.transportButtonSize
+            )
+
+            // Forward 5 s on a recorded video; a live stream has no
+            // forward, so the second button rewinds it instead.
+            PlaybackButton(
+                systemName: video.isLive ? "gobackward.15" : "goforward.5",
+                action: {
+                    video.isLive ? youtube.skipBack() : youtube.skipForward()
+                },
+                size: 18,
+                buttonSize: Metrics.transportButtonSize
+            )
+        }
+        .frame(height: Metrics.artSize)
+    }
+
+    // MARK: Music
+
+    private var musicRow: some View {
 
         HStack(spacing: 12) {
 
@@ -344,7 +434,8 @@ struct LauncherIslandView: View {
             stepperRow(
                 title: "Custom",
                 value: $activity.timerMinutes,
-                range: 1...999
+                range: 1...999,
+                onSubmit: { activity.startTimer() }
             )
         }
     }
@@ -364,13 +455,15 @@ struct LauncherIslandView: View {
             stepperRow(
                 title: "Focus",
                 value: $activity.focusMinutes,
-                range: 1...180
+                range: 1...180,
+                onSubmit: { activity.startPomodoro() }
             )
 
             stepperRow(
                 title: "Break",
                 value: $activity.breakMinutes,
-                range: 1...60
+                range: 1...60,
+                onSubmit: { activity.startPomodoro() }
             )
         }
     }
@@ -557,7 +650,8 @@ struct LauncherIslandView: View {
     private func stepperRow(
         title: String,
         value: Binding<Int>,
-        range: ClosedRange<Int>
+        range: ClosedRange<Int>,
+        onSubmit: @escaping () -> Void = {}
     ) -> some View {
 
         HStack(spacing: 10) {
@@ -572,12 +666,36 @@ struct LauncherIslandView: View {
                 value.wrappedValue = max(range.lowerBound, value.wrappedValue - 1)
             }
 
-            Text("\(value.wrappedValue) min")
-                .font(Metrics.valueFont)
-                .monospacedDigit()
-                .foregroundStyle(DesignTokens.Color.primaryText)
-                .frame(minWidth: 72)
-                .contentTransition(.numericText())
+            // Click the number and type it — or use − and +. Return
+            // starts it.
+            HStack(spacing: 4) {
+
+                TextField("", value: value, format: .number)
+                    .textFieldStyle(.plain)
+                    .font(Metrics.valueFont)
+                    .monospacedDigit()
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .frame(width: 44)
+                    .onSubmit {
+                        value.wrappedValue = min(max(value.wrappedValue, range.lowerBound), range.upperBound)
+                        onSubmit()
+                    }
+                    // A typed 0 or 5000 snaps into range.
+                    .onChange(of: value.wrappedValue) { _, typed in
+                        let clamped = min(max(typed, range.lowerBound), range.upperBound)
+                        if clamped != typed { value.wrappedValue = clamped }
+                    }
+
+                Text("min")
+                    .font(Metrics.subtitleFont)
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: Metrics.controlSize)
+            .background(
+                Capsule().fill(DesignTokens.Color.deviceIconBackground.opacity(0.7))
+            )
 
             stepperButton(symbol: "plus") {
                 value.wrappedValue = min(range.upperBound, value.wrappedValue + 1)

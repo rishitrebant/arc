@@ -7,6 +7,24 @@ final class WindowManager {
     private var windows:
         [ObjectIdentifier: IslandWindow] = [:]
 
+    /// Gives the keyboard back to whatever app was in front. Used when the
+    /// launcher's number field goes away: a panel that stays key would
+    /// keep swallowing the user's typing.
+    func releaseKeyboardFocus() {
+
+        IslandWindow.allowsKeyboardFocus = false
+
+        for window in windows.values where window.isKeyWindow {
+
+            window.makeFirstResponder(nil)
+
+            // Ordering out and straight back in drops key status without
+            // a visible change.
+            window.orderOut(nil)
+            window.orderFrontRegardless()
+        }
+    }
+
     private var localMouseMonitor: Any?
     private var globalMouseMonitor: Any?
     private var globalMouseDownMonitor: Any?

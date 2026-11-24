@@ -32,6 +32,12 @@ final class IslandWindow: NSPanel {
         isReleasedWhenClosed = false
     }
 
-    override var canBecomeKey: Bool { false }
+    /// The island never takes keyboard focus — clicking it must not pull
+    /// typing away from the app you're in — EXCEPT while the launcher is
+    /// showing a number field the user can type into. The launcher turns
+    /// this on for those pages and off again when they go away.
+    static var allowsKeyboardFocus = false
+
+    override var canBecomeKey: Bool { Self.allowsKeyboardFocus }
     override var canBecomeMain: Bool { false }
 }

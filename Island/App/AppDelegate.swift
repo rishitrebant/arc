@@ -237,8 +237,15 @@ final class AppDelegate:
         launcherActivity =
             LauncherActivity(
                 music: musicActivity,
-                bluetooth: bluetoothActivity
+                bluetooth: bluetoothActivity,
+                youtube: youtubeActivity
             )
+
+        launcherActivity.releaseKeyboard =
+            { [weak windowManager] in
+
+                windowManager?.releaseKeyboardFocus()
+            }
 
         launcherActivity.requestElevation =
             { [weak self] elevated in
