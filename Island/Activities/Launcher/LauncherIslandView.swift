@@ -246,8 +246,13 @@ struct LauncherIslandView: View {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                 )
 
-                YouTubeLogoMark(height: 9)
-                    .padding(4)
+                if video.isYouTube == true || (video.isYouTube == nil && video.siteHost == nil) {
+                    YouTubeLogoMark(height: 9)
+                        .padding(4)
+                } else {
+                    SiteIconView(video: video, size: 16)
+                        .padding(2)
+                }
             }
 
             VStack(alignment: .leading, spacing: 2) {

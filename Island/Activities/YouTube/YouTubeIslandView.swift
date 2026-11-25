@@ -41,7 +41,12 @@ struct YouTubeCompactIconView: View {
 
     var body: some View {
 
-        if AppSettings.youtubeCompactIcon == .thumbnail,
+        if video?.isYouTube != true, video?.isYouTube != nil || video?.siteHost != nil {
+
+            // Sound from some other site: that site's icon, not YouTube's.
+            SiteIconView(video: video, size: size)
+
+        } else if AppSettings.youtubeCompactIcon == .thumbnail,
            let thumbnail = video?.thumbnail {
 
             Image(nsImage: thumbnail)
@@ -60,6 +65,36 @@ struct YouTubeCompactIconView: View {
             YouTubeLogoMark(height: size * 0.72)
                 .frame(width: size, height: size)
         }
+    }
+}
+
+/// A non-YouTube video's mark: the site's own icon, or a globe until
+/// (or unless) it has one.
+struct SiteIconView: View {
+
+    let video: WebVideoState?
+    let size: CGFloat
+
+    var body: some View {
+
+        Group {
+            if let favicon = video?.favicon {
+
+                Image(nsImage: favicon)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: size * 0.78, height: size * 0.78)
+                    .clipShape(RoundedRectangle(cornerRadius: size * 0.18, style: .continuous))
+
+            } else {
+
+                Image(systemName: "globe")
+                    .font(.system(size: size * 0.7, weight: .semibold))
+                    .foregroundStyle(DesignTokens.Color.primaryText.opacity(0.85))
+            }
+        }
+        .frame(width: size, height: size)
     }
 }
 
@@ -182,7 +217,13 @@ struct YouTubeIslandView: View {
                         .scaledToFill()
                 } else {
                     Rectangle().fill(DesignTokens.Color.deviceIconBackground)
-                        .overlay { YouTubeLogoMark(height: 20) }
+                        .overlay {
+                            if video?.isYouTube == true || video?.isYouTube == nil && video?.siteHost == nil {
+                                YouTubeLogoMark(height: 20)
+                            } else {
+                                SiteIconView(video: video, size: 28)
+                            }
+                        }
                 }
             }
             .frame(width: thumbnailSize.width, height: thumbnailSize.height)

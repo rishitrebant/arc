@@ -54,6 +54,11 @@ final class MediaRemoteYouTubeService {
     private var youtubeCache: [String: Bool?] = [:]
     private var pendingKey: String?
 
+    /// Where each checked video lives, and each site's icon.
+    private var hostCache: [String: String] = [:]
+    private var faviconCache: [String: NSImage] = [:]
+    private var faviconRequests: Set<String> = []
+
     /// Anything shorter is a notification chime, not a video.
     private static let minimumDuration: TimeInterval = 5
 
@@ -269,7 +274,9 @@ final class MediaRemoteYouTubeService {
             duration: duration,
             isLive: isLive,
             isYouTube: youtubeCache[key] ?? nil,
-            browser: browser
+            browser: browser,
+            siteHost: hostCache[key],
+            favicon: hostCache[key].flatMap { faviconCache[$0] }
         )
 
         // A video we haven't checked yet: look it up once, and publish
@@ -288,20 +295,32 @@ final class MediaRemoteYouTubeService {
 
                 Task { [weak self] in
 
-                    let result = await BrowserTabInspector.isYouTube(
+                    let result = await BrowserTabInspector.inspect(
                         browser: wanted,
                         videoTitle: title
                     )
 
                     guard let self else { return }
 
-                    self.youtubeCache[key] = .some(result)
+                    self.youtubeCache[key] = .some(result.isYouTube)
+
+                    if let host = result.host {
+                        self.hostCache[key] = host
+                    }
+
                     self.pendingKey = nil
 
                     if var latest = self.current, latest.title == title {
-                        latest.isYouTube = result
+                        latest.isYouTube = result.isYouTube
+                        latest.siteHost = result.host
+                        latest.favicon = result.host.flatMap { self.faviconCache[$0] }
                         self.current = latest
                         self.stateSubject.send(latest)
+                    }
+
+                    // Not YouTube: it wears the site's own icon.
+                    if result.isYouTube != true, let host = result.host {
+                        self.loadFavicon(host: host, title: title)
                     }
                 }
             }
@@ -311,8 +330,51 @@ final class MediaRemoteYouTubeService {
 
         state.isYouTube = youtubeCache[key] ?? nil
 
+        // Resumed on a site whose icon hasn't been fetched yet.
+        if state.isYouTube != true, let host = state.siteHost, state.favicon == nil {
+            loadFavicon(host: host, title: title)
+        }
+
         current = state
         stateSubject.send(state)
+    }
+
+    /// Fetches the site's own `/favicon.ico` — straight from the site the
+    /// user is already watching, never a third-party icon service.
+    private func loadFavicon(host: String, title: String) {
+
+        guard
+            faviconCache[host] == nil,
+            !faviconRequests.contains(host),
+            let url = URL(string: "https://\(host)/favicon.ico")
+        else {
+            return
+        }
+
+        faviconRequests.insert(host)
+
+        Task { [weak self] in
+
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 6
+
+            let data = try? await URLSession.shared.data(for: request).0
+            let image = data.flatMap { NSImage(data: $0) }
+
+            guard let self else { return }
+
+            self.faviconRequests.remove(host)
+
+            guard let image else { return }
+
+            self.faviconCache[host] = image
+
+            if var latest = self.current, latest.siteHost == host {
+                latest.favicon = image
+                self.current = latest
+                self.stateSubject.send(latest)
+            }
+        }
     }
 
     private func clear() {
@@ -398,18 +460,24 @@ final class MediaRemoteYouTubeService {
 /// whether it's on YouTube.
 enum BrowserTabInspector {
 
-    /// `true` / `false` when the browser's tabs could be read, `nil` when
-    /// they couldn't (Firefox, Automation access denied, browser quit).
-    static func isYouTube(browser: WebBrowser, videoTitle: String) async -> Bool? {
+    struct Result {
+        /// `true` / `false` when the browser's tabs could be read, `nil`
+        /// when they couldn't (Firefox, Automation access denied, quit).
+        var isYouTube: Bool?
+        /// The host of the tab playing the video, when it was found.
+        var host: String?
+    }
 
-        guard let name = browser.scriptName else { return nil }
+    static func inspect(browser: WebBrowser, videoTitle: String) async -> Result {
+
+        guard let name = browser.scriptName else { return Result() }
 
         guard
             NSWorkspace.shared.runningApplications.contains(where: {
                 browser.bundleIDs.contains($0.bundleIdentifier ?? "")
             })
         else {
-            return nil
+            return Result()
         }
 
         let titleProperty = browser.isSafari ? "name" : "title"
@@ -427,9 +495,11 @@ enum BrowserTabInspector {
         end tell
         """
 
-        guard let output = await run(script) else { return nil }
+        guard let output = await run(script) else { return Result() }
 
         let wanted = videoTitle.lowercased()
+
+        var otherHost: String?
 
         for line in output.split(separator: "\n") {
 
@@ -438,17 +508,27 @@ enum BrowserTabInspector {
             guard parts.count >= 2 else { continue }
 
             let tabTitle = parts[0].lowercased()
-            let url = parts[1].lowercased()
+            let address = parts[1].trimmingCharacters(in: .whitespaces)
+            let url = address.lowercased()
 
-            let onYouTube = url.contains("youtube.com") || url.contains("youtu.be")
-
-            if onYouTube, tabTitle.contains(wanted) || wanted.contains(tabTitle) {
-                return true
+            guard
+                !tabTitle.isEmpty,
+                tabTitle.contains(wanted) || wanted.contains(tabTitle)
+            else {
+                continue
             }
+
+            let host = URL(string: address)?.host
+
+            if url.contains("youtube.com") || url.contains("youtu.be") {
+                return Result(isYouTube: true, host: host)
+            }
+
+            otherHost = otherHost ?? host
         }
 
         // The tabs were readable and none of them is this video on YouTube.
-        return false
+        return Result(isYouTube: false, host: otherHost)
     }
 
     private static func run(_ script: String) async -> String? {

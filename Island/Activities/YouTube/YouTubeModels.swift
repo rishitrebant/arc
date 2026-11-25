@@ -78,6 +78,11 @@ struct WebVideoState: Equatable {
 
     var browser: WebBrowser?
 
+    /// The site the video is on (`www.twitch.tv`), when its tab could be
+    /// found, and that site's own icon once it has loaded.
+    var siteHost: String?
+    var favicon: NSImage?
+
     static func == (lhs: WebVideoState, rhs: WebVideoState) -> Bool {
         lhs.title == rhs.title
             && lhs.channel == rhs.channel
@@ -86,6 +91,8 @@ struct WebVideoState: Equatable {
             && lhs.duration == rhs.duration
             && lhs.isLive == rhs.isLive
             && lhs.isYouTube == rhs.isYouTube
+            && lhs.siteHost == rhs.siteHost
+            && (lhs.favicon == nil) == (rhs.favicon == nil)
         // Thumbnail identity isn't meaningful for change detection.
     }
 }
