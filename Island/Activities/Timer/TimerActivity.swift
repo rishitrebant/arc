@@ -48,18 +48,35 @@ final class TimerSlot: ObservableObject {
 
     let kind: Kind
 
-    @Published private(set) var phase: Phase = .idle
+    @Published private(set) var phase: Phase = .idle {
+        didSet { updateFocusSound() }
+    }
 
     /// Whole seconds to show: remaining for a countdown, elapsed for a
     /// stopwatch. Only published when the whole second changes.
     @Published private(set) var displaySeconds: Int = 0
 
-    @Published private(set) var stage: Stage = .focus
+    @Published private(set) var stage: Stage = .focus {
+        didSet { updateFocusSound() }
+    }
 
     /// Which focus session of the pomodoro this is, starting at 1.
     @Published private(set) var session: Int = 1
 
     var isActive: Bool { phase != .idle }
+
+    /// The chosen background sound plays while a pomodoro's FOCUS stretch
+    /// is running — not through the break, a pause, or once it's over.
+    private func updateFocusSound() {
+
+        guard kind == .pomodoro else { return }
+
+        if phase == .running, stage == .focus {
+            FocusSoundPlayer.shared.start()
+        } else {
+            FocusSoundPlayer.shared.stop()
+        }
+    }
 
     /// Pomodoros and countdowns run down; the stopwatch runs up.
     var countsDown: Bool { kind != .stopwatch }

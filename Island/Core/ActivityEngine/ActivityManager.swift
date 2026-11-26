@@ -104,8 +104,24 @@ final class ActivityManager: ObservableObject {
         recomputeOwnership()
     }
 
-    private func rank(_ activity: AnyActivity) -> Int {
-        elevatedKinds.contains(activity.kind) ? -1 : activity.kind.rawValue
+    /// Kinds that, for now, rank somewhere other than their usual place —
+    /// the calendar's long countdown sits below a running timer, while its
+    /// "starting now" alert sits at its usual, higher spot.
+    private var rankOverrides: [ActivityKind: Double] = [:]
+
+    func setRankOverride(_ kind: ActivityKind, _ rank: Double?) {
+
+        guard rankOverrides[kind] != rank else { return }
+
+        rankOverrides[kind] = rank
+
+        recomputeOwnership()
+    }
+
+    private func rank(_ activity: AnyActivity) -> Double {
+        elevatedKinds.contains(activity.kind)
+            ? -1
+            : rankOverrides[activity.kind] ?? Double(activity.kind.rawValue)
     }
 
     /// `recomputeOwnership` can be asked to run again from inside itself

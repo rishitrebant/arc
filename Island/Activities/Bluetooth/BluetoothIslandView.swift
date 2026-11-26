@@ -1,12 +1,8 @@
 import SwiftUI
 
-/// The oval device card, shared by every "a device did something" moment
-/// (Bluetooth connect / disconnect, sound output change): a fully round
-/// pill with the notch overlapping its top, the device glyph on the left,
-/// ONE line of text beneath the notch, and a status ring on the right.
-///
-/// Content is centred in the whole height — there is no reserved band for
-/// the notch, because the single line of text already sits below it.
+/// The device card: the glyph on the left, "Connected" over the device's
+/// name in the middle, and a status ring (the battery, or a check) on the
+/// right — like the AirPods card on an iPhone.
 struct DeviceCardLayout<Trailing: View>: View {
 
     let symbolName: String
@@ -14,45 +10,33 @@ struct DeviceCardLayout<Trailing: View>: View {
     let status: String
     @ViewBuilder let trailing: Trailing
 
-    private typealias Metrics = DesignTokens.AirDropMetrics
+    private typealias Card = DesignTokens.DeviceCard
 
     var body: some View {
 
-        HStack(spacing: 0) {
+        HStack(spacing: Card.gap) {
 
-            DeviceIconView(
-                symbolName: symbolName,
-                diameter: Metrics.expandedIconSize,
-                showsDisc: false
-            )
-            .padding(.leading, Metrics.expandedEdgePadding)
+            Device3DIcon(symbolName: symbolName, name: title, size: Card.iconSize)
 
-            // "Name connected" — the name in white, the status dimmed,
-            // one line, truncating the name first.
-            (
-                Text(title)
-                    .foregroundStyle(DesignTokens.Color.primaryText)
-                +
-                Text(" \(status)")
+            VStack(alignment: .leading, spacing: 2) {
+
+                Text(status)
+                    .font(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(DesignTokens.Color.secondaryText)
-            )
-            .font(DesignTokens.Typography.title)
-            .tracking(DesignTokens.Typography.letterSpacingTight)
-            .lineLimit(1)
-            .truncationMode(.tail)
+
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .tracking(DesignTokens.Typography.letterSpacingTight)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, Metrics.expandedIconToTextGap)
-            // Sits just under the notch's bottom edge.
-            .offset(y: 3)
 
             trailing
-                .frame(
-                    width: Metrics.expandedIconSize,
-                    height: Metrics.expandedIconSize
-                )
-                .padding(.leading, Metrics.expandedIconToTextGap)
-                .padding(.trailing, Metrics.expandedEdgePadding)
+                .frame(width: Card.trailingSize, height: Card.trailingSize)
         }
+        .padding(.horizontal, Card.edgePadding)
     }
 }
 
@@ -89,29 +73,15 @@ struct DeviceStatusRing<Center: View>: View {
     }
 }
 
-/// Renders `BluetoothActivity`: the oval device card on connect and on
-/// disconnect. Hovering turns the ring into a Disconnect button.
-///
-/// One layout only (compact size == expanded size), so hovering never
-/// resizes it — `isExpanded` just means "the cursor is on it".
+/// Renders `BluetoothActivity`: a card when a device connects (and while
+/// you hover it), settling to a small pill — the glyph on one side, the
+/// battery ring on the other — until it goes away.
 struct BluetoothIslandView: View {
 
     @ObservedObject var activity: BluetoothActivity
     let isExpanded: Bool
 
     private typealias Metrics = DesignTokens.AirDropMetrics
-
-    private var canvasSize: CGSize {
-        DesignTokens.sharedCanvasSize
-    }
-
-    private var cardSize: CGSize {
-        activity.expandedSize
-    }
-
-    private var horizontalInset: CGFloat {
-        (canvasSize.width - cardSize.width) / 2
-    }
 
     private var symbolName: String {
         activity.device?.symbolName ?? "dot.radiowaves.left.and.right"
@@ -125,36 +95,73 @@ struct BluetoothIslandView: View {
         activity.phase == .connected
     }
 
+    private var level: Int? {
+        isConnected ? activity.battery?.headline : nil
+    }
+
+    private var ringTint: Color {
+        (level ?? 100) <= 20
+            ? DesignTokens.Color.lowBatteryAccent
+            : DesignTokens.Color.chargingAccent
+    }
+
     var body: some View {
 
-        ZStack(alignment: .topLeading) {
+        IslandMorphSurface(
+            isExpanded: isExpanded || activity.showsCard,
+            compactSize: activity.pillSize,
+            expandedSize: activity.cardSize
+        ) {
+            pill
+        } expanded: {
+            card
+        }
+        .animation(AnimationTokens.stateUpdate, value: activity.phase)
+        .animation(AnimationTokens.stateUpdate, value: activity.battery)
+        .animation(AnimationTokens.stateUpdate, value: isExpanded)
+    }
 
-            IslandShape(
-                topRadius: cardSize.height / 2,
-                bottomRadius: cardSize.height / 2
-            )
-            .fill(DesignTokens.Color.islandBackground)
-            .frame(width: cardSize.width, height: cardSize.height)
-            .position(x: canvasSize.width / 2, y: cardSize.height / 2)
+    // MARK: - Pill
+
+    private var pill: some View {
+
+        HStack(spacing: 0) {
+
+            Device3DIcon(symbolName: symbolName, name: deviceName, size: Metrics.compactIconSize + 2)
+
+            Spacer(minLength: 0)
+
+            if let level {
+                DeviceStatusRing(fraction: Double(level) / 100, tint: ringTint) { EmptyView() }
+                    .frame(width: Metrics.compactIconSize - 2, height: Metrics.compactIconSize - 2)
+            } else {
+                Image(systemName: isConnected ? "checkmark.circle" : "xmark.circle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(isConnected ? DesignTokens.Color.airDropAccent : DesignTokens.Color.secondaryText)
+            }
+        }
+        .padding(.horizontal, Metrics.compactEdgePadding + 2)
+    }
+
+    // MARK: - Card
+
+    private var card: some View {
+
+        VStack(spacing: 0) {
+
+            // Reserves the physical notch cutout.
+            Color.clear
+                .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
 
             DeviceCardLayout(
                 symbolName: symbolName,
                 title: deviceName,
-                status: isConnected ? "connected" : "disconnected"
+                status: isConnected ? "Connected" : "Disconnected"
             ) {
                 trailing
             }
-            .frame(width: cardSize.width, height: cardSize.height)
-            .offset(x: horizontalInset, y: 0)
+            .frame(maxHeight: .infinity)
         }
-        .frame(
-            width: canvasSize.width,
-            height: canvasSize.height,
-            alignment: .topLeading
-        )
-        .animation(AnimationTokens.stateUpdate, value: activity.phase)
-        .animation(AnimationTokens.stateUpdate, value: activity.battery)
-        .animation(AnimationTokens.stateUpdate, value: isExpanded)
     }
 
     // MARK: - Right-hand status
@@ -170,10 +177,7 @@ struct BluetoothIslandView: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(DesignTokens.Color.primaryText)
-                    .frame(
-                        width: Metrics.expandedIconSize,
-                        height: Metrics.expandedIconSize
-                    )
+                    .frame(width: DesignTokens.DeviceCard.trailingSize, height: DesignTokens.DeviceCard.trailingSize)
                     .background(
                         Circle().fill(DesignTokens.Color.deviceIconBackground)
                     )
@@ -182,20 +186,13 @@ struct BluetoothIslandView: View {
             .accessibilityLabel("Disconnect")
             .transition(.scale(scale: 0.6).combined(with: .opacity))
 
-        } else if isConnected, let level = activity.battery?.headline {
+        } else if let level {
 
-            let tint = level <= 20
-                ? DesignTokens.Color.lowBatteryAccent
-                : DesignTokens.Color.chargingAccent
-
-            DeviceStatusRing(
-                fraction: Double(level) / 100,
-                tint: tint
-            ) {
-                Text("\(level)")
-                    .font(.system(size: 13, weight: .semibold))
+            DeviceStatusRing(fraction: Double(level) / 100, tint: ringTint) {
+                Text("\(level)%")
+                    .font(.system(size: 12, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .foregroundStyle(ringTint)
             }
             .transition(.opacity)
 
@@ -229,8 +226,5 @@ struct PressableButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { _, pressed in
-                if pressed { Haptics.tick() }
-            }
     }
 }

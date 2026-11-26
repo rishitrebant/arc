@@ -29,10 +29,11 @@ struct LowBatteryIslandView: View {
     }
 
     private var pillSize: CGSize {
-        CGSize(
-            width: Metrics.compactWidth,
-            height: Metrics.compactHeight
-        )
+        activity.compactSize
+    }
+
+    private var hasDevices: Bool {
+        !activity.deviceLevels.isEmpty
     }
 
     private var horizontalInset: CGFloat {
@@ -53,7 +54,9 @@ struct LowBatteryIslandView: View {
 
             IslandShape(
                 topRadius: DesignTokens.Shape.compactTopRadius,
-                bottomRadius: DesignTokens.Shape.compactBottomRadius
+                bottomRadius: hasDevices
+                    ? DesignTokens.Shape.expandedBottomRadius
+                    : DesignTokens.Shape.compactBottomRadius
             )
             .fill(DesignTokens.Color.islandBackground)
             .frame(width: pillSize.width, height: pillSize.height)
@@ -81,29 +84,70 @@ struct LowBatteryIslandView: View {
 
     private var content: some View {
 
-        HStack(alignment: .center, spacing: 0) {
+        VStack(spacing: 0) {
 
-            HStack(spacing: Metrics.percentToBatterySpacing) {
+            HStack(alignment: .center, spacing: 0) {
 
-                BatteryGlyph(
-                    percent: activity.batteryPercent,
-                    tint: batteryTint,
-                    showsBolt: false
-                )
+                HStack(spacing: Metrics.percentToBatterySpacing + 2) {
 
-                Text("\(activity.batteryPercent)%")
-                    .font(Metrics.percentFont)
-                    .monospacedDigit()
-                    .foregroundStyle(batteryTint)
-                    .lineLimit(1)
-                    .fixedSize()
+                    DeviceStatusRing(
+                        fraction: Double(activity.batteryPercent) / 100,
+                        tint: batteryTint
+                    ) {
+                        EmptyView()
+                    }
+                    .frame(width: Metrics.ringSize - 6, height: Metrics.ringSize - 6)
+
+                    Text("\(activity.batteryPercent)%")
+                        .font(Metrics.percentFont)
+                        .monospacedDigit()
+                        .foregroundStyle(batteryTint)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+
+                Spacer(minLength: 0)
+
+                trailing
             }
+            .frame(height: Metrics.compactHeight)
 
-            Spacer(minLength: 0)
-
-            trailing
+            if hasDevices {
+                deviceRow
+            }
         }
         .padding(.horizontal, Metrics.compactEdgePadding)
+    }
+
+    /// What else is running low: each connected Bluetooth device and
+    /// its level, in one quiet line.
+    private var deviceRow: some View {
+
+        HStack(spacing: 14) {
+
+            ForEach(activity.deviceLevels) { device in
+
+                HStack(spacing: 5) {
+
+                    Image(systemName: device.symbolName)
+                        .font(.system(size: 11, weight: .medium))
+
+                    Text("\(device.level)%")
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(
+                            device.level <= 20
+                                ? DesignTokens.Color.lowBatteryAccent
+                                : DesignTokens.Color.primaryText
+                        )
+                }
+                .foregroundStyle(DesignTokens.Color.secondaryText)
+                .lineLimit(1)
+                .fixedSize()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(height: Metrics.deviceRowHeight)
     }
 
     @ViewBuilder

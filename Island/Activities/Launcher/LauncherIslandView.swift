@@ -1,4 +1,5 @@
 import SwiftUI
+import ImageIO
 
 /// Renders `LauncherActivity`: a full-size island panel with a Now
 /// Playing row on top and three Clock-style tiles (Timer, Pomodoro,
@@ -11,9 +12,15 @@ struct LauncherIslandView: View {
     @ObservedObject var clipboard: ClipboardHistory
     @ObservedObject var bluetooth: BluetoothActivity
     @ObservedObject var youtube: YouTubeActivity
+    @ObservedObject var timer: TimerActivity
 
     /// The clipboard row just copied — shows a check for a moment.
     @State private var copiedID: UUID?
+
+    @State private var clipboardQuery = ""
+    @State private var showNoteHistory = false
+    @FocusState private var noteFocused: Bool
+    @ObservedObject private var notes = NoteStore.shared
 
     private typealias Metrics = DesignTokens.LauncherMetrics
 
@@ -57,6 +64,8 @@ struct LauncherIslandView: View {
                         pomodoroPage
                     case .clipboard:
                         clipboardPage
+                    case .notes:
+                        notesPage
                     }
                 }
                 .transition(.opacity)
@@ -73,6 +82,7 @@ struct LauncherIslandView: View {
             alignment: .topLeading
         )
         .animation(.easeInOut(duration: 0.2), value: activity.page)
+        .animation(.easeInOut(duration: 0.28), value: panelSize)
         .animation(.easeInOut(duration: 0.2), value: bluetooth.connected.isEmpty)
     }
 
@@ -83,6 +93,11 @@ struct LauncherIslandView: View {
         VStack(spacing: Metrics.sectionSpacing) {
 
             nowPlayingRow
+
+            ForEach(Array(timer.activeSlots.prefix(2)), id: \.kind) { slot in
+                LauncherTimerRow(slot: slot)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+            }
 
             HStack(spacing: Metrics.tileSpacing) {
 
@@ -116,6 +131,14 @@ struct LauncherIslandView: View {
                     tint: DesignTokens.Color.capsLockAccent
                 ) {
                     activity.page = .clipboard
+                }
+
+                tile(
+                    symbol: "note.text",
+                    title: "Notes",
+                    tint: NoteActivity.accent
+                ) {
+                    activity.page = .notes
                 }
             }
 
@@ -397,6 +420,8 @@ struct LauncherIslandView: View {
                 Text(title)
                     .font(Metrics.tileFont)
                     .foregroundStyle(DesignTokens.Color.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.tileHeight)
@@ -476,29 +501,26 @@ struct LauncherIslandView: View {
 
     // MARK: - Clipboard
 
+    private var filteredEntries: [ClipboardEntry] {
+
+        let query = clipboardQuery.trimmingCharacters(in: .whitespaces)
+
+        guard !query.isEmpty else { return clipboard.entries }
+
+        return clipboard.entries.filter {
+            $0.searchText.localizedCaseInsensitiveContains(query)
+        }
+    }
+
     private var clipboardPage: some View {
 
         VStack(spacing: Metrics.sectionSpacing - 4) {
 
             HStack(spacing: 10) {
 
-                Button {
-                    activity.page = .home
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(DesignTokens.Color.primaryText)
-                        .frame(width: Metrics.controlSize, height: Metrics.controlSize)
-                        .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
-                }
-                .buttonStyle(LauncherPressStyle())
-                .accessibilityLabel("Back")
+                backButton
 
-                Text("Clipboard")
-                    .font(Metrics.titleFont)
-                    .foregroundStyle(DesignTokens.Color.primaryText)
-
-                Spacer(minLength: 0)
+                searchField
 
                 if !clipboard.entries.isEmpty {
                     Button {
@@ -515,15 +537,19 @@ struct LauncherIslandView: View {
                 }
             }
 
-            if clipboard.entries.isEmpty {
+            if filteredEntries.isEmpty {
 
                 Spacer(minLength: 0)
 
-                Text(AppSettings.keepClipboardHistory
-                     ? "Things you copy will show up here"
-                     : "Clipboard history is turned off in Settings")
-                    .font(Metrics.subtitleFont)
-                    .foregroundStyle(DesignTokens.Color.secondaryText)
+                Text(
+                    !clipboard.entries.isEmpty
+                        ? "Nothing matches “\(clipboardQuery)”"
+                        : AppSettings.keepClipboardHistory
+                            ? "Things you copy will show up here"
+                            : "Clipboard history is turned off in Settings"
+                )
+                .font(Metrics.subtitleFont)
+                .foregroundStyle(DesignTokens.Color.secondaryText)
 
                 Spacer(minLength: 0)
 
@@ -531,13 +557,57 @@ struct LauncherIslandView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 6) {
-                        ForEach(clipboard.entries) { entry in
+                        ForEach(filteredEntries) { entry in
                             clipboardRow(entry)
                         }
                     }
                 }
             }
         }
+        .onDisappear { clipboardQuery = "" }
+    }
+
+    private var backButton: some View {
+
+        Button {
+            activity.page = .home
+        } label: {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(DesignTokens.Color.primaryText)
+                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+        }
+        .buttonStyle(LauncherPressStyle())
+        .accessibilityLabel("Back")
+    }
+
+    private var searchField: some View {
+
+        HStack(spacing: 7) {
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DesignTokens.Color.secondaryText)
+
+            TextField("Search clipboard", text: $clipboardQuery)
+                .textFieldStyle(.plain)
+                .font(Metrics.subtitleFont)
+                .foregroundStyle(DesignTokens.Color.primaryText)
+
+            if !clipboardQuery.isEmpty {
+                Button {
+                    clipboardQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: Metrics.controlSize)
+        .background(Capsule().fill(DesignTokens.Color.deviceIconBackground))
     }
 
     private func clipboardRow(_ entry: ClipboardEntry) -> some View {
@@ -556,15 +626,20 @@ struct LauncherIslandView: View {
 
             HStack(spacing: 10) {
 
-                Image(systemName: entry.symbolName)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(DesignTokens.Color.capsLockAccent)
-                    .frame(width: 22)
+                if case .image(let data) = entry.content {
+                    ClipboardThumbnail(data: data)
+                } else {
+                    Image(systemName: entry.symbolName)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(DesignTokens.Color.capsLockAccent)
+                        .frame(width: 28)
+                }
 
-                Text(entry.title)
+                Text(entry.preview)
                     .font(Metrics.tileFont)
                     .foregroundStyle(DesignTokens.Color.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                     .truncationMode(.tail)
 
                 Spacer(minLength: 0)
@@ -575,11 +650,22 @@ struct LauncherIslandView: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(DesignTokens.Color.chargingAccent)
                         .transition(.opacity)
+                } else {
+                    Button {
+                        clipboard.remove(entry)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
+                            .frame(width: 20, height: 20)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove")
                 }
             }
             .animation(AnimationTokens.stateUpdate, value: copiedID)
             .padding(.horizontal, 12)
-            .frame(height: 36)
+            .frame(minHeight: 40)
             .background(
                 RoundedRectangle(
                     cornerRadius: 12,
@@ -589,6 +675,210 @@ struct LauncherIslandView: View {
             )
         }
         .buttonStyle(LauncherPressStyle())
+    }
+
+    // MARK: - Notes
+
+    private var notesPage: some View {
+
+        VStack(spacing: 6) {
+
+            HStack(spacing: 8) {
+
+                backButton
+
+                Spacer(minLength: 0)
+
+                boardButton(
+                    "square.and.pencil",
+                    label: "New note",
+                    tint: DesignTokens.Color.primaryText
+                ) {
+                    notes.startNewNote()
+                    showNoteHistory = false
+                    noteFocused = true
+                }
+
+                boardButton(
+                    "clock",
+                    label: "History",
+                    tint: showNoteHistory ? NoteActivity.accent : DesignTokens.Color.primaryText
+                ) {
+                    showNoteHistory.toggle()
+                }
+
+                boardButton(
+                    notes.editing?.isPinned == true ? "pin.fill" : "pin",
+                    label: notes.editing?.isPinned == true ? "Unpin" : "Pin to notch",
+                    tint: notes.editing?.isPinned == true ? NoteActivity.accent : DesignTokens.Color.primaryText
+                ) {
+                    notes.pinEditing()
+                }
+                .disabled(notes.editing == nil)
+            }
+
+            ZStack {
+
+                // The board itself: the whole card is the page.
+                ZStack(alignment: .topLeading) {
+
+                    if notes.draft.isEmpty {
+                        Text("Write something…")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
+                            .padding(.leading, 5)
+                            .allowsHitTesting(false)
+                    }
+
+                    TextEditor(text: Binding(
+                        get: { notes.draft },
+                        set: { notes.draft = $0 }
+                    ))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .scrollContentBackground(.hidden)
+                    .scrollIndicators(.never)
+                    .focused($noteFocused)
+                }
+                .opacity(showNoteHistory ? 0 : 1)
+
+                if showNoteHistory {
+                    noteHistory
+                        .transition(.opacity)
+                }
+            }
+            .frame(maxHeight: .infinity)
+
+            // A quiet status line, like a document's.
+            HStack {
+
+                if let note = notes.editing {
+                    Text(note.isPinned ? "Pinned to notch" : "Not pinned")
+                    Spacer()
+                    Text("Saved \(note.date.formatted(.relative(presentation: .named)))")
+                } else {
+                    Text("Starts saving as you type")
+                    Spacer()
+                }
+            }
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(DesignTokens.Color.secondaryText.opacity(0.8))
+            .lineLimit(1)
+        }
+        .animation(AnimationTokens.stateUpdate, value: showNoteHistory)
+        .onAppear {
+            notes.openBoard()
+            showNoteHistory = false
+            // Straight into typing: the island's panel takes the keyboard
+            // (without bringing ARC to the front) and the board focuses.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NSApp.windows
+                    .first { $0 is IslandWindow && $0.isVisible }?
+                    .makeKey()
+                noteFocused = true
+            }
+        }
+    }
+
+    /// Every saved note, newest first — tap one to open it on the board.
+    private var noteHistory: some View {
+
+        VStack(spacing: 6) {
+
+            if notes.notes.isEmpty {
+
+                Spacer(minLength: 0)
+
+                Text("No notes yet")
+                    .font(Metrics.subtitleFont)
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                Spacer(minLength: 0)
+
+            } else {
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 6) {
+                        ForEach(notes.notes) { note in
+                            noteRow(note)
+                        }
+                    }
+                }
+
+                Button {
+                    notes.clearAll()
+                    showNoteHistory = false
+                } label: {
+                    Text("Clear history")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func boardButton(
+        _ symbol: String,
+        label: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(tint)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(LauncherPressStyle())
+        .accessibilityLabel(label)
+    }
+
+    private func noteRow(_ note: QuickNote) -> some View {
+
+        HStack(spacing: 10) {
+
+            Button {
+                notes.editingID = note.id
+                showNoteHistory = false
+                noteFocused = true
+            } label: {
+                Text(note.text)
+                    .font(Metrics.tileFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if note.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(NoteActivity.accent)
+            }
+
+            Button {
+                notes.delete(note.id)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+                    .frame(width: 20, height: 22)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Delete")
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 40)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(DesignTokens.Color.deviceIconBackground)
+        )
     }
 
     // MARK: - Setup components
@@ -734,8 +1024,107 @@ private struct LauncherPressStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { _, pressed in
-                if pressed { Haptics.tick() }
+    }
+}
+
+/// A small preview of a copied image, decoded off the main thread and at
+/// thumbnail size so a big screenshot doesn't slow the list.
+private struct ClipboardThumbnail: View {
+
+    let data: Data
+
+    @State private var image: NSImage?
+
+    var body: some View {
+
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.clear
             }
+        }
+        .frame(width: 28, height: 28)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .task {
+            image = await Task.detached(priority: .utility) { () -> NSImage? in
+                guard
+                    let source = CGImageSourceCreateWithData(data as CFData, nil),
+                    let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 64
+                    ] as CFDictionary)
+                else { return nil }
+                return NSImage(cgImage: cg, size: NSSize(width: 28, height: 28))
+            }.value
+        }
+    }
+}
+
+/// A running clock on the launcher's home page, the way what's playing
+/// is: its glyph, the time, and pause / stop.
+private struct LauncherTimerRow: View {
+
+    @ObservedObject var slot: TimerSlot
+
+    private typealias Metrics = DesignTokens.LauncherMetrics
+
+    var body: some View {
+
+        HStack(spacing: 8) {
+
+            Image(systemName: slot.glyph)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(slot.accent)
+                .frame(width: 20)
+
+            Text(slot.title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(DesignTokens.Color.secondaryText)
+                .lineLimit(1)
+
+            Text(TimerIslandView.format(slot.displaySeconds))
+                .font(.system(size: 13, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(DesignTokens.Color.primaryText)
+                .opacity(slot.phase == .paused ? 0.55 : 1)
+                .contentTransition(.numericText(countsDown: slot.countsDown))
+
+            Spacer(minLength: 6)
+
+            if slot.phase != .finished {
+                button(slot.phase == .paused ? "play.fill" : "pause.fill", tint: slot.accent) {
+                    withAnimation(.easeInOut(duration: 0.22)) { slot.togglePause() }
+                }
+            }
+
+            button("xmark", tint: DesignTokens.Color.primaryText) {
+                withAnimation(.easeInOut(duration: 0.3)) { slot.cancel() }
+            }
+        }
+        .animation(.easeInOut(duration: 0.22), value: slot.phase)
+        .padding(.horizontal, 12)
+        .frame(height: Metrics.timerRowHeight)
+        .background(
+            RoundedRectangle(cornerRadius: Metrics.tileCornerRadius, style: .continuous)
+                .fill(Color.white.opacity(0.07))
+        )
+        .transition(.opacity)
+    }
+
+    private func button(_ symbol: String, tint: Color, action: @escaping () -> Void) -> some View {
+
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(tint)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(symbol == "xmark" ? "Stop" : "Pause or resume")
     }
 }

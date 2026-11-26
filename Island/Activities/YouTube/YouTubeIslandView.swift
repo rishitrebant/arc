@@ -75,6 +75,15 @@ struct SiteIconView: View {
     let video: WebVideoState?
     let size: CGFloat
 
+    private var browserIcon: NSImage? {
+
+        guard let ids = video?.browser?.bundleIDs else { return nil }
+
+        return NSWorkspace.shared.runningApplications
+            .first { ids.contains($0.bundleIdentifier ?? "") }?
+            .icon
+    }
+
     var body: some View {
 
         Group {
@@ -86,6 +95,14 @@ struct SiteIconView: View {
                     .scaledToFit()
                     .frame(width: size * 0.78, height: size * 0.78)
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.18, style: .continuous))
+
+            } else if let icon = browserIcon {
+
+                // No site icon (yet): the browser it's playing in.
+                Image(nsImage: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size * 0.78, height: size * 0.78)
 
             } else {
 

@@ -148,8 +148,8 @@ final class AudioOutputActivity: ObservableObject {
 
     var expandedSize: CGSize {
         CGSize(
-            width: DesignTokens.BluetoothMetrics.expandedWidth,
-            height: DesignTokens.BluetoothMetrics.expandedHeight
+            width: DesignTokens.DeviceCard.width,
+            height: DesignTokens.DeviceCard.height
         )
     }
 

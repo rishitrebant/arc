@@ -60,6 +60,10 @@ enum BluetoothBatteryReader {
             return fromProfiler
         }
 
+        if let level = await readFromPowerSources(name: name) {
+            return BluetoothBattery(main: level)
+        }
+
         if let level = await GATTBatteryReader(name: name).read() {
             return BluetoothBattery(main: level)
         }
@@ -117,6 +121,68 @@ enum BluetoothBatteryReader {
                             caseLevel: Self.percent(info["device_batteryLevelCase"])
                         )
                     }
+                }
+            }
+
+            return nil
+
+        }.value
+    }
+
+    // MARK: - Power sources
+
+    /// Mice, keyboards and other accessories that macOS tracks as power
+    /// sources (`pmset -g accps` lists them — the Logitech MX line shows
+    /// up there but not in `system_profiler`).
+    private static func readFromPowerSources(name: String) async -> Int? {
+
+        await Task.detached(priority: .utility) { () -> Int? in
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+            process.arguments = ["-g", "accps"]
+
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = FileHandle.nullDevice
+
+            do { try process.run() } catch { return nil }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+
+            guard
+                let text = String(data: data, encoding: .utf8),
+                let regex = try? NSRegularExpression(pattern: #"-(.+?) \(id=\d+\)\s+(\d+)%"#)
+            else {
+                return nil
+            }
+
+            func simple(_ text: String) -> String {
+                text.lowercased()
+                    .replacingOccurrences(of: "’", with: "'")
+                    .trimmingCharacters(in: .whitespaces)
+            }
+
+            let wanted = simple(name)
+
+            for line in text.split(separator: "\n") {
+
+                let line = String(line)
+
+                guard
+                    let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+                    let nameRange = Range(match.range(at: 1), in: line),
+                    let levelRange = Range(match.range(at: 2), in: line),
+                    let level = Int(line[levelRange])
+                else {
+                    continue
+                }
+
+                let accessory = simple(String(line[nameRange]))
+
+                if accessory == wanted || accessory.contains(wanted) || wanted.contains(accessory) {
+                    return level
                 }
             }
 

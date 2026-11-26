@@ -166,6 +166,7 @@
 		A5B6EA7B30A3127100F22126 /* Charging */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Charging; sourceTree = "<group>"; };
 		A5B6EA8A30A4579D00F22126 /* Bluetooth */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Bluetooth; sourceTree = "<group>"; };
 		A5C527A630820BCD00FA8114 /* Settings */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A5C527AB30820C0F00FA8114 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Settings; sourceTree = "<group>"; };
+		A52785D730B6B8E2004B2F58 /* Notes */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Notes; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -265,6 +266,7 @@
 				A5FC92D930B37483006B7C70 /* AudioOutput */,
 				A5FC92E430B378A0006B7C70 /* Focus */,
 				A5FC92ED30B5845E006B7C70 /* YouTube */,
+				A52785D730B6B8E2004B2F58 /* Notes */,
 			);
 			path = Activities;
 			sourceTree = "<group>";
@@ -467,6 +469,7 @@
 				A59D587B30489F0800C9C957 /* FileDrop */,
 				A5B6EA7B30A3127100F22126 /* Charging */,
 				A5B6EA8A30A4579D00F22126 /* Bluetooth */,
+				A52785D730B6B8E2004B2F58 /* Notes */,
 			);
 			name = Island;
 			packageProductDependencies = (

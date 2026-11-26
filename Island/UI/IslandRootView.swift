@@ -126,6 +126,10 @@ struct IslandRootView: View {
     /// no animation context and just pops).
     @State private var showsSplitContent = false
 
+    /// Bumped when an activity's size changes on its own (the launcher
+    /// changing page), so `visibleSize` is read again.
+    @State private var layoutTick = 0
+
     /// The last shared-pill glow, kept so it can fade out when the pill
     /// opens (or the second activity leaves) instead of being cut.
     @State private var heldSplitGlow: SplitGlow?
@@ -134,12 +138,6 @@ struct IslandRootView: View {
     /// short dwell is running (so brushing past it doesn't open anything).
     @State private var isPointerOnNotch = false
     @State private var notchHoverWork: DispatchWorkItem?
-
-    /// The notch ears are drawn for the FINAL size the instant it
-    /// changes, while the pill itself is still animating toward it — so
-    /// they're held back until the size has settled.
-    @State private var earsSettled = true
-    @State private var earsWorkItem: DispatchWorkItem?
 
     /// Both halves of the shared pill, captured while it's up — so when
     /// the second activity ends, its half is still there to fade out
@@ -211,6 +209,9 @@ struct IslandRootView: View {
 
     /// The size of the pill actually on screen right now.
     private var visibleSize: CGSize {
+
+        // Re-read when the launcher's panel changes height.
+        _ = layoutTick
 
         if isSplitMode, let size = activityManager.splitCompactSize {
             return size
@@ -339,6 +340,85 @@ struct IslandRootView: View {
         return lerp(base, DesignTokens.Shadow.expandedYOffset, shadowExpansion)
     }
 
+    // MARK: - Shadows
+
+    /// Rounding for a surface of this height — the same curve
+    /// `surfaceRoundness` follows, so the shadow's corners match.
+    private func casterRadii(forHeight height: CGFloat) -> (top: CGFloat, bottom: CGFloat) {
+
+        let t = min(1, max(0, (height - 33) / (74 - 33)))
+
+        let top = DesignTokens.Shape.compactTopRadius
+            + (DesignTokens.Shape.expandedTopRadius - DesignTokens.Shape.compactTopRadius) * t
+
+        let bottom = DesignTokens.Shape.compactBottomRadius
+            + (DesignTokens.Shape.expandedBottomRadius - DesignTokens.Shape.compactBottomRadius) * t
+
+        return (top, bottom)
+    }
+
+    /// The size the shadows are cast from. It springs to `visibleSize`
+    /// but deliberately a touch LATE when growing and EARLY when
+    /// shrinking, so the stand-in is never bigger than the real surface
+    /// — the shadow never shows up around an island that hasn't opened yet.
+    @State private var casterSize: CGSize = .zero
+
+    private func moveCaster(from old: CGSize, to new: CGSize) {
+
+        let growing = new.width * new.height >= old.width * old.height
+
+        let spring: Animation = growing
+            ? .spring(response: 0.38, dampingFraction: 1)
+            : .spring(response: 0.16, dampingFraction: 1)
+
+        withAnimation(spring) {
+            casterSize = new
+        }
+    }
+
+    /// Casts every shadow the island has — ambient, accent glow, contact —
+    /// from a stand-in for the island's surface, sitting under it.
+    private var shadowCaster: some View {
+
+        let size = casterSize
+        let radii = casterRadii(forHeight: size.height)
+
+        return IslandShape(topRadius: radii.top, bottomRadius: radii.bottom)
+            .fill(Color.black)
+            .frame(width: size.width, height: size.height)
+            .shadow(
+                color: ambientShadowColor,
+                radius: ambientShadowRadius,
+                x: 0,
+                y: ambientShadowY
+            )
+            .shadow(
+                color: accentShadowColor,
+                radius: accentShadowRadius,
+                x: 0,
+                y: accentShadowY
+            )
+            .shadow(
+                color: DesignTokens.Shadow.contactColor,
+                radius: DesignTokens.Shadow.contactRadius,
+                x: 0,
+                y: DesignTokens.Shadow.contactYOffset
+            )
+            .animation(AnimationTokens.hoverPrimeTransition, value: isPrimed)
+            .scaleEffect(
+                x: isPresentationVisible ? 1 : notchScale.width,
+                y: isPresentationVisible ? 1 : notchScale.height,
+                anchor: .top
+            )
+            .animation(
+                isPresentationVisible ? AnimationTokens.enterSpring : AnimationTokens.exitSpring,
+                value: isPresentationVisible
+            )
+            .offset(y: isDocked ? 0 : dockDragOffset)
+            .opacity(renderedActivity == nil || isDocked ? 0 : 1)
+            .allowsHitTesting(false)
+    }
+
     // MARK: - Notch ears
 
     /// The two small concave fillets where a flat-topped pill meets the
@@ -349,31 +429,52 @@ struct IslandRootView: View {
 
         let flare = DesignTokens.Shape.notchFlare
 
+        // Follows the pill's own (animated) size, so the flares slide in
+        // with its edges instead of appearing once it has settled. They
+        // fade out as it grows into a card, and back in as it shrinks.
+        let size = earSize == .zero ? visibleSize : earSize
+
+        let compactness = 1 - min(1, max(0, (size.height - 36) / 12))
+
+        let visible = !isDocked && renderedActivity != nil && !showHandoverBackdrop
+
         return ZStack(alignment: .top) {
 
-            if !isDocked,
-               earsSettled,
-               !showHandoverBackdrop,
-               renderedActivity != nil,
-               visibleSize.height <= 40 {
+            NotchEarShape(isLeft: true)
+                .fill(DesignTokens.Color.islandBackground)
+                .frame(width: flare, height: flare)
+                .offset(x: -(size.width / 2 + flare / 2))
 
-                NotchEarShape(isLeft: true)
-                    .fill(DesignTokens.Color.islandBackground)
-                    .frame(width: flare, height: flare)
-                    .offset(x: -(visibleSize.width / 2 + flare / 2))
-
-                NotchEarShape(isLeft: false)
-                    .fill(DesignTokens.Color.islandBackground)
-                    .frame(width: flare, height: flare)
-                    .offset(x: visibleSize.width / 2 + flare / 2)
-            }
+            NotchEarShape(isLeft: false)
+                .fill(DesignTokens.Color.islandBackground)
+                .frame(width: flare, height: flare)
+                .offset(x: size.width / 2 + flare / 2)
         }
         .frame(
-            width: max(DesignTokens.sharedCanvasSize.width, visibleSize.width + flare * 2),
+            width: max(DesignTokens.sharedCanvasSize.width, size.width + flare * 2),
             height: flare,
             alignment: .top
         )
+        .opacity(visible ? compactness : 0)
+        .animation(.easeOut(duration: 0.25), value: showHandoverBackdrop)
         .allowsHitTesting(false)
+    }
+
+    /// The pill's size as the ears follow it — the same springs the
+    /// surface uses, including collapsing's short wait.
+    @State private var earSize: CGSize = .zero
+
+    private func moveEars(from old: CGSize, to new: CGSize) {
+
+        let growing = new.width * new.height >= old.width * old.height
+
+        let spring: Animation = growing
+            ? AnimationTokens.shapeSpring
+            : AnimationTokens.collapseSpring.delay(AnimationTokens.collapseShapeDelay)
+
+        withAnimation(spring) {
+            earSize = new
+        }
     }
 
     // MARK: - Notch glow
@@ -577,9 +678,16 @@ struct IslandRootView: View {
                         .mask(alignment: .top) {
                             surfaceMask
                         }
+                        // On a hand-over the surface leads and the content
+                        // follows once there's room — it used to fade in
+                        // while the island was still opening.
                         .transition(
-                            .opacity.combined(
-                                with: .scale(scale: 0.94, anchor: .top)
+                            .asymmetric(
+                                insertion: .opacity
+                                    .animation(.easeOut(duration: 0.22).delay(0.12))
+                                    .combined(with: .scale(scale: 0.96, anchor: .top)),
+                                removal: .opacity
+                                    .animation(.easeIn(duration: 0.12))
                             )
                         )
                     }
@@ -707,6 +815,9 @@ struct IslandRootView: View {
 
             syncInitialPresentation()
 
+            casterSize = visibleSize
+            earSize = visibleSize
+
             if isSplitMode {
                 captureSplit()
                 showsSplitContent = true
@@ -766,32 +877,13 @@ struct IslandRootView: View {
         // that keeps its edge crisp (both neutral black), and — while the
         // compact pill sits there — a glow in the activity's colour that
         // swells on hover and is gone once the card is open.
-        .shadow(
-            color: ambientShadowColor,
-            radius: ambientShadowRadius,
-            x: 0,
-            y: ambientShadowY
-        )
-
-        .shadow(
-            color: accentShadowColor,
-            radius: accentShadowRadius,
-            x: 0,
-            y: accentShadowY
-        )
-
-        .shadow(
-            color: DesignTokens.Shadow.contactColor,
-            radius: DesignTokens.Shadow.contactRadius,
-            x: 0,
-            y: DesignTokens.Shadow.contactYOffset
-        )
-
-        .animation(
-            AnimationTokens.hoverPrimeTransition,
-            value:
-                isPrimed
-        )
+        // The island's shadows come from `shadowCaster`, a shape of their
+        // own — not from whatever pixels happen to be on screen. Drawn from
+        // the content they thinned out and swelled with every cross-fade
+        // and surface swap (a shared pill opening was the worst of it).
+        .background(alignment: .top) {
+            shadowCaster
+        }
 
         // Shared pill: the glow is split down the middle — each half
         // takes its own activity's colour.
@@ -882,21 +974,9 @@ struct IslandRootView: View {
 
             previousVisibleSize = old
 
-            // Hide the ears while the size is changing; bring them back
-            // once it has settled.
-            earsSettled = false
-            earsWorkItem?.cancel()
+            moveCaster(from: casterSize == .zero ? old : casterSize, to: new)
 
-            let settle = DispatchWorkItem {
-                earsSettled = true
-            }
-
-            earsWorkItem = settle
-
-            DispatchQueue.main.asyncAfter(
-                deadline: .now() + 0.55,
-                execute: settle
-            )
+            moveEars(from: earSize == .zero ? old : earSize, to: new)
 
             if isSplitMode { captureSplit() }
 
@@ -1011,6 +1091,14 @@ struct IslandRootView: View {
             )
         ) { _ in
             playIntroGlow()
+        }
+
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .islandLauncherLayoutChanged
+            )
+        ) { _ in
+            layoutTick += 1
         }
 
         .onReceive(

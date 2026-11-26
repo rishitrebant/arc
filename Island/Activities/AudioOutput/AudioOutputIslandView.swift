@@ -49,13 +49,12 @@ struct AudioOutputIslandView: View {
 
         HStack(spacing: 0) {
 
-            Image(systemName: symbol)
-                .symbolRenderingMode(.hierarchical)
-                .font(.system(size: Compact.glyphSize + 1, weight: .medium))
-                .foregroundStyle(DesignTokens.Color.primaryText)
-                .symbolEffect(.bounce, value: activity.device?.id)
-                .frame(width: Compact.iconSlot, height: Compact.iconSlot)
-                .padding(.leading, -3)
+            Device3DIcon(
+                symbolName: symbol,
+                name: activity.device?.name ?? "",
+                size: Compact.iconSlot
+            )
+            .padding(.leading, -3)
 
             Spacer(minLength: 0)
 
@@ -77,33 +76,18 @@ struct AudioOutputIslandView: View {
             Color.clear
                 .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
 
-            HStack(spacing: Expanded.iconToTextGap) {
-
-                DeviceIconView(
-                    symbolName: symbol,
-                    diameter: Expanded.iconSize
-                )
-
-                VStack(alignment: .leading, spacing: 2) {
-
-                    Text(activity.device?.name ?? "Speakers")
-                        .font(DesignTokens.Typography.title)
-                        .tracking(DesignTokens.Typography.letterSpacingTight)
-                        .foregroundStyle(DesignTokens.Color.primaryText)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-
-                    Text("Sound Output")
-                        .font(Expanded.statusFont)
-                        .foregroundStyle(DesignTokens.Color.secondaryText)
-                        .lineLimit(1)
+            DeviceCardLayout(
+                symbolName: symbol,
+                title: activity.device?.name ?? "Speakers",
+                status: "Sound Output"
+            ) {
+                DeviceStatusRing(fraction: 1, tint: DesignTokens.Color.capsLockAccent) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(DesignTokens.Color.capsLockAccent)
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding(.horizontal, Expanded.edgePadding)
             .frame(maxHeight: .infinity)
-            .padding(.bottom, Expanded.bottomPadding)
         }
     }
 }

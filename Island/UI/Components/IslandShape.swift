@@ -154,9 +154,14 @@ struct IslandMorphSurface<Compact: View, Expanded: View>: View {
                     expanded
                         .frame(width: expandedSize.width, height: expandedSize.height)
                         .transition(
-                            .opacity.animation(
-                                AnimationTokens.shapeSpring
-                                    .delay(AnimationTokens.contentRevealDelay)
+                            // Fades in once there's room; on the way out it
+                            // clears at once, before the shape shrinks.
+                            .asymmetric(
+                                insertion: .opacity.animation(
+                                    AnimationTokens.shapeSpring
+                                        .delay(AnimationTokens.contentRevealDelay)
+                                ),
+                                removal: .opacity.animation(.easeIn(duration: 0.07))
                             )
                         )
 

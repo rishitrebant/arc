@@ -44,6 +44,9 @@ enum AppSettings {
         static let globalShortcutsEnabled = "globalShortcutsEnabled"
         static let keepClipboardHistory = "keepClipboardHistory"
         static let lastTimerMinutes = "lastTimerMinutes"
+        static let waterReminderEnabled = "waterReminderEnabled"
+        static let focusSound = "focusSound"
+        static let focusSoundVolume = "focusSoundVolume"
     }
 
     enum Default {
@@ -79,6 +82,9 @@ enum AppSettings {
         static let globalShortcutsEnabled = true
         static let keepClipboardHistory = true
         static let lastTimerMinutes = 10
+        static let waterReminderEnabled = false
+        static let focusSound = FocusSound.off.rawValue
+        static let focusSoundVolume: Double = 0.5
     }
 
     // MARK: - Static accessors (for non-SwiftUI code)

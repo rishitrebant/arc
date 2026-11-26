@@ -35,11 +35,15 @@ enum DesignTokens {
         CGSize(
             width: max(
                 MusicMetrics.expandedWidth,
-                FileDropMetrics.expandedWithItemsWidth
+                FileDropMetrics.expandedWithItemsWidth,
+                LauncherMetrics.clipboardWidth,
+                LauncherMetrics.homeWidth
             ),
             height: max(
                 MusicMetrics.expandedHeight,
-                FileDropMetrics.expandedWithItemsHeight
+                FileDropMetrics.expandedWithItemsHeight,
+                LauncherMetrics.notesHeight,
+                LauncherMetrics.clipboardMaxHeight
             )
         )
     }
@@ -290,6 +294,19 @@ enum DesignTokens {
     // proportions genuinely differ (259 compact width vs Music's 263, 33
     // compact height vs Music's 29).
 
+    /// The card every "a device did something" moment shares (a Bluetooth
+    /// device connecting, the sound output changing): equal 22pt edges,
+    /// a 46pt glyph and a 40pt status disc, centred in the room below
+    /// the notch.
+    enum DeviceCard {
+        static let width: CGFloat = 340
+        static let height: CGFloat = 92
+        static let edgePadding: CGFloat = 22
+        static let gap: CGFloat = 14
+        static let iconSize: CGFloat = 46
+        static let trailingSize: CGFloat = 40
+    }
+
     enum AirDropMetrics {
 
         /// Icon + ring are both 20pt, 10pt in from the pill's outer edge
@@ -392,6 +409,10 @@ enum DesignTokens {
         static let buttonHorizontalPadding: CGFloat = 9
         static let buttonHeight: CGFloat = 22
         static let confirmationIconSpacing: CGFloat = 4
+
+        /// The strip of Bluetooth batteries under the alert.
+        static let deviceRowHeight: CGFloat = 30
+        static let ringSize: CGFloat = 22
     }
 
     // MARK: - Bluetooth metrics
@@ -561,16 +582,33 @@ enum DesignTokens {
 
     enum LauncherMetrics {
 
+        /// The Timer and Pomodoro setup pages: the launcher's original size.
         static let width: CGFloat = 380
         static let height: CGFloat = 220
+
+        /// The home page carries five tiles, so it's a touch wider.
+        static let homeWidth: CGFloat = 420
+        static let homeHeight: CGFloat = 228
+
+        /// The clipboard is as tall as what's in it (up to `clipboardMaxRows`).
+        static let clipboardWidth: CGFloat = 420
+        static let clipboardRowHeight: CGFloat = 46
+        static let clipboardMaxRows = 5
+        static let clipboardChrome: CGFloat = 32 + 34 + 8 + 16   // notch + header + gap + bottom
+        static let clipboardEmptyHeight: CGFloat = 150
+        static let clipboardMaxHeight: CGFloat = clipboardChrome + CGFloat(clipboardMaxRows) * clipboardRowHeight
+
+        static let notesWidth: CGFloat = 420
+        static let notesHeight: CGFloat = 330
+
+        /// The home page with no Bluetooth device row (its height plus
+        /// the spacing above it).
+        static let heightWithoutDevice: CGFloat = homeHeight - sectionSpacing - deviceCardHeight
 
         static let edgePadding: CGFloat = 20
         static let bottomPadding: CGFloat = 16
         static let sectionSpacing: CGFloat = 12
 
-        /// The home page with no Bluetooth device row (its height plus
-        /// the spacing above it).
-        static let heightWithoutDevice: CGFloat = height - sectionSpacing - deviceCardHeight
 
         static let artSize: CGFloat = 48
         static let artCornerRadius: CGFloat = 11
@@ -579,6 +617,7 @@ enum DesignTokens {
         static let tileHeight: CGFloat = 54
 
         static let deviceCardHeight: CGFloat = 42
+        static let timerRowHeight: CGFloat = 34
         static let tileSpacing: CGFloat = 10
         static let tileCornerRadius: CGFloat = 16   // concentric: 36pt panel radius - 20pt edge padding
         static let tileGlyphSize: CGFloat = 19

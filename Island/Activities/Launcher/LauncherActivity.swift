@@ -19,11 +19,15 @@ final class LauncherActivity: ObservableObject {
         case timer
         case pomodoro
         case clipboard
+        case notes
     }
 
     @Published private(set) var isActive: Bool = false
     @Published var page: Page = .home {
-        didSet { updateKeyboardAccess() }
+        didSet {
+            updateKeyboardAccess()
+            announceLayoutChange()
+        }
     }
 
     // Remembered between openings, like the Clock app's last-used values.
@@ -37,6 +41,23 @@ final class LauncherActivity: ObservableObject {
 
     /// A browser video — takes the Now Playing slot while it plays.
     let youtube: YouTubeActivity
+
+    /// Running timers, listed on the home page like what's playing.
+    let timer: TimerActivity
+
+    /// How many running clocks the home page lists (it has room for two).
+    var timerRowCount: Int { min(timer.activeSlots.count, 2) }
+
+    private var lastTimerRowCount = 0
+    private var layoutCancellables: Set<AnyCancellable> = []
+
+    /// The panel's height depends on the page and on what's running —
+    /// tell the island so its own idea of the size follows.
+    private func announceLayoutChange() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .islandLauncherLayoutChanged, object: nil)
+        }
+    }
 
     /// Connected Bluetooth devices, shown subtly on the home page.
     let bluetooth: BluetoothActivity
@@ -61,7 +82,7 @@ final class LauncherActivity: ObservableObject {
     /// The island window only accepts typing while a number field is up.
     private func updateKeyboardAccess() {
 
-        let wantsKeyboard = isActive && (page == .timer || page == .pomodoro)
+        let wantsKeyboard = isActive && (page == .timer || page == .pomodoro || page == .clipboard || page == .notes)
 
         if wantsKeyboard {
             IslandWindow.allowsKeyboardFocus = true
@@ -93,14 +114,32 @@ final class LauncherActivity: ObservableObject {
     init(
         music: MusicActivity,
         bluetooth: BluetoothActivity,
-        youtube: YouTubeActivity
+        youtube: YouTubeActivity,
+        timer: TimerActivity
     ) {
 
         self.music = music
         self.bluetooth = bluetooth
         self.youtube = youtube
+        self.timer = timer
+
+        timer.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, self.timerRowCount != self.lastTimerRowCount else { return }
+                self.lastTimerRowCount = self.timerRowCount
+                self.announceLayoutChange()
+            }
+            .store(in: &layoutCancellables)
 
         clipboard.start()
+
+        clipboard.$entries
+            .map(\.count)
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.announceLayoutChange() }
+            .store(in: &layoutCancellables)
 
         observers.append(Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(
@@ -127,6 +166,28 @@ final class LauncherActivity: ObservableObject {
                 named: .islandOpenClipboard
             ) {
                 self?.showClipboard()
+            }
+        })
+
+        observers.append(Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: .islandOpenNotes
+            ) {
+                self?.showNotes()
+            }
+        })
+
+        observers.append(Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: .islandTogglePinnedNote
+            ) {
+                let store = NoteStore.shared
+
+                if store.pinned != nil {
+                    store.unpin()
+                } else if let newest = store.notes.first {
+                    store.togglePin(newest.id)
+                }
             }
         })
 
@@ -180,6 +241,16 @@ final class LauncherActivity: ObservableObject {
         if !isActive { show() }
 
         page = .clipboard
+    }
+
+    /// Opens the launcher on the notes page.
+    private func showNotes() {
+
+        guard AppSettings.launcherTrigger != .off else { return }
+
+        if !isActive { show() }
+
+        page = .notes
     }
 
     func hide() {
@@ -288,12 +359,35 @@ final class LauncherActivity: ObservableObject {
         // device is connected; without one, don't leave its space empty.
         let hasDevice = !bluetooth.connected.isEmpty
 
-        return CGSize(
-            width: DesignTokens.LauncherMetrics.width,
-            height: page == .home && !hasDevice
-                ? DesignTokens.LauncherMetrics.heightWithoutDevice
-                : DesignTokens.LauncherMetrics.height
-        )
+        typealias Metrics = DesignTokens.LauncherMetrics
+
+        switch page {
+
+        case .clipboard:
+            // As tall as what's on it, not a fixed slab.
+            let rows = min(clipboard.entries.count, Metrics.clipboardMaxRows)
+            return CGSize(
+                width: Metrics.clipboardWidth,
+                height: rows == 0
+                    ? Metrics.clipboardEmptyHeight
+                    : Metrics.clipboardChrome + CGFloat(rows) * Metrics.clipboardRowHeight
+            )
+
+        case .notes:
+            return CGSize(width: Metrics.notesWidth, height: Metrics.notesHeight)
+
+        case .timer, .pomodoro:
+            // The setup pages keep the launcher's original size.
+            return CGSize(width: Metrics.width, height: Metrics.height)
+
+        case .home:
+            let timerExtra = CGFloat(timerRowCount) * (Metrics.timerRowHeight + Metrics.sectionSpacing)
+
+            return CGSize(
+                width: Metrics.homeWidth,
+                height: (hasDevice ? Metrics.homeHeight : Metrics.heightWithoutDevice) + timerExtra
+            )
+        }
     }
 
     var expandedSize: CGSize { compactSize }
@@ -308,7 +402,8 @@ final class LauncherActivity: ObservableObject {
             music: music,
             clipboard: clipboard,
             bluetooth: bluetooth,
-            youtube: youtube
+            youtube: youtube,
+            timer: timer
         )
     }
 }

@@ -29,6 +29,22 @@ final class LowBatteryActivity: ObservableObject {
     @Published private(set) var batteryPercent: Int = 0
     @Published private(set) var phase: Phase = .prompt
 
+    /// A connected Bluetooth device and its battery, listed under the
+    /// alert — what else is about to run out.
+    struct DeviceLevel: Identifiable, Equatable {
+        let id: String
+        let name: String
+        let symbolName: String
+        let level: Int
+    }
+
+    /// Captured when the alert appears, so the pill never changes size
+    /// while it's up.
+    @Published private(set) var deviceLevels: [DeviceLevel] = []
+
+    /// Set by `AppDelegate`.
+    var bluetooth: BluetoothActivity?
+
     private let isActiveSubject =
         CurrentValueSubject<Bool, Never>(false)
 
@@ -199,6 +215,15 @@ final class LowBatteryActivity: ObservableObject {
 
     private func show() {
 
+        deviceLevels = bluetooth?.connected.compactMap { info in
+            bluetooth?.batteries[info.address]?.headline.map {
+                DeviceLevel(id: info.address, name: info.name, symbolName: info.symbolName, level: $0)
+            }
+        }.prefix(3).map { $0 } ?? []
+
+        // Fresh numbers for next time.
+        bluetooth?.refreshBatteries()
+
         phase = .prompt
         setActive(true)
         scheduleHideCheck(after: AnimationTokens.lowBatteryDisplayDuration)
@@ -326,6 +351,7 @@ final class LowBatteryActivity: ObservableObject {
         CGSize(
             width: DesignTokens.LowBatteryMetrics.compactWidth,
             height: DesignTokens.LowBatteryMetrics.compactHeight
+                + (deviceLevels.isEmpty ? 0 : DesignTokens.LowBatteryMetrics.deviceRowHeight)
         )
     }
 

@@ -22,6 +22,25 @@ enum Haptics {
         perform(.generic)
     }
 
+    /// The trackpad already clicks under your finger — a haptic landing
+    /// on top of it feels like a double click. So nothing fires while a
+    /// button is down or just after one was pressed; only things that
+    /// happen WITHOUT a click (an alert arriving, a hover opening) tap.
+    private static var lastClick: TimeInterval = 0
+    private static var monitor: Any?
+
+    static func start() {
+
+        guard monitor == nil else { return }
+
+        monitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseUp, .rightMouseDown]
+        ) { event in
+            lastClick = ProcessInfo.processInfo.systemUptime
+            return event
+        }
+    }
+
     private static var lastFired: TimeInterval = 0
     private static let minimumSpacing: TimeInterval = 0.3
 
@@ -36,6 +55,8 @@ enum Haptics {
         // "opening" tap (the button starts a timer, which hands the
         // island over) — the first one wins, the echo is dropped.
         let now = ProcessInfo.processInfo.systemUptime
+
+        guard NSEvent.pressedMouseButtons == 0, now - lastClick > 0.6 else { return }
 
         guard now - lastFired >= minimumSpacing else { return }
 

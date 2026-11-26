@@ -32,6 +32,26 @@ struct ClipboardEntry: Identifiable, Equatable {
         }
     }
 
+    /// What a search looks through.
+    var searchText: String {
+        switch content {
+        case .text(let text): return text
+        case .image: return "image"
+        case .files(let urls): return urls.map(\.lastPathComponent).joined(separator: " ")
+        }
+    }
+
+    /// Up to two lines of the text, for the list.
+    var preview: String {
+        guard case .text(let text) = content else { return title }
+        return String(
+            text.split(whereSeparator: \.isNewline)
+                .prefix(2)
+                .joined(separator: "\n")
+                .prefix(160)
+        )
+    }
+
     var symbolName: String {
         switch content {
         case .text(let text):
@@ -57,7 +77,7 @@ final class ClipboardHistory: ObservableObject {
 
     @Published private(set) var entries: [ClipboardEntry] = []
 
-    private static let maxEntries = 8
+    private static let maxEntries = 30
     private static let maxTextLength = 4_000
     private static let maxImageBytes = 6_000_000
 
@@ -89,6 +109,10 @@ final class ClipboardHistory: ObservableObject {
 
     func clear() {
         entries.removeAll()
+    }
+
+    func remove(_ entry: ClipboardEntry) {
+        entries.removeAll { $0.id == entry.id }
     }
 
     // MARK: - Reading

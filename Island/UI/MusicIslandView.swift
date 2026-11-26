@@ -14,8 +14,17 @@ struct MusicIslandView: View {
 
     var isExpanded: Bool
 
+    /// Starts from what's really playing. A view mounted already open (the
+    /// second half of a shared pill, say) would otherwise show "play" for
+    /// a frame until `onAppear` caught up.
+    init(activity: MusicActivity, isExpanded: Bool) {
+        self.activity = activity
+        self.isExpanded = isExpanded
+        self._uiIsPlaying = State(initialValue: activity.playbackState?.isPlaying ?? false)
+    }
+
     @StateObject private var outputDeviceManager = AudioOutputDeviceManager()
-    @State private var uiIsPlaying = false
+    @State private var uiIsPlaying: Bool
 
     // MARK: - Skip Button "Leapfrog" Animation
     //
@@ -3074,17 +3083,7 @@ private struct FadeOnlyModifier:
 
                 withAnimation(
 
-                    .easeOut(
-
-                        duration:
-
-                            newValue
-
-                            ? duration
-
-                            : 0.10
-
-                    )
+                    (newValue ? Animation.easeOut(duration: duration) : Animation.easeIn(duration: 0.07))
 
                     .delay(
 

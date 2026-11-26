@@ -10,7 +10,7 @@ struct PlaybackButton: View {
 
     var body: some View {
 
-        Button(action: { Haptics.tick(); action() }) {
+        Button(action: action) {
 
             Image(systemName: systemName)
                 .symbolRenderingMode(.hierarchical)

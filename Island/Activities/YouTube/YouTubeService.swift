@@ -233,8 +233,10 @@ final class MediaRemoteYouTubeService {
         let isLive = payload.duration == nil || payload.duration == 0
         let duration = max(payload.duration ?? 0, 0)
 
+        // A chime (a WhatsApp tab pinging) briefly takes over Now Playing
+        // and never says it has stopped. Dropping the video for it made
+        // the island vanish mid-video; like Music, ignore it.
         guard isLive || duration >= Self.minimumDuration else {
-            clear()
             return
         }
 
@@ -355,11 +357,7 @@ final class MediaRemoteYouTubeService {
 
         Task { [weak self] in
 
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 6
-
-            let data = try? await URLSession.shared.data(for: request).0
-            let image = data.flatMap { NSImage(data: $0) }
+            let image = await Self.fetchIcon(host: host, fallback: url)
 
             guard let self else { return }
 
@@ -375,6 +373,50 @@ final class MediaRemoteYouTubeService {
                 self.stateSubject.send(latest)
             }
         }
+    }
+
+    /// The icon the site's own page declares (`<link rel="icon">`),
+    /// else its `/favicon.ico`.
+    private static func fetchIcon(host: String, fallback: URL) async -> NSImage? {
+
+        func load(_ url: URL) async -> NSImage? {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 6
+            guard let data = try? await URLSession.shared.data(for: request).0 else { return nil }
+            return NSImage(data: data)
+        }
+
+        if
+            let home = URL(string: "https://\(host)/"),
+            let html = try? await URLSession.shared.data(from: home).0,
+            let text = String(data: html.prefix(200_000), encoding: .utf8),
+            let regex = try? NSRegularExpression(
+                pattern: "<link[^>]+rel=[\"'](?:shortcut )?(?:icon|apple-touch-icon)[\"'][^>]*>",
+                options: .caseInsensitive
+            )
+        {
+            let range = NSRange(text.startIndex..., in: text)
+
+            for match in regex.matches(in: text, range: range) {
+
+                guard
+                    let tagRange = Range(match.range, in: text),
+                    let href = text[tagRange].range(of: "href=[\"']([^\"']+)[\"']", options: .regularExpression)
+                else { continue }
+
+                let value = text[tagRange][href]
+                    .dropFirst(6).dropLast()
+
+                if
+                    let icon = URL(string: String(value), relativeTo: home)?.absoluteURL,
+                    let image = await load(icon)
+                {
+                    return image
+                }
+            }
+        }
+
+        return await load(fallback)
     }
 
     private func clear() {
@@ -498,8 +540,12 @@ enum BrowserTabInspector {
         guard let output = await run(script) else { return Result() }
 
         let wanted = videoTitle.lowercased()
+        let wantedWords = words(in: wanted)
 
-        var otherHost: String?
+        // The media title and the tab title rarely match exactly ("Song"
+        // vs "Song • Artist | Spotify"), so tabs are scored by how many
+        // of the video's words they share, and the best one wins.
+        var best: (score: Double, host: String?, isYouTube: Bool)?
 
         for line in output.split(separator: "\n") {
 
@@ -511,24 +557,40 @@ enum BrowserTabInspector {
             let address = parts[1].trimmingCharacters(in: .whitespaces)
             let url = address.lowercased()
 
-            guard
-                !tabTitle.isEmpty,
-                tabTitle.contains(wanted) || wanted.contains(tabTitle)
-            else {
-                continue
+            guard !tabTitle.isEmpty else { continue }
+
+            var score = 0.0
+
+            if tabTitle.contains(wanted) || wanted.contains(tabTitle) {
+                score = 2
+            } else if !wantedWords.isEmpty {
+                let shared = wantedWords.intersection(words(in: tabTitle)).count
+                score = Double(shared) / Double(wantedWords.count)
             }
 
-            let host = URL(string: address)?.host
+            guard score >= 0.5 else { continue }
 
-            if url.contains("youtube.com") || url.contains("youtu.be") {
-                return Result(isYouTube: true, host: host)
+            let isYouTube = url.contains("youtube.com") || url.contains("youtu.be")
+
+            if best == nil || score > best!.score {
+                best = (score, URL(string: address)?.host, isYouTube)
             }
-
-            otherHost = otherHost ?? host
         }
 
-        // The tabs were readable and none of them is this video on YouTube.
-        return Result(isYouTube: false, host: otherHost)
+        if let best {
+            return Result(isYouTube: best.isYouTube, host: best.host)
+        }
+
+        // The tabs were readable and none of them is this video.
+        return Result(isYouTube: false, host: nil)
+    }
+
+    private static func words(in text: String) -> Set<String> {
+        Set(
+            text.split { !$0.isLetter && !$0.isNumber }
+                .map(String.init)
+                .filter { $0.count > 2 }
+        )
     }
 
     private static func run(_ script: String) async -> String? {

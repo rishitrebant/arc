@@ -73,7 +73,10 @@ enum ActivityKind: Int, Comparable, CaseIterable {
 
     /// The notch's click-to-open menu (see `LauncherActivity`). Lowest
     /// priority: it only ever appears over an empty island.
-    case launcher = 16
+    /// A note the user pinned to the notch — always there, never urgent.
+    case note = 16
+
+    case launcher = 17
 
     static func < (lhs: ActivityKind, rhs: ActivityKind) -> Bool {
         lhs.rawValue < rhs.rawValue

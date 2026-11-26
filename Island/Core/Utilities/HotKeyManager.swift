@@ -11,6 +11,15 @@ extension Notification.Name {
     /// Opens the launcher on its clipboard page.
     static let islandOpenClipboard = Notification.Name("IslandOpenClipboard")
 
+    /// Opens the launcher on its notes page, ready for a new note.
+    static let islandOpenNotes = Notification.Name("IslandOpenNotes")
+
+    /// Pins the newest note to the notch, or unpins the pinned one.
+    static let islandTogglePinnedNote = Notification.Name("IslandTogglePinnedNote")
+
+    /// The launcher's panel changed height (page change, a clock started).
+    static let islandLauncherLayoutChanged = Notification.Name("IslandLauncherLayoutChanged")
+
     /// Starts the stopwatch if it isn't running, stops it if it is.
     static let islandToggleStopwatch = Notification.Name("IslandToggleStopwatch")
 }
@@ -28,6 +37,8 @@ extension Notification.Name {
 /// | ⌃⌥S      | start / stop the stopwatch |
 /// | ⌃⌥P      | start a 25/5 pomodoro |
 /// | ⌥V       | open the clipboard |
+/// | ⌃⌥N      | write a quick note |
+/// | ⌃⌥U      | pin / unpin a note |
 @MainActor
 final class HotKeyManager {
 
@@ -54,6 +65,12 @@ final class HotKeyManager {
         },
         5: Binding(keyCode: kVK_ANSI_V, modifiers: UInt32(optionKey)) {
             NotificationCenter.default.post(name: .islandOpenClipboard, object: nil)
+        },
+        6: Binding(keyCode: kVK_ANSI_N) {
+            NotificationCenter.default.post(name: .islandOpenNotes, object: nil)
+        },
+        7: Binding(keyCode: kVK_ANSI_U) {
+            NotificationCenter.default.post(name: .islandTogglePinnedNote, object: nil)
         }
     ]
 

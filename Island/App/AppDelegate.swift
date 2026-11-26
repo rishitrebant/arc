@@ -67,6 +67,11 @@ final class AppDelegate:
     private var downloadsActivity:
         DownloadsActivity!
 
+    private var waterReminder = WaterReminder()
+
+    private var noteActivity:
+        NoteActivity!
+
     private var capsLockActivity:
         CapsLockActivity!
 
@@ -87,6 +92,8 @@ final class AppDelegate:
         // `applicationShouldHandleReopen`). The island itself is still
         // a borderless overlay window, unaffected by this.
         applyDockPreference()
+
+        Haptics.start()
 
         // Follow the "Show ARC in the Dock" setting live.
         dockObserver = Task { [weak self] in
@@ -171,6 +178,8 @@ final class AppDelegate:
         bluetoothActivity =
             BluetoothActivity()
 
+        lowBatteryActivity.bluetooth = bluetoothActivity
+
         bluetoothActivity.isIslandCurrentlyHovered =
             { [weak windowManager] in
 
@@ -188,6 +197,13 @@ final class AppDelegate:
             timerActivity
         )
 
+        noteActivity =
+            NoteActivity()
+
+        activityManager.register(
+            noteActivity
+        )
+
         capsLockActivity =
             CapsLockActivity()
 
@@ -197,6 +213,12 @@ final class AppDelegate:
 
         calendarActivity =
             CalendarActivity()
+
+        calendarActivity.requestLowRank =
+            { [weak self] low in
+
+                self?.activityManager.setRankOverride(.calendar, low ? 11.5 : nil)
+            }
 
         calendarActivity.isIslandCurrentlyHovered =
             { [weak windowManager] in
@@ -252,7 +274,8 @@ final class AppDelegate:
             LauncherActivity(
                 music: musicActivity,
                 bluetooth: bluetoothActivity,
-                youtube: youtubeActivity
+                youtube: youtubeActivity,
+                timer: timerActivity
             )
 
         launcherActivity.releaseKeyboard =

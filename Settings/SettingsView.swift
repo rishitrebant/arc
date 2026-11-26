@@ -164,7 +164,7 @@ struct GeneralSettingsTab: View {
 
                 SettingToggle(
                     title: "Global keyboard shortcuts",
-                    detail: "⌃⌥Space opens the launcher  ·  ⌃⌥T starts your last timer  ·  ⌃⌥S starts or stops the stopwatch  ·  ⌃⌥P starts a pomodoro  ·  ⌥V opens the clipboard.",
+                    detail: "⌃⌥Space opens the launcher  ·  ⌃⌥T starts your last timer  ·  ⌃⌥S starts or stops the stopwatch  ·  ⌃⌥P starts a pomodoro  ·  ⌥V opens the clipboard  ·  ⌃⌥N writes a note  ·  ⌃⌥U pins or unpins one.",
                     isOn: $shortcuts
                 )
             }
@@ -355,6 +355,11 @@ enum TimerPreset {
 
 struct TimerSettingsTab: View {
 
+    @AppStorage(AppSettings.Key.focusSound)
+    private var focusSound = AppSettings.Default.focusSound
+    @AppStorage(AppSettings.Key.focusSoundVolume)
+    private var focusVolume = AppSettings.Default.focusSoundVolume
+
     @State private var customMinutes = 10
     @State private var focusMinutes = 25
     @State private var breakMinutes = 5
@@ -424,6 +429,22 @@ struct TimerSettingsTab: View {
                 }
                 .onChange(of: breakMinutes) { _, value in
                     breakMinutes = min(max(value, 1), 60)
+                }
+
+                Picker(selection: $focusSound) {
+                    ForEach(FocusSound.allCases) { Text($0.title).tag($0.rawValue) }
+                } label: {
+                    SettingLabel(
+                        title: "Focus sound",
+                        detail: "Plays softly while a focus session runs, and stops for breaks."
+                    )
+                }
+
+                if focusSound != FocusSound.off.rawValue {
+                    HStack {
+                        Text("Volume")
+                        Slider(value: $focusVolume, in: 0.05...1)
+                    }
                 }
 
                 HStack {
@@ -554,9 +575,20 @@ struct AlertsSettingsTab: View {
     private var showCapsLock = AppSettings.Default.showCapsLockIndicator
     @AppStorage(AppSettings.Key.showDownloadProgress)
     private var showDownloads = AppSettings.Default.showDownloadProgress
+    @AppStorage(AppSettings.Key.waterReminderEnabled)
+    private var waterReminder = AppSettings.Default.waterReminderEnabled
 
     var body: some View {
         SettingsPage {
+
+            Section("Reminders") {
+
+                SettingToggle(
+                    title: "Drink water",
+                    detail: "A notification every hour. macOS asks to allow notifications the first time.",
+                    isOn: $waterReminder
+                )
+            }
 
             Section("Calendar") {
 
@@ -615,6 +647,8 @@ struct ShelfSettingsTab: View {
     private var seconds = AppSettings.Default.shelfDurationSeconds
     @AppStorage(AppSettings.Key.keepClipboardHistory)
     private var clipboardHistory = AppSettings.Default.keepClipboardHistory
+    @ObservedObject private var notes = NoteStore.shared
+    @State private var confirmClearNotes = false
 
     private let options: [(String, Double)] = [
         ("30 seconds", 30), ("1 minute", 60), ("2 minutes", 120),
@@ -633,6 +667,27 @@ struct ShelfSettingsTab: View {
                         title: "Keep files for",
                         detail: "How long a file waits on the shelf before it's put back where it came from. Applies to files dropped after you change this."
                     )
+                }
+            }
+
+            Section("Notes") {
+
+                HStack {
+                    SettingLabel(
+                        title: "Saved notes",
+                        detail: "\(notes.notes.count) on this Mac. Notes live only in ARC's own storage."
+                    )
+                    Spacer()
+                    Button("Clear All…", role: .destructive) { confirmClearNotes = true }
+                        .disabled(notes.notes.isEmpty)
+                }
+                .confirmationDialog(
+                    "Delete all notes?",
+                    isPresented: $confirmClearNotes
+                ) {
+                    Button("Delete All Notes", role: .destructive) { notes.clearAll() }
+                } message: {
+                    Text("This also unpins the note in the notch. It can't be undone.")
                 }
             }
 

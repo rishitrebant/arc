@@ -50,7 +50,7 @@ enum AnimationTokens {
     /// On collapse, content must clear out FIRST, and the shape only
     /// shrinks once it does — otherwise text/controls would visibly clip
     /// as the shape shrinks out from under them.
-    static let collapseShapeDelay: TimeInterval = 0.06
+    static let collapseShapeDelay: TimeInterval = 0.1
 
     /// Required sequence is directional, not symmetric: on expand, the
     /// shape leads (grows immediately) and content follows once there's
@@ -75,7 +75,7 @@ enum AnimationTokens {
             insertion: .opacity
                 .animation(shapeSpring.delay(insertDelay)),
             removal: .opacity
-                .animation(.easeOut(duration: 0.12).delay(removeDelay))
+                .animation(.easeIn(duration: 0.07).delay(removeDelay))
         )
     }
 

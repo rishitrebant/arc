@@ -28,6 +28,11 @@ final class BluetoothActivity: ObservableObject {
     @Published private(set) var device: BluetoothDeviceInfo?
     @Published private(set) var phase: Phase = .connected
 
+    /// The card is up on its own for a moment after a device connects
+    /// (or disconnects), then settles to the pill. Hovering brings it back.
+    @Published private(set) var showsCard = false
+    private var cardWorkItem: DispatchWorkItem?
+
     /// Battery of the device on screen, once it's been read.
     @Published private(set) var battery: BluetoothBattery?
 
@@ -162,8 +167,48 @@ final class BluetoothActivity: ObservableObject {
         phase = .connected
 
         setActive(true)
+        presentCard()
         scheduleHideCheck(after: AnimationTokens.bluetoothDisplayDuration)
     }
+
+    /// Shows the full card, then lets it settle to the pill.
+    private func presentCard() {
+
+        cardWorkItem?.cancel()
+
+        showsCard = true
+        announceLayoutChange()
+
+        let work = DispatchWorkItem { [weak self] in
+            self?.settleCard()
+        }
+
+        cardWorkItem = work
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.cardDuration, execute: work)
+    }
+
+    private func settleCard() {
+
+        // Stays open under the cursor.
+        guard !isIslandCurrentlyHovered() else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.hoverRecheckInterval) { [weak self] in
+                self?.settleCard()
+            }
+            return
+        }
+
+        showsCard = false
+        announceLayoutChange()
+    }
+
+    private func announceLayoutChange() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .islandLauncherLayoutChanged, object: nil)
+        }
+    }
+
+    private static let cardDuration: TimeInterval = 2.8
 
     private func handleDisconnect(address: String) {
 
@@ -202,6 +247,7 @@ final class BluetoothActivity: ObservableObject {
         if monitor.disconnect(address: device.address) {
 
             phase = .disconnected
+            presentCard()
 
             // Short confirmation, then release the island — regardless
             // of hover, since the cursor is necessarily on it.
@@ -229,6 +275,10 @@ final class BluetoothActivity: ObservableObject {
 
         hideWorkItem?.cancel()
         hideWorkItem = nil
+
+        cardWorkItem?.cancel()
+        cardWorkItem = nil
+        showsCard = false
 
         setActive(false)
     }
@@ -282,17 +332,22 @@ final class BluetoothActivity: ObservableObject {
         DesignTokens.Color.airDropAccent
     }
 
-    /// One card — AirDrop's measured 312×74 oval — for the whole
-    /// moment. Hovering doesn't resize it, so the hit region is exactly
-    /// the card.
-    var compactSize: CGSize {
+    /// The card shown on connect and under the cursor.
+    var cardSize: CGSize {
+        CGSize(width: DesignTokens.DeviceCard.width, height: DesignTokens.DeviceCard.height)
+    }
+
+    /// The pill it settles to.
+    var pillSize: CGSize {
         CGSize(
-            width: DesignTokens.AirDropMetrics.expandedWidth,
-            height: DesignTokens.AirDropMetrics.expandedHeight
+            width: DesignTokens.AirDropMetrics.compactWidth,
+            height: DesignTokens.AirDropMetrics.compactHeight
         )
     }
 
-    var expandedSize: CGSize { compactSize }
+    var compactSize: CGSize { showsCard ? cardSize : pillSize }
+
+    var expandedSize: CGSize { cardSize }
 
     // MARK: - Rendering
 

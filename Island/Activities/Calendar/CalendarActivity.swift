@@ -27,11 +27,26 @@ final class CalendarActivity: ObservableObject {
         let joinURL: URL?
     }
 
-    /// "Starts in N min" vs "starting right now".
+    /// `countdown`: the quiet pill that counts down the last hour.
+    /// `upcoming`: "starts in N min" alert. `now`: starting right now.
     enum Stage: Equatable {
+        case countdown
         case upcoming
         case now
     }
+
+    /// The countdown pill appears this long before an event.
+    private static let countdownWindow: TimeInterval = 60 * 60
+
+    /// Set by `AppDelegate`: lets the quiet countdown sit below a running
+    /// timer while the alerts keep the calendar's usual, higher rank.
+    var requestLowRank: (Bool) -> Void = { _ in }
+
+    /// An alert (not the countdown) is on screen.
+    private var isAlerting = false
+
+    /// Events the user already acted on (Join / Open) — no more countdown.
+    private var dismissedIDs: Set<String> = []
 
     @Published private(set) var isActive: Bool = false
     @Published private(set) var event: Upcoming?
@@ -99,15 +114,18 @@ final class CalendarActivity: ObservableObject {
 
     private func poll() {
 
-        guard hasAccess, AppSettings.showCalendarAlerts else { return }
+        guard hasAccess, AppSettings.showCalendarAlerts else {
+            stopCountdown()
+            return
+        }
 
         let now = Date()
         let lead = TimeInterval(AppSettings.calendarLeadMinutes * 60)
 
-        // From a minute ago (to catch "starting now") to the lead time.
+        // From a minute ago (to catch "starting now") to the last hour.
         let predicate = store.predicateForEvents(
             withStart: now.addingTimeInterval(-60),
-            end: now.addingTimeInterval(lead + 60),
+            end: now.addingTimeInterval(Self.countdownWindow + 60),
             calendars: nil
         )
 
@@ -119,6 +137,9 @@ final class CalendarActivity: ObservableObject {
 
             let remaining = ekEvent.startDate.timeIntervalSince(now)
             let id = ekEvent.eventIdentifier ?? ekEvent.title ?? "event"
+
+            if dismissedIDs.contains(id) { continue }
+
             let startKey = Int(ekEvent.startDate.timeIntervalSince1970)
 
             let nextStage: Stage
@@ -127,26 +148,68 @@ final class CalendarActivity: ObservableObject {
                 nextStage = .now
             } else if remaining > 0, remaining <= lead {
                 nextStage = .upcoming
+            } else if remaining > lead, remaining <= Self.countdownWindow {
+                nextStage = .countdown
             } else {
                 continue
             }
 
-            let key = "\(id)|\(nextStage)|\(startKey)"
-
-            guard !alerted.contains(key) else { continue }
-
-            alerted.insert(key)
-
-            show(Upcoming(
+            let upcoming = Upcoming(
                 id: id,
                 title: ekEvent.title ?? "Event",
                 start: ekEvent.startDate,
                 location: ekEvent.location,
                 joinURL: Self.joinURL(for: ekEvent)
-            ), stage: nextStage)
+            )
+
+            if nextStage == .countdown {
+                if !isAlerting { startCountdown(upcoming) }
+                return
+            }
+
+            let key = "\(id)|\(nextStage)|\(startKey)"
+
+            if alerted.contains(key) {
+                // The alert already ran; until the event starts, keep
+                // counting down quietly.
+                if !isAlerting, remaining > 0 { startCountdown(upcoming) }
+                return
+            }
+
+            alerted.insert(key)
+
+            show(upcoming, stage: nextStage)
 
             return
         }
+
+        if !isAlerting { stopCountdown() }
+    }
+
+    // MARK: - Countdown
+
+    private func startCountdown(_ upcoming: Upcoming) {
+
+        guard !isAlerting else { return }
+
+        requestLowRank(true)
+
+        if event != upcoming { event = upcoming }
+
+        if stage != .countdown { stage = .countdown }
+
+        hideWorkItem?.cancel()
+        hideWorkItem = nil
+
+        setActive(true)
+    }
+
+    private func stopCountdown() {
+
+        guard !isAlerting, isActive else { return }
+
+        requestLowRank(false)
+        setActive(false)
     }
 
     private func isDeclined(_ event: EKEvent) -> Bool {
@@ -199,6 +262,11 @@ final class CalendarActivity: ObservableObject {
 
     private func show(_ upcoming: Upcoming, stage: Stage) {
 
+        // The alert takes the calendar's usual, higher rank.
+        requestLowRank(false)
+
+        isAlerting = true
+
         event = upcoming
         self.stage = stage
 
@@ -211,6 +279,15 @@ final class CalendarActivity: ObservableObject {
         hideWorkItem?.cancel()
         hideWorkItem = nil
 
+        isAlerting = false
+
+        // Back to the quiet countdown if the event hasn't started yet.
+        if let start = event?.start, start.timeIntervalSinceNow > 0 {
+            poll()
+            return
+        }
+
+        requestLowRank(false)
         setActive(false)
     }
 
@@ -253,6 +330,8 @@ final class CalendarActivity: ObservableObject {
             NSWorkspace.shared.open(url)
         }
 
+        if let id = event?.id { dismissedIDs.insert(id) }
+
         hide()
     }
 
@@ -267,6 +346,8 @@ final class CalendarActivity: ObservableObject {
             )
         }
 
+        if let id = event?.id { dismissedIDs.insert(id) }
+
         hide()
     }
 
@@ -275,7 +356,9 @@ final class CalendarActivity: ObservableObject {
     func didBecomeActive() {}
 
     func didResignActive() {
-        hide()
+
+        // Only an alert gives way; the countdown just waits its turn.
+        if isAlerting { hide() }
     }
 
     // MARK: - Sizing
@@ -312,3 +395,54 @@ final class CalendarActivity: ObservableObject {
 }
 
 extension CalendarActivity: Activity {}
+
+// MARK: - Shared pill
+
+extension CalendarActivity: MinimalPresentable {
+
+    private func shortCountdown() -> String {
+
+        guard let start = event?.start else { return "" }
+
+        let remaining = start.timeIntervalSinceNow
+
+        return remaining <= 30 ? "Now" : "\(Int((remaining / 60).rounded(.up)))m"
+    }
+
+    func minimalView() -> AnyView {
+        AnyView(
+            MinimalBubble {
+                Image(systemName: "calendar")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(DesignTokens.Color.calendarAccent)
+            }
+        )
+    }
+
+    var earWidth: CGFloat {
+        Ear.edge + Ear.slot + Ear.gap + 30 + Ear.edge
+    }
+
+    func earView(side: EarSide) -> AnyView {
+        AnyView(
+            TimelineView(.periodic(from: .now, by: 1)) { [self] _ in
+                HStack(spacing: Ear.gap) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(shortCountdown())
+                        .font(.system(size: 12, weight: .semibold))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+                .foregroundStyle(DesignTokens.Color.calendarAccent)
+                .padding(.horizontal, Ear.edge)
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity,
+                    alignment: side == .leading ? .leading : .trailing
+                )
+            }
+        )
+    }
+}
