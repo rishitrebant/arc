@@ -32,7 +32,7 @@ enum AppSettings {
         static let expandedTopCorners = "expandedTopCorners"
         static let launcherOpensOnHover = "launcherOpensOnHover"
         static let launcherTrigger = "launcherTrigger"
-        static let launcherBatteryWidget = "launcherBatteryWidget"
+        static let showBatteryRings = "showBatteryRings"
         static let showDockIcon = "showDockIcon"
         static let notchGlowEnabled = "notchGlowEnabled"
         static let notchGlowColor = "notchGlowColor"
@@ -50,7 +50,6 @@ enum AppSettings {
         static let bounceAmount = "bounceAmount"
         static let volumeIndicatorEnabled = "volumeIndicatorEnabled"
         static let nextUpEnabled = "nextUpEnabled"
-        static let showScreenTime = "showScreenTime"
         static let activityOwnsHover = "activityOwnsHover"
         static let focusSound = "focusSound"
         static let focusSoundVolume = "focusSoundVolume"
@@ -78,7 +77,7 @@ enum AppSettings {
         static let expandedTopCorners = ExpandedTopCorners.rounded.rawValue
         static let launcherOpensOnHover = false
         static let launcherTrigger = LauncherTrigger.notch.rawValue
-        static let launcherBatteryWidget = LauncherBatteryWidget.off.rawValue
+        static let showBatteryRings = true
         static let showDockIcon = true
         static let notchGlowEnabled = false
         static let notchGlowColor = NotchGlowColor.white.rawValue
@@ -95,7 +94,6 @@ enum AppSettings {
         static let bounceAmount: Double = 0.3
         static let volumeIndicatorEnabled = true
         static let nextUpEnabled = true
-        static let showScreenTime = true
         static let activityOwnsHover = true
         static let focusSound = FocusSound.off.rawValue
         static let focusSoundVolume: Double = 0.5
@@ -205,14 +203,14 @@ enum AppSettings {
     static var cornerRoundness: Double {
         let stored = UserDefaults.standard.object(forKey: Key.cornerRoundness) as? Double
             ?? Default.cornerRoundness
-        return min(max(stored, 0.3), 1.4)
+        return min(max(stored, 0.3), 1.7)
     }
 
     /// How much the island overshoots when it opens (0 = none, 0.5 = a lot).
     static var bounceAmount: Double {
         let stored = UserDefaults.standard.object(forKey: Key.bounceAmount) as? Double
             ?? Default.bounceAmount
-        return min(max(stored, 0), 0.5)
+        return min(max(stored, 0), 0.6)
     }
 
     static var volumeIndicatorEnabled: Bool {
@@ -232,10 +230,9 @@ enum AppSettings {
             ?? Default.nextUpEnabled
     }
 
-    static var launcherBatteryWidget: LauncherBatteryWidget {
-        LauncherBatteryWidget(
-            rawValue: UserDefaults.standard.string(forKey: Key.launcherBatteryWidget) ?? ""
-        ) ?? .off
+    static var showBatteryRings: Bool {
+        UserDefaults.standard.object(forKey: Key.showBatteryRings) as? Bool
+            ?? Default.showBatteryRings
     }
 
     static var launcherTrigger: LauncherTrigger {
@@ -399,21 +396,6 @@ enum NotchGlowColor: String, CaseIterable {
 }
 
 /// Where the launcher can be opened from.
-/// Whether the launcher shows battery rings (this Mac and your connected
-/// devices) along its bottom.
-enum LauncherBatteryWidget: String, CaseIterable {
-
-    case bottom
-    case off
-
-    var title: String {
-        switch self {
-        case .bottom: return "Along the bottom"
-        case .off: return "Off"
-        }
-    }
-}
-
 enum LauncherTrigger: String, CaseIterable {
 
     /// Anywhere on the notch.

@@ -8,10 +8,15 @@ struct LauncherTopBar: View {
     @ObservedObject var activity: LauncherActivity
 
     @StateObject private var volume = SystemVolumeControl()
-    @ObservedObject private var screenTime = ScreenTimeTracker.shared
+    @ObservedObject private var bluetooth: BluetoothActivity
 
-    @AppStorage(AppSettings.Key.showScreenTime)
-    private var showScreenTime = AppSettings.Default.showScreenTime
+    @AppStorage(AppSettings.Key.showBatteryRings)
+    private var showBatteryRings = AppSettings.Default.showBatteryRings
+
+    init(activity: LauncherActivity) {
+        self.activity = activity
+        self._bluetooth = ObservedObject(wrappedValue: activity.bluetooth)
+    }
 
     var body: some View {
 
@@ -19,32 +24,26 @@ struct LauncherTopBar: View {
 
             if volume.isAvailable {
                 VolumeSlider(volume: volume)
-                    .frame(width: 104, alignment: .leading)
+                    .frame(width: 112, alignment: .leading)
             } else {
-                Color.clear.frame(width: 104)
+                Color.clear.frame(width: 112)
             }
 
             Spacer(minLength: DesignTokens.FileDropMetrics.notchWidth)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 7) {
+
+                if showBatteryRings {
+                    ForEach(activity.batteryItems.prefix(3)) { item in
+                        BatteryDot(item: item)
+                    }
+                }
 
                 if let water = activity.water {
                     WaterCountdown(water: water)
                 }
-
-                if showScreenTime {
-                    HStack(spacing: 4) {
-                        Image(systemName: "hourglass")
-                            .font(.system(size: 10, weight: .medium))
-                        Text(ScreenTimeTracker.format(screenTime.todaySeconds))
-                            .font(.system(size: 11, weight: .medium))
-                            .monospacedDigit()
-                    }
-                    .foregroundStyle(DesignTokens.Color.secondaryText)
-                    .help("Active at this Mac today")
-                }
             }
-            .frame(width: 104, alignment: .trailing)
+            .frame(width: 112, alignment: .trailing)
         }
         .padding(.horizontal, DesignTokens.LauncherMetrics.edgePadding)
         .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
@@ -135,5 +134,38 @@ private struct WaterCountdown: View {
                 .help("Next water reminder")
             }
         }
+    }
+}
+
+
+/// One device (or this Mac) as a small ring: its icon inside, its charge
+/// around it. Red at 20% or less. Hover for the name and number.
+private struct BatteryDot: View {
+
+    let item: LauncherActivity.BatteryItem
+
+    private var tint: Color {
+        item.percent <= 20 ? DesignTokens.Color.lowBatteryAccent : DesignTokens.Color.chargingAccent
+    }
+
+    var body: some View {
+
+        ZStack {
+
+            Circle()
+                .stroke(Color.white.opacity(0.16), lineWidth: 2.4)
+
+            Circle()
+                .trim(from: 0, to: max(0.02, min(1, Double(item.percent) / 100)))
+                .stroke(tint, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            Image(systemName: item.symbolName)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(DesignTokens.Color.primaryText)
+        }
+        .frame(width: 22, height: 22)
+        .help("\(item.name) — \(item.percent)%")
+        .accessibilityLabel("\(item.name), \(item.percent) percent")
     }
 }

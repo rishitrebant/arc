@@ -38,8 +38,6 @@ struct LauncherIslandView: View {
     @StateObject private var stats = SystemStats()
     @ObservedObject private var keepAwake = KeepAwake.shared
     @State private var showNoteHistory = false
-    @AppStorage(AppSettings.Key.launcherBatteryWidget)
-    private var batteryWidget = AppSettings.Default.launcherBatteryWidget
     @FocusState private var noteFocused: Bool
     @ObservedObject private var notes = NoteStore.shared
 
@@ -164,33 +162,7 @@ struct LauncherIslandView: View {
             }
         }
 
-        if batteryWidget == LauncherBatteryWidget.bottom.rawValue, !activity.batteryItems.isEmpty {
-            batteryStrip
-        }
-
-        if batteryWidget == LauncherBatteryWidget.off.rawValue {
-            bluetoothRow
-        }
-    }
-
-    // MARK: Battery rings
-
-    private var batteryStrip: some View {
-
-        HStack(spacing: 0) {
-            ForEach(activity.batteryItems) { item in
-                BatteryRingView(item: item, ringSize: 38, percentBelow: true) {
-                    if let address = item.address { activity.bluetooth.disconnect(address: address) }
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .frame(height: Metrics.batteryStripHeight)
-        .background(
-            RoundedRectangle(cornerRadius: Metrics.tileCornerRadius, style: .continuous)
-                .fill(Color.white.opacity(0.05))
-        )
-        .transition(.opacity)
+        bluetoothRow
     }
 
     // MARK: Bluetooth
@@ -396,6 +368,13 @@ struct LauncherIslandView: View {
                 .onTapGesture { activity.openNowPlayingCard() }
 
                 Spacer(minLength: 8)
+
+                PlaybackButton(
+                    systemName: "backward.fill",
+                    action: { music.skipBackward() },
+                    size: 18,
+                    buttonSize: Metrics.transportButtonSize
+                )
 
                 PlaybackButton(
                     systemName: state.isPlaying ? "pause.fill" : "play.fill",
@@ -782,17 +761,11 @@ struct LauncherIslandView: View {
                 switch camera.access {
 
                 case .allowed:
-                    ZStack {
-                        if camera.blurBackground {
-                            ProcessedFrameView(processor: camera.processor)
-                        } else {
-                            CameraPreviewView(session: camera.session)
+                    CameraPreviewView(session: camera.session)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay(alignment: .bottomTrailing) {
+                            blurToggle
                         }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(alignment: .bottomTrailing) {
-                        blurToggle
-                    }
 
                 case .denied:
                     VStack(spacing: 8) {
@@ -821,29 +794,30 @@ struct LauncherIslandView: View {
         .onDisappear { camera.stop() }
     }
 
+    /// Opens macOS's Video Effects, where Background blur is switched on.
+    /// Shows whether it currently is.
     private var blurToggle: some View {
 
         Button {
-            withAnimation(.smooth(duration: 0.25)) {
-                camera.blurBackground.toggle()
-            }
+            camera.openVideoEffects()
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "person.and.background.dotted")
                     .font(.system(size: 12, weight: .medium))
-                Text("Blur")
+                Text(camera.isBlurOn ? "Blur on" : "Blur")
                     .font(.system(size: 12, weight: .semibold))
             }
-            .foregroundStyle(camera.blurBackground ? Color.black : DesignTokens.Color.primaryText)
+            .foregroundStyle(camera.isBlurOn ? Color.black : DesignTokens.Color.primaryText)
             .padding(.horizontal, 11)
             .frame(height: 26)
             .background(
-                Capsule().fill(camera.blurBackground ? Color.white : Color.black.opacity(0.55))
+                Capsule().fill(camera.isBlurOn ? Color.white : Color.black.opacity(0.55))
             )
         }
         .buttonStyle(LauncherPressStyle())
         .padding(10)
-        .accessibilityLabel("Blur background")
+        .help("Opens macOS Video Effects, where you turn Background blur on or off")
+        .accessibilityLabel("Background blur")
     }
 
     // MARK: - Teleprompter
@@ -1814,49 +1788,3 @@ private struct LauncherTimerRow: View {
     }
 }
 
-/// One ring of the launcher's battery widget: the device (or this Mac)
-/// inside, its percentage beneath. Right-click a device to disconnect it.
-private struct BatteryRingView: View {
-
-    let item: LauncherActivity.BatteryItem
-    let ringSize: CGFloat
-    var percentBelow = true
-    let disconnect: () -> Void
-
-    private var tint: Color {
-        item.percent <= 20 ? DesignTokens.Color.lowBatteryAccent : DesignTokens.Color.chargingAccent
-    }
-
-    var body: some View {
-
-        VStack(spacing: 4) {
-
-            ZStack {
-
-                Circle()
-                    .stroke(Color.white.opacity(0.14), lineWidth: 3.5)
-
-                Circle()
-                    .trim(from: 0, to: max(0.02, min(1, Double(item.percent) / 100)))
-                    .stroke(tint, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-
-                Image(systemName: item.symbolName)
-                    .font(.system(size: ringSize * 0.36, weight: .medium))
-                    .foregroundStyle(DesignTokens.Color.primaryText)
-            }
-            .frame(width: ringSize, height: ringSize)
-
-            Text("\(item.percent)%")
-                .font(.system(size: 11, weight: .medium))
-                .monospacedDigit()
-                .foregroundStyle(DesignTokens.Color.primaryText.opacity(0.9))
-        }
-        .contextMenu {
-            if item.address != nil {
-                Button("Disconnect \(item.name)", action: disconnect)
-            }
-        }
-        .accessibilityLabel("\(item.name), \(item.percent) percent")
-    }
-}

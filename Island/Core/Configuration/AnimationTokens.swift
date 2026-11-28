@@ -40,7 +40,7 @@ enum AnimationTokens {
     /// grows or stays the same height, critically damped when it shrinks.
     static func handover(from old: CGSize, to new: CGSize) -> Animation {
         new.height < old.height - 0.5
-            ? .spring(response: 0.3, dampingFraction: 1)
+            ? collapseSpring
             : handoverSpring
     }
 
@@ -70,7 +70,7 @@ enum AnimationTokens {
     /// size and never dips below it. (A bouncy spring overshoots its
     /// target — fine when growing, but shrinking it would make the
     /// island briefly smaller than the pill it is becoming.)
-    static var collapseSpring: Animation { .spring(response: shapeDuration, dampingFraction: 1) }
+    static var collapseSpring: Animation { .timingCurve(0.22, 0.9, 0.3, 1, duration: 0.34) }
 
     /// Builds the asymmetric insertion/removal transition for one piece of
     /// expanded-only content (header text, progress bar, controls).

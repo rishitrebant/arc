@@ -44,6 +44,47 @@ private struct SettingToggle: View {
     }
 }
 
+/// A slider whose default sits in the middle, marked with a small dot the
+/// handle snaps to — and ticks against — like Apple's own.
+private struct CenteredSlider: View {
+
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let center: Double
+
+    var body: some View {
+
+        let snapDistance = (range.upperBound - range.lowerBound) * 0.04
+
+        Slider(
+            value: Binding(
+                get: { value },
+                set: { proposed in
+
+                    let snapped = abs(proposed - center) < snapDistance ? center : proposed
+
+                    if snapped == center, value != center {
+                        NSHapticFeedbackManager.defaultPerformer.perform(
+                            .alignment,
+                            performanceTime: .now
+                        )
+                    }
+
+                    value = snapped
+                }
+            ),
+            in: range
+        )
+        .overlay(alignment: .bottom) {
+            Circle()
+                .fill(Color.secondary.opacity(0.6))
+                .frame(width: 4, height: 4)
+                .offset(y: 3)
+                .allowsHitTesting(false)
+        }
+    }
+}
+
 /// The page every tab sits on.
 private struct SettingsPage<Content: View>: View {
 
@@ -135,10 +176,8 @@ struct LauncherSettingsTab: View {
     private var activityOwnsHover = AppSettings.Default.activityOwnsHover
     @AppStorage(AppSettings.Key.openClipboardOnPaste)
     private var clipboardOnPaste = AppSettings.Default.openClipboardOnPaste
-    @AppStorage(AppSettings.Key.showScreenTime)
-    private var screenTime = AppSettings.Default.showScreenTime
-    @AppStorage(AppSettings.Key.launcherBatteryWidget)
-    private var launcherBattery = AppSettings.Default.launcherBatteryWidget
+    @AppStorage(AppSettings.Key.showBatteryRings)
+    private var batteryRings = AppSettings.Default.showBatteryRings
     @ObservedObject private var notes = NoteStore.shared
     @State private var confirmClearNotes = false
 
@@ -201,21 +240,10 @@ struct LauncherSettingsTab: View {
             Section("Home page") {
 
                 SettingToggle(
-                    title: "Show active time",
-                    detail: "How long you've been at the Mac today, counted by ARC while it runs. macOS gives apps no Screen Time data, so this is ARC's own count, kept on this Mac.",
-                    isOn: $screenTime
+                    title: "Battery rings",
+                    detail: "Small rings in the top corner for this Mac and every connected device that reports a battery — AirPods, a mouse, headphones. Devices that don't report one (some speakers) can't be shown.",
+                    isOn: $batteryRings
                 )
-
-                Picker(selection: $launcherBattery) {
-                    ForEach(LauncherBatteryWidget.allCases, id: \.rawValue) { choice in
-                        Text(choice.title).tag(choice.rawValue)
-                    }
-                } label: {
-                    SettingLabel(
-                        title: "Battery rings",
-                        detail: "This Mac and your connected devices, as small rings. Off shows the connected device on its own row instead."
-                    )
-                }
             }
 
             Section("Notes") {
@@ -307,7 +335,7 @@ struct DisplaySettingsTab: View {
                     )
                     HStack {
                         Text("Sharp").font(.caption).foregroundStyle(.secondary)
-                        Slider(value: $roundness, in: 0.3...1.4)
+                        CenteredSlider(value: $roundness, range: 0.3...1.7, center: 1)
                         Text("Round").font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -319,7 +347,7 @@ struct DisplaySettingsTab: View {
                     )
                     HStack {
                         Text("None").font(.caption).foregroundStyle(.secondary)
-                        Slider(value: $bounce, in: 0...0.5)
+                        CenteredSlider(value: $bounce, range: 0...0.6, center: 0.3)
                         Text("Lots").font(.caption).foregroundStyle(.secondary)
                     }
                 }

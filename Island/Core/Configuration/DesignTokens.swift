@@ -602,7 +602,7 @@ enum DesignTokens {
         static let clipboardEmptyHeight: CGFloat = 150
         static let clipboardMaxHeight: CGFloat = clipboardChrome + CGFloat(clipboardMaxRows) * clipboardRowHeight
 
-        static let toolsHeight: CGFloat = 238
+        static let toolsHeight: CGFloat = 268
         static let cameraWidth: CGFloat = 420
         static let cameraHeight: CGFloat = 300
         static let activityWidth: CGFloat = 420
@@ -620,7 +620,8 @@ enum DesignTokens {
         static let homeMaxWidth: CGFloat = homeWidth
         static let homeMaxHeight: CGFloat = heightWithoutDevice
             + 2 * (timerRowHeight + sectionSpacing)
-            + sectionSpacing + batteryStripHeight
+            + sectionSpacing + deviceCardHeight
+
 
         static let edgePadding: CGFloat = 20
         static let bottomPadding: CGFloat = 16
@@ -635,7 +636,6 @@ enum DesignTokens {
 
         static let deviceCardHeight: CGFloat = 42
         static let timerRowHeight: CGFloat = 34
-        static let batteryStripHeight: CGFloat = 64
         static let tileSpacing: CGFloat = 10
         static let tileCornerRadius: CGFloat = 16   // concentric: 36pt panel radius - 20pt edge padding
         static let tileGlyphSize: CGFloat = 19

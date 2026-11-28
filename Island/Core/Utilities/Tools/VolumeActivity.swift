@@ -164,6 +164,9 @@ final class VolumeActivity: ObservableObject {
 
         guard AppSettings.volumeIndicatorEnabled else { return }
 
+        // Our own slider moved it: no pill.
+        guard Date().timeIntervalSince(SystemVolumeControl.lastOwnChange) > 0.8 else { return }
+
         guard level != lastLevel || isMuted != lastMuted else { return }
 
         if !isActive {

@@ -318,8 +318,6 @@ final class AppDelegate:
 
         launcherActivity.water = waterActivity
 
-        ScreenTimeTracker.shared.start()
-
         launcherActivity.startCleaning =
             { [weak self] in
 

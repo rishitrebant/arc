@@ -499,18 +499,9 @@ final class LauncherActivity: ObservableObject {
         case .home:
             let timerExtra = CGFloat(timerRowCount) * (Metrics.timerRowHeight + Metrics.sectionSpacing)
 
-            let widget = AppSettings.launcherBatteryWidget
-            let hasRings = !batteryItems.isEmpty
-
-            // With the rings on, the devices are in them; otherwise the
-            // connected device gets its own row.
-            let showsDeviceRow = widget == .off && hasDevice
-            let showsBottomRings = widget == .bottom && hasRings
-
             var height = Metrics.heightWithoutDevice + timerExtra
 
-            if showsDeviceRow { height += Metrics.sectionSpacing + Metrics.deviceCardHeight }
-            if showsBottomRings { height += Metrics.sectionSpacing + Metrics.batteryStripHeight }
+            if hasDevice { height += Metrics.sectionSpacing + Metrics.deviceCardHeight }
 
             return CGSize(width: Metrics.homeWidth, height: height)
         }

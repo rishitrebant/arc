@@ -6,6 +6,11 @@ import CoreAudio
 @MainActor
 final class SystemVolumeControl: ObservableObject {
 
+    /// When ARC itself last moved the volume — the volume pill stays out
+    /// of the way for a moment after, or dragging a slider would swap the
+    /// open card for the pill.
+    nonisolated(unsafe) static var lastOwnChange = Date.distantPast
+
     @Published private(set) var level: Double = 0
     @Published private(set) var isAvailable = false
 
@@ -59,6 +64,8 @@ final class SystemVolumeControl: ObservableObject {
     func set(_ value: Double) {
 
         guard let device = defaultOutputDevice() else { return }
+
+        Self.lastOwnChange = Date()
 
         var volume = Float32(min(max(value, 0), 1))
         var address = self.address
