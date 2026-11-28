@@ -219,7 +219,7 @@ final class NextUpActivity: ObservableObject {
 
     var shadowAccent: Color? { nil }
 
-    var compactSize: CGSize { CGSize(width: 340, height: 96) }
+    var compactSize: CGSize { CGSize(width: 340, height: 74) }
 
     var expandedSize: CGSize { compactSize }
 
@@ -246,65 +246,56 @@ private struct NextUpIslandView: View {
             .fill(DesignTokens.Color.islandBackground)
             .frame(width: activity.compactSize.width, height: activity.compactSize.height)
 
-            VStack(spacing: 0) {
+            // The notch covers the middle of the top 29pt, so the artwork and
+            // the skip button sit in the free corners and the two lines of
+            // text sit below it.
+            ZStack(alignment: .topLeading) {
 
-                // Clear of the notch (29pt) so nothing sits behind it.
-                Color.clear.frame(height: DesignTokens.Shape.collapsedNotchHeight + 2)
-
-                HStack(spacing: 12) {
-
-                    Group {
-                        if let artwork = activity.artwork {
-                            Image(nsImage: artwork)
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 20, weight: .regular))
-                                .foregroundStyle(DesignTokens.Color.secondaryText)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(DesignTokens.Color.deviceIconBackground)
-                        }
-                    }
-                    .frame(width: 46, height: 46)
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-
-                    VStack(alignment: .leading, spacing: 1) {
-
-                        Text("Up next")
-                            .font(.system(size: 12, weight: .medium))
+                Group {
+                    if let artwork = activity.artwork {
+                        Image(nsImage: artwork)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 20, weight: .regular))
                             .foregroundStyle(DesignTokens.Color.secondaryText)
-
-                        Text(activity.title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DesignTokens.Color.primaryText)
-                            .lineLimit(1)
-
-                        if !activity.artist.isEmpty {
-                            Text(activity.artist)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(DesignTokens.Color.secondaryText)
-                                .lineLimit(1)
-                        }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(DesignTokens.Color.deviceIconBackground)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Button {
-                        activity.skipToNext()
-                    } label: {
-                        Image(systemName: "forward.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(DesignTokens.Color.primaryText)
-                            .frame(width: 34, height: 34)
-                            .background(Circle().fill(DesignTokens.Color.controlDisc))
-                    }
-                    .buttonStyle(PressableButtonStyle())
-                    .accessibilityLabel("Skip to next song")
                 }
-                .padding(.horizontal, 20)
-                .frame(maxHeight: .infinity)
+                .frame(width: 46, height: 46)
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .offset(x: 18, y: 14)
+
+                VStack(alignment: .leading, spacing: 1) {
+
+                    Text("Up next")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                    Text(activity.artist.isEmpty ? activity.title : "\(activity.title) · \(activity.artist)")
+                        .font(.system(size: 14.5, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .lineLimit(1)
+                }
+                .frame(width: 340 - 18 - 46 - 12 - 18 - 34 - 10, alignment: .leading)
+                .offset(x: 18 + 46 + 12, y: 33)
+
+                Button {
+                    activity.skipToNext()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(DesignTokens.Color.controlDisc))
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("Skip to next song")
+                .offset(x: 340 - 18 - 34, y: 20)
             }
-            .frame(width: activity.compactSize.width, height: activity.compactSize.height)
+            .frame(width: activity.compactSize.width, height: activity.compactSize.height, alignment: .topLeading)
         }
         .frame(width: DesignTokens.sharedCanvasSize.width, height: DesignTokens.sharedCanvasSize.height, alignment: .top)
     }

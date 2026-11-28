@@ -23,6 +23,7 @@ final class LauncherActivity: ObservableObject {
         case tools
         case camera
         case activity
+        case teleprompter
     }
 
     /// The two clocks, side by side on the Clock page (Pomodoro has its own).
@@ -150,7 +151,7 @@ final class LauncherActivity: ObservableObject {
     /// The island window only accepts typing while a number field is up.
     private func updateKeyboardAccess() {
 
-        let wantsKeyboard = isActive && (page == .clock || page == .pomodoro || page == .clipboard || page == .notes)
+        let wantsKeyboard = isActive && (page == .clock || page == .pomodoro || page == .clipboard || page == .notes || page == .teleprompter)
 
         if wantsKeyboard {
             IslandWindow.allowsKeyboardFocus = true
@@ -484,7 +485,10 @@ final class LauncherActivity: ObservableObject {
             return CGSize(width: Metrics.width, height: Metrics.height)
 
         case .tools:
-            return CGSize(width: Metrics.width, height: Metrics.toolsHeight)
+            return CGSize(width: Metrics.cameraWidth, height: Metrics.toolsHeight)
+
+        case .teleprompter:
+            return CGSize(width: Metrics.cameraWidth, height: Metrics.cameraHeight)
 
         case .camera:
             return CGSize(width: Metrics.cameraWidth, height: Metrics.cameraHeight)

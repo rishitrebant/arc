@@ -53,6 +53,7 @@ final class SettingsWindowController {
         tabs.transitionOptions = []
 
         add(to: tabs, title: "General", symbol: "gearshape", view: GeneralSettingsTab())
+        add(to: tabs, title: "Launcher", symbol: "square.grid.2x2", view: LauncherSettingsTab())
         add(to: tabs, title: "Display", symbol: "display", view: DisplaySettingsTab())
         add(to: tabs, title: "Media", symbol: "play.circle", view: MediaSettingsTab())
         add(to: tabs, title: "Timers", symbol: "timer", view: TimerSettingsTab())

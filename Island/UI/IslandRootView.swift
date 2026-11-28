@@ -1730,7 +1730,9 @@ struct IslandRootView: View {
         guard
             AppSettings.launcherOpensOnHover,
             !isDocked,
-            isOnLauncherTrigger(point)
+            isOnLauncherTrigger(point),
+            // With something on the island, hover belongs to it.
+            !(AppSettings.activityOwnsHover && renderedActivity != nil)
         else {
             cancelNotchHover()
             return

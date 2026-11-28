@@ -142,7 +142,7 @@ enum DesignTokens {
 
         // Expanded
         static let expandedWidth: CGFloat = 390
-        static let expandedHeight: CGFloat = 200 // was 188
+        static let expandedHeight: CGFloat = 226 // 200 + a row for the volume
 
         static let expandedEdgePadding: CGFloat = 22
         static let expandedTopPadding: CGFloat = 44
@@ -602,7 +602,7 @@ enum DesignTokens {
         static let clipboardEmptyHeight: CGFloat = 150
         static let clipboardMaxHeight: CGFloat = clipboardChrome + CGFloat(clipboardMaxRows) * clipboardRowHeight
 
-        static let toolsHeight: CGFloat = 212
+        static let toolsHeight: CGFloat = 238
         static let cameraWidth: CGFloat = 420
         static let cameraHeight: CGFloat = 300
         static let activityWidth: CGFloat = 420

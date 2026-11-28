@@ -51,6 +51,7 @@ enum AppSettings {
         static let volumeIndicatorEnabled = "volumeIndicatorEnabled"
         static let nextUpEnabled = "nextUpEnabled"
         static let showScreenTime = "showScreenTime"
+        static let activityOwnsHover = "activityOwnsHover"
         static let focusSound = "focusSound"
         static let focusSoundVolume = "focusSoundVolume"
     }
@@ -95,6 +96,7 @@ enum AppSettings {
         static let volumeIndicatorEnabled = true
         static let nextUpEnabled = true
         static let showScreenTime = true
+        static let activityOwnsHover = true
         static let focusSound = FocusSound.off.rawValue
         static let focusSoundVolume: Double = 0.5
     }
@@ -216,6 +218,13 @@ enum AppSettings {
     static var volumeIndicatorEnabled: Bool {
         UserDefaults.standard.object(forKey: Key.volumeIndicatorEnabled) as? Bool
             ?? Default.volumeIndicatorEnabled
+    }
+
+    /// With something on the island (music, a timer…), hovering opens THAT
+    /// and only a click on the notch opens the launcher.
+    static var activityOwnsHover: Bool {
+        UserDefaults.standard.object(forKey: Key.activityOwnsHover) as? Bool
+            ?? Default.activityOwnsHover
     }
 
     static var nextUpEnabled: Bool {

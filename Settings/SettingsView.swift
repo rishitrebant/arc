@@ -64,18 +64,8 @@ struct GeneralSettingsTab: View {
     private var alwaysShowIcon = AppSettings.Default.alwaysShowMenuBarIcon
     @AppStorage(AppSettings.Key.hapticsEnabled)
     private var haptics = AppSettings.Default.hapticsEnabled
-    @AppStorage(AppSettings.Key.launcherOpensOnHover)
-    private var launcherOnHover = AppSettings.Default.launcherOpensOnHover
-    @AppStorage(AppSettings.Key.launcherTrigger)
-    private var launcherTrigger = AppSettings.Default.launcherTrigger
     @AppStorage(AppSettings.Key.showDockIcon)
     private var showDockIcon = AppSettings.Default.showDockIcon
-    @AppStorage(AppSettings.Key.openClipboardOnPaste)
-    private var clipboardOnPaste = AppSettings.Default.openClipboardOnPaste
-    @AppStorage(AppSettings.Key.showScreenTime)
-    private var screenTime = AppSettings.Default.showScreenTime
-    @AppStorage(AppSettings.Key.launcherBatteryWidget)
-    private var launcherBattery = AppSettings.Default.launcherBatteryWidget
     @AppStorage(AppSettings.Key.globalShortcutsEnabled)
     private var shortcuts = AppSettings.Default.globalShortcutsEnabled
 
@@ -115,7 +105,47 @@ struct GeneralSettingsTab: View {
                 }
             }
 
-            Section("Interaction") {
+            Section("Feedback and shortcuts") {
+
+                SettingToggle(
+                    title: "Haptic feedback",
+                    detail: "A subtle trackpad tap when the island opens, a new activity appears, or you press a button.",
+                    isOn: $haptics
+                )
+
+                SettingToggle(
+                    title: "Global keyboard shortcuts",
+                    detail: "⌃⌥Space opens the launcher  ·  ⌃⌥T starts your last timer  ·  ⌃⌥S starts or stops the stopwatch  ·  ⌃⌥P starts a pomodoro  ·  ⌥V opens the clipboard  ·  ⌃⌥N writes a note  ·  ⌃⌥U pins or unpins one.",
+                    isOn: $shortcuts
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Launcher
+
+struct LauncherSettingsTab: View {
+
+    @AppStorage(AppSettings.Key.launcherOpensOnHover)
+    private var launcherOnHover = AppSettings.Default.launcherOpensOnHover
+    @AppStorage(AppSettings.Key.launcherTrigger)
+    private var launcherTrigger = AppSettings.Default.launcherTrigger
+    @AppStorage(AppSettings.Key.activityOwnsHover)
+    private var activityOwnsHover = AppSettings.Default.activityOwnsHover
+    @AppStorage(AppSettings.Key.openClipboardOnPaste)
+    private var clipboardOnPaste = AppSettings.Default.openClipboardOnPaste
+    @AppStorage(AppSettings.Key.showScreenTime)
+    private var screenTime = AppSettings.Default.showScreenTime
+    @AppStorage(AppSettings.Key.launcherBatteryWidget)
+    private var launcherBattery = AppSettings.Default.launcherBatteryWidget
+    @ObservedObject private var notes = NoteStore.shared
+    @State private var confirmClearNotes = false
+
+    var body: some View {
+        SettingsPage {
+
+            Section("Opening") {
 
                 Picker(selection: $launcherTrigger) {
                     ForEach(LauncherTrigger.allCases, id: \.rawValue) { trigger in
@@ -128,29 +158,18 @@ struct GeneralSettingsTab: View {
                     )
                 }
 
-                Picker(selection: $launcherBattery) {
-                    ForEach(LauncherBatteryWidget.allCases, id: \.rawValue) { choice in
-                        Text(choice.title).tag(choice.rawValue)
-                    }
-                } label: {
-                    SettingLabel(
-                        title: "Battery rings in the launcher",
-                        detail: "This Mac and your connected devices, as small rings. Off shows the connected device on its own row instead."
-                    )
-                }
-
-                SettingToggle(
-                    title: "Show active time in the launcher",
-                    detail: "How long you've been at the Mac today, counted by ARC while it runs. macOS gives apps no Screen Time data, so this is ARC's own count, kept on this Mac.",
-                    isOn: $screenTime
-                )
-
                 SettingToggle(
                     title: "Open the launcher when I hover over the notch",
                     detail: "Rest the cursor on the notch (or the top edge, if that's selected above) and the launcher opens by itself — no click.",
                     isOn: $launcherOnHover
                 )
                 .disabled(launcherTrigger == LauncherTrigger.off.rawValue)
+
+                SettingToggle(
+                    title: "Hover opens what's playing; click opens the launcher",
+                    detail: "While music, a timer or anything else is on the island, resting the cursor on it opens that card, and only a click on the notch opens the launcher. Off lets the notch hover open the launcher even then.",
+                    isOn: $activityOwnsHover
+                )
 
                 SettingToggle(
                     title: "Open the clipboard when I paste",
@@ -177,18 +196,49 @@ struct GeneralSettingsTab: View {
                     }
                 }
 
-                SettingToggle(
-                    title: "Haptic feedback",
-                    detail: "A subtle trackpad tap when the island opens, a new activity appears, or you press a button.",
-                    isOn: $haptics
-                )
+            }
+
+            Section("Home page") {
 
                 SettingToggle(
-                    title: "Global keyboard shortcuts",
-                    detail: "⌃⌥Space opens the launcher  ·  ⌃⌥T starts your last timer  ·  ⌃⌥S starts or stops the stopwatch  ·  ⌃⌥P starts a pomodoro  ·  ⌥V opens the clipboard  ·  ⌃⌥N writes a note  ·  ⌃⌥U pins or unpins one.",
-                    isOn: $shortcuts
+                    title: "Show active time",
+                    detail: "How long you've been at the Mac today, counted by ARC while it runs. macOS gives apps no Screen Time data, so this is ARC's own count, kept on this Mac.",
+                    isOn: $screenTime
                 )
+
+                Picker(selection: $launcherBattery) {
+                    ForEach(LauncherBatteryWidget.allCases, id: \.rawValue) { choice in
+                        Text(choice.title).tag(choice.rawValue)
+                    }
+                } label: {
+                    SettingLabel(
+                        title: "Battery rings",
+                        detail: "This Mac and your connected devices, as small rings. Off shows the connected device on its own row instead."
+                    )
+                }
             }
+
+            Section("Notes") {
+
+                HStack {
+                    SettingLabel(
+                        title: "Saved notes",
+                        detail: "\(notes.notes.count) on this Mac. Notes live only in ARC's own storage."
+                    )
+                    Spacer()
+                    Button("Clear All…", role: .destructive) { confirmClearNotes = true }
+                        .disabled(notes.notes.isEmpty)
+                }
+                .confirmationDialog(
+                    "Delete all notes?",
+                    isPresented: $confirmClearNotes
+                ) {
+                    Button("Delete All Notes", role: .destructive) { notes.clearAll() }
+                } message: {
+                    Text("This also unpins the note in the notch. It can't be undone.")
+                }
+            }
+
         }
     }
 }
@@ -733,8 +783,6 @@ struct ShelfSettingsTab: View {
     private var seconds = AppSettings.Default.shelfDurationSeconds
     @AppStorage(AppSettings.Key.keepClipboardHistory)
     private var clipboardHistory = AppSettings.Default.keepClipboardHistory
-    @ObservedObject private var notes = NoteStore.shared
-    @State private var confirmClearNotes = false
 
     private let options: [(String, Double)] = [
         ("30 seconds", 30), ("1 minute", 60), ("2 minutes", 120),
@@ -753,27 +801,6 @@ struct ShelfSettingsTab: View {
                         title: "Keep files for",
                         detail: "How long a file waits on the shelf before it's put back where it came from. Applies to files dropped after you change this."
                     )
-                }
-            }
-
-            Section("Notes") {
-
-                HStack {
-                    SettingLabel(
-                        title: "Saved notes",
-                        detail: "\(notes.notes.count) on this Mac. Notes live only in ARC's own storage."
-                    )
-                    Spacer()
-                    Button("Clear All…", role: .destructive) { confirmClearNotes = true }
-                        .disabled(notes.notes.isEmpty)
-                }
-                .confirmationDialog(
-                    "Delete all notes?",
-                    isPresented: $confirmClearNotes
-                ) {
-                    Button("Delete All Notes", role: .destructive) { notes.clearAll() }
-                } message: {
-                    Text("This also unpins the note in the notch. It can't be undone.")
                 }
             }
 

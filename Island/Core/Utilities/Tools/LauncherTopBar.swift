@@ -100,8 +100,8 @@ private struct VolumeSlider: View {
     }
 }
 
-/// A ring that empties as the next water reminder gets closer, with the
-/// minutes left beside it. Absent while the reminder is off.
+/// A ring that empties as the next water reminder gets closer. Absent
+/// while the reminder is off.
 private struct WaterCountdown: View {
 
     @ObservedObject var water: WaterActivity
@@ -114,31 +114,24 @@ private struct WaterCountdown: View {
 
                 let remaining = max(0, next.timeIntervalSince(context.date))
                 let fraction = min(1, remaining / WaterActivity.interval)
-                let minutes = Int((remaining / 60).rounded(.up))
 
-                HStack(spacing: 5) {
+                // Just a ring: full right after a reminder, emptying until
+                // the next one.
+                ZStack {
 
-                    ZStack {
+                    Circle()
+                        .stroke(WaterActivity.accent.opacity(0.25), lineWidth: 2.4)
 
-                        Circle()
-                            .stroke(WaterActivity.accent.opacity(0.25), lineWidth: 2.2)
+                    Circle()
+                        .trim(from: 0, to: max(0.02, fraction))
+                        .stroke(WaterActivity.accent, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
 
-                        Circle()
-                            .trim(from: 0, to: max(0.02, fraction))
-                            .stroke(WaterActivity.accent, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-
-                        Image(systemName: "drop.fill")
-                            .font(.system(size: 7))
-                            .foregroundStyle(WaterActivity.accent)
-                    }
-                    .frame(width: 18, height: 18)
-
-                    Text("\(minutes)m")
-                        .font(.system(size: 11, weight: .medium))
-                        .monospacedDigit()
-                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                    Image(systemName: "drop.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(WaterActivity.accent)
                 }
+                .frame(width: 20, height: 20)
                 .help("Next water reminder")
             }
         }

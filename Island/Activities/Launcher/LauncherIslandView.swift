@@ -20,6 +20,13 @@ struct LauncherIslandView: View {
     @State private var clipboardQuery = ""
     @State private var lastPanelSize: CGSize = .zero
 
+    @AppStorage("teleprompterScript") private var teleScript = ""
+    @AppStorage("teleprompterSpeed") private var teleSpeed = 34.0
+    @State private var teleRunning = false
+    @State private var telePaused = false
+    @State private var teleOffset: CGFloat = 0
+    @State private var teleTextHeight: CGFloat = 0
+
     /// Bounces when the panel grows; eases, without bounce, when it shrinks.
     private var panelAnimation: Animation {
         panelSize.height >= lastPanelSize.height && panelSize.width >= lastPanelSize.width
@@ -88,6 +95,8 @@ struct LauncherIslandView: View {
                         cameraPage
                     case .activity:
                         activityPage
+                    case .teleprompter:
+                        teleprompterPage
                     case .clipboard:
                         clipboardPage
                     case .notes:
@@ -662,14 +671,18 @@ struct LauncherIslandView: View {
                         activity.page = .camera
                     }
 
-                    toolTile(symbol: "waveform.path.ecg", title: "Activity", subtitle: "CPU, memory, network", tint: DesignTokens.Color.chargingAccent) {
+                    toolTile(symbol: "waveform.path.ecg", title: "Activity", subtitle: "System", tint: DesignTokens.Color.chargingAccent) {
                         activity.page = .activity
+                    }
+
+                    toolTile(symbol: "text.alignleft", title: "Teleprompter", subtitle: "Scrolling script", tint: Color(red: 1, green: 0.62, blue: 0.04)) {
+                        activity.page = .teleprompter
                     }
                 }
 
                 GridRow {
 
-                    toolTile(symbol: "keyboard", title: "Clean Keyboard", subtitle: "Lock keys for 90 s", tint: Color(red: 0.69, green: 0.32, blue: 0.87)) {
+                    toolTile(symbol: "keyboard", title: "Clean Keyboard", subtitle: "Locks keys 90 s", tint: Color(red: 0.69, green: 0.32, blue: 0.87)) {
                         activity.cleanKeyboard()
                     }
 
@@ -682,6 +695,8 @@ struct LauncherIslandView: View {
                     ) {
                         withAnimation(.smooth(duration: 0.25)) { keepAwake.toggle() }
                     }
+
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .frame(maxHeight: .infinity)
@@ -699,30 +714,30 @@ struct LauncherIslandView: View {
 
         Button(action: action) {
 
-            HStack(spacing: 10) {
+            VStack(spacing: 6) {
 
                 Image(systemName: symbol)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(isOn ? Color.black : tint)
                     .frame(width: 34, height: 34)
                     .background(Circle().fill(isOn ? tint : tint.opacity(0.16)))
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(spacing: 1) {
 
                     Text(title)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(DesignTokens.Color.primaryText)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     Text(subtitle)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 10.5, weight: .medium))
                         .foregroundStyle(DesignTokens.Color.secondaryText)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: Metrics.tileCornerRadius, style: .continuous)
@@ -767,8 +782,17 @@ struct LauncherIslandView: View {
                 switch camera.access {
 
                 case .allowed:
-                    CameraPreviewView(session: camera.session)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    ZStack {
+                        if camera.blurBackground {
+                            ProcessedFrameView(processor: camera.processor)
+                        } else {
+                            CameraPreviewView(session: camera.session)
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(alignment: .bottomTrailing) {
+                        blurToggle
+                    }
 
                 case .denied:
                     VStack(spacing: 8) {
@@ -795,6 +819,201 @@ struct LauncherIslandView: View {
         }
         .onAppear { camera.start() }
         .onDisappear { camera.stop() }
+    }
+
+    private var blurToggle: some View {
+
+        Button {
+            withAnimation(.smooth(duration: 0.25)) {
+                camera.blurBackground.toggle()
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "person.and.background.dotted")
+                    .font(.system(size: 12, weight: .medium))
+                Text("Blur")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(camera.blurBackground ? Color.black : DesignTokens.Color.primaryText)
+            .padding(.horizontal, 11)
+            .frame(height: 26)
+            .background(
+                Capsule().fill(camera.blurBackground ? Color.white : Color.black.opacity(0.55))
+            )
+        }
+        .buttonStyle(LauncherPressStyle())
+        .padding(10)
+        .accessibilityLabel("Blur background")
+    }
+
+    // MARK: - Teleprompter
+
+    private var teleprompterPage: some View {
+
+        VStack(spacing: Metrics.sectionSpacing - 4) {
+
+            HStack(spacing: 10) {
+
+                Button {
+                    teleRunning = false
+                    activity.page = .tools
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                        .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+                }
+                .buttonStyle(LauncherPressStyle())
+                .accessibilityLabel("Back")
+
+                Text("Teleprompter")
+                    .font(Metrics.titleFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+
+                Spacer(minLength: 0)
+
+                if teleRunning {
+
+                    teleButton(telePaused ? "play.fill" : "pause.fill") { telePaused.toggle() }
+                    teleButton("gobackward.10") { teleOffset = max(-60, teleOffset - 120) }
+                    teleButton("stop.fill") { teleRunning = false }
+
+                } else {
+
+                    Button {
+                        teleOffset = -70
+                        telePaused = false
+                        teleRunning = !teleScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    } label: {
+                        Text("Start")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.black)
+                            .padding(.horizontal, 18)
+                            .frame(height: Metrics.startButtonHeight)
+                            .background(Capsule().fill(Color(red: 1, green: 0.62, blue: 0.04)))
+                    }
+                    .buttonStyle(LauncherPressStyle())
+                }
+            }
+
+            if teleRunning {
+
+                // The script, scrolling up at your pace. Tap to pause.
+                GeometryReader { proxy in
+
+                    Text(teleScript)
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .multilineTextAlignment(.leading)
+                        .lineSpacing(6)
+                        .frame(width: proxy.size.width, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .background(
+                            GeometryReader { text in
+                                Color.clear
+                                    .onAppear { teleTextHeight = text.size.height }
+                                    .onChange(of: text.size.height) { _, height in teleTextHeight = height }
+                            }
+                        )
+                        .offset(y: -teleOffset)
+                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                        .clipped()
+                        .mask(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0),
+                                    .init(color: .black, location: 0.12),
+                                    .init(color: .black, location: 0.82),
+                                    .init(color: .clear, location: 1)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { telePaused.toggle() }
+                }
+                .frame(maxHeight: .infinity)
+                .task(id: teleRunning && !telePaused) {
+
+                    guard teleRunning, !telePaused else { return }
+
+                    var last = Date()
+
+                    while !Task.isCancelled {
+
+                        try? await Task.sleep(nanoseconds: 16_000_000)
+
+                        let now = Date()
+                        teleOffset += CGFloat(teleSpeed * now.timeIntervalSince(last))
+                        last = now
+
+                        if teleOffset > teleTextHeight + 40 {
+                            teleRunning = false
+                            break
+                        }
+                    }
+                }
+
+            } else {
+
+                ZStack(alignment: .topLeading) {
+
+                    if teleScript.isEmpty {
+                        Text("Paste or type your script…")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
+                            .padding(.leading, 5)
+                            .allowsHitTesting(false)
+                    }
+
+                    TextEditor(text: $teleScript)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .scrollContentBackground(.hidden)
+                        .scrollIndicators(.never)
+                }
+                .frame(maxHeight: .infinity)
+
+                HStack(spacing: 8) {
+
+                    Image(systemName: "tortoise.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                    Slider(value: $teleSpeed, in: 14...90)
+                        .controlSize(.small)
+
+                    Image(systemName: "hare.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                }
+            }
+        }
+        .animation(.smooth(duration: 0.25), value: teleRunning)
+        .onAppear {
+            // Needs the keyboard to type a script.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NSApp.windows
+                    .first { $0 is IslandWindow && $0.isVisible }?
+                    .makeKey()
+            }
+        }
+        .onDisappear { teleRunning = false }
+    }
+
+    private func teleButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DesignTokens.Color.primaryText)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+        }
+        .buttonStyle(LauncherPressStyle())
     }
 
     // MARK: - Activity

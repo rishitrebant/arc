@@ -24,6 +24,7 @@ struct MusicIslandView: View {
     }
 
     @StateObject private var outputDeviceManager = AudioOutputDeviceManager()
+    @StateObject private var systemVolume = SystemVolumeControl()
     @State private var uiIsPlaying: Bool
 
     // MARK: - Skip Button "Leapfrog" Animation
@@ -651,6 +652,9 @@ struct MusicIslandView: View {
 
 
                 sourceAppButton
+
+
+                volumeRow
             }
 
         }
@@ -2850,6 +2854,32 @@ struct MusicIslandView: View {
                     manager: outputDeviceManager
                 )
             }
+    }
+
+    // MARK: - Volume
+
+    /// The system volume, under the transport row.
+    private var volumeRow: some View {
+
+        ZStack {
+            if systemVolume.isAvailable {
+                SystemVolumeBar(volume: systemVolume, width: 168)
+            }
+        }
+        .frame(width: 260, height: 24)
+        .task(id: isExpanded) {
+            if isExpanded { systemVolume.refresh() }
+        }
+        .position(
+            x: DesignTokens.MusicMetrics.expandedWidth / 2,
+            y: 204
+        )
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.16 : 0,
+            duration: 0.25
+        )
+        .allowsHitTesting(isExpanded)
     }
 
     // MARK: - Source app
