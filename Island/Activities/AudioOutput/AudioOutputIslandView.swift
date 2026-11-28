@@ -70,24 +70,16 @@ struct AudioOutputIslandView: View {
 
     private var expandedPanel: some View {
 
-        VStack(spacing: 0) {
-
-            // The notch covers only the middle; this is just breathing room.
-            Color.clear
-                .frame(height: DesignTokens.DeviceCard.topInset)
-
-            DeviceCardLayout(
-                symbolName: symbol,
-                title: activity.device?.name ?? "Speakers",
-                status: "Sound Output"
-            ) {
-                DeviceStatusRing(fraction: 1, tint: DesignTokens.Color.chargingAccent) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(DesignTokens.Color.chargingAccent)
-                }
+        DeviceCardLayout(
+            symbolName: symbol,
+            title: activity.device?.name ?? "Speakers",
+            status: "Sound Output"
+        ) {
+            DeviceStatusRing(fraction: 1, tint: DesignTokens.Color.chargingAccent) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(DesignTokens.Color.chargingAccent)
             }
-            .frame(maxHeight: .infinity)
         }
     }
 }

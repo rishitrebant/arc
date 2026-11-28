@@ -91,6 +91,9 @@ final class AppDelegate:
         _ notification: Notification
     ) {
 
+        // The notch of THIS Mac — before anything is laid out from it.
+        DesignTokens.NotchMetrics.configure()
+
         // A regular app: shows in the Dock and the app switcher, and
         // clicking its Dock icon opens Settings (see
         // `applicationShouldHandleReopen`). The island itself is still

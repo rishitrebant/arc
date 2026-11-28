@@ -881,11 +881,22 @@ struct AboutSettingsTab: View {
     @State private var checksAutomatically =
         UpdateController.shared.automaticallyChecksForUpdates
 
+    @ObservedObject private var updates = UpdateController.shared
+
     private var version: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String ?? "1"
         return "Version \(short) (\(build))"
+    }
+
+    private var notchDescription: String {
+
+        if let notch = DesignTokens.NotchMetrics.measured {
+            return "Notch: \(Int(notch.width)) × \(Int(notch.height)) pt"
+        }
+
+        return "No notch detected — using a 179 × 32 pt stand-in"
     }
 
     var body: some View {
@@ -905,10 +916,38 @@ struct AboutSettingsTab: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
 
-            Button("Check for Updates…") {
-                UpdateController.shared.checkForUpdates()
+            // What ARC measured on this Mac — useful when a pill doesn't
+            // sit right on someone else's.
+            Text(notchDescription)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
+            // An update is waiting: one button installs it and restarts.
+            if let version = updates.availableVersion {
+
+                Button {
+                    UpdateController.shared.updateAndRestart()
+                } label: {
+                    Text(updates.isReadyToInstall
+                         ? "Update to \(version) and Restart"
+                         : "Update to \(version)")
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, 8)
+
+                Text("ARC restarts by itself when it's done.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            } else {
+
+                Button("Check for Updates…") {
+                    UpdateController.shared.checkForUpdates()
+                }
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
 
             Toggle("Check for updates automatically", isOn: $checksAutomatically)
                 .toggleStyle(.checkbox)

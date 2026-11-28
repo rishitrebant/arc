@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed
+- **Updating works again.** 2.0 was published with a lower build number than 1.2.2, so ARC told people on 1.2.2 they were "up to date". Build numbers now only go up, and the release script refuses to publish one that doesn't.
+- **Pills and cards fit any Mac's notch.** ARC measures the notch of the Mac it's on, so pills, cards and text sit clear of it on every model and display scaling instead of assuming a 179 × 32 pt notch.
+- The launcher could stop opening from the notch hover or a card's back button after it had been opened once.
+- Music and YouTube cards: the volume bar no longer swaps the open card for the volume pill; a browser notification chime no longer drops a playing video.
+- Pomodoro's half of a shared pill is no longer cut off.
+- Converting a Word document (.docx) from the shelf.
+
+### New
+- **Tools** in the launcher: camera mirror (with macOS background blur), Copy Text from anywhere on screen, colour picker, screenshot to clipboard, system activity, teleprompter, keyboard cleaning mode, Keep Awake.
+- **Notes** with tabs, history and a pinned-to-notch note.
+- **Up next** card as a song ends, with a skip button (Apple Music playlists).
+- **Volume** on the Music card and in the launcher; a quiet volume pill when nothing else is on the island.
+- Pomodoro **focus sounds** (rain, ocean, wind, fireplace, noise), a skip-break button, and a water reminder in the island.
+- **File conversion** on the shelf: images, PDF, documents, audio and video.
+- **Update and Restart** button in Settings → About when an update is waiting.
+- Corner roundness and bounce settings; Settings reorganised with a Launcher tab.
+
 ## 1.1
 
 ### New

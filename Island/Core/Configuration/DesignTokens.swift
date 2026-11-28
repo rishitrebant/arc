@@ -15,6 +15,38 @@ import SwiftUI
 /// for real design values the moment they exist.
 enum DesignTokens {
 
+    /// The notch of the Mac this runs on, read once at launch (see
+    /// `NotchMetrics.configure()`); the tokens below fall back to a 14"
+    /// MacBook Pro's 179 × 32 when there isn't one (an external display,
+    /// a Mac without a notch). Every pill and card is laid out from these,
+    /// so a narrower or wider notch — an Air's, say — gets the same fit.
+    enum NotchMetrics {
+
+        nonisolated(unsafe) static var measured: CGSize?
+
+        @MainActor
+        static func configure() {
+
+            for screen in NSScreen.screens where screen.safeAreaInsets.top > 0 {
+
+                guard
+                    let left = screen.auxiliaryTopLeftArea,
+                    let right = screen.auxiliaryTopRightArea
+                else {
+                    continue
+                }
+
+                let width = screen.frame.width - left.width - right.width
+
+                if width > 0 {
+                    measured = CGSize(width: width.rounded(), height: screen.safeAreaInsets.top)
+                    return
+                }
+            }
+        }
+    }
+
+
     // MARK: - Shared Canvas Size
     //
     // Every activity's outer view reports THIS size, always, regardless
@@ -107,7 +139,7 @@ enum DesignTokens {
 
         /// Height the island collapses to when it leaves — the physical
         /// notch's own height. Width is `FileDropMetrics.notchWidth`.
-        static let collapsedNotchHeight: CGFloat = 29
+        static var collapsedNotchHeight: CGFloat { (NotchMetrics.measured?.height ?? 32) - 3 }
 
         /// Rounded cards (36) or flat, notch-blended ones (0 — which also
         /// turns on the top flare). Read from Settings every time, so a
@@ -124,7 +156,7 @@ enum DesignTokens {
         // Compact — derived from your measured notch width (179) plus two
         // symmetric flanks of 10 (edge padding) + 22 (icon) + 10 (gap to
         // notch) = 42 each. 42*2 + 179 = 263.
-        static let compactWidth: CGFloat = 263
+        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + 84
         static let compactHeight: CGFloat = 29
         static let compactContentCenterY: CGFloat = 20
 
@@ -211,7 +243,7 @@ enum DesignTokens {
         /// `notchKeepClearWidth/Height` below (that one includes extra
         /// margin for the expanded panel's content layout; this is the
         /// bare, exact hardware dimension).
-        static let notchWidth: CGFloat = 179
+        static var notchWidth: CGFloat { NotchMetrics.measured?.width ?? 179 }
         static let notchHeight: CGFloat = 27
 
         /// How generous the AppKit-level drag-catch hit-region is,
@@ -261,7 +293,7 @@ enum DesignTokens {
         /// panel's; using the number given for THIS panel specifically
         /// rather than assuming the two should agree.
         static let notchKeepClearWidth: CGFloat = 210
-        static let notchKeepClearHeight: CGFloat = 32
+        static var notchKeepClearHeight: CGFloat { NotchMetrics.measured?.height ?? 32 }
 
         static let shelfItemSize: CGFloat = 64              // same as MusicMetrics.albumArtSize
         static let shelfItemCornerRadius: CGFloat = 16
@@ -301,7 +333,8 @@ enum DesignTokens {
     /// the notch.
     enum DeviceCard {
         static let width: CGFloat = 340
-        static let height: CGFloat = 82
+        /// Tall enough for the notch (wherever it ends) plus two lines of text.
+        static var height: CGFloat { max(82, FileDropMetrics.notchKeepClearHeight + 3 + 36 + 12) }
         /// The notch only covers the middle of the top edge, so the content
         /// sits just under the top rather than below the whole notch height.
         static let topInset: CGFloat = 12
@@ -317,7 +350,7 @@ enum DesignTokens {
         /// and 10pt in from the notch on the inner side — per direct
         /// measurement (10 + 20 + 10 = 40 per flank; 40 + notchWidth(179)
         /// + 40 = 259).
-        static let compactWidth: CGFloat = 259
+        static let compactWidth: CGFloat = DesignTokens.FileDropMetrics.notchWidth + 80
         static let compactHeight: CGFloat = 33
         static let compactIconSize: CGFloat = 20
         static let compactEdgePadding: CGFloat = 10

@@ -219,7 +219,7 @@ final class NextUpActivity: ObservableObject {
 
     var shadowAccent: Color? { nil }
 
-    var compactSize: CGSize { CGSize(width: 340, height: 74) }
+    var compactSize: CGSize { CGSize(width: 340, height: max(74, DesignTokens.FileDropMetrics.notchKeepClearHeight + 1 + 34 + 8)) }
 
     var expandedSize: CGSize { compactSize }
 
@@ -280,7 +280,7 @@ private struct NextUpIslandView: View {
                         .lineLimit(1)
                 }
                 .frame(width: 340 - 18 - 46 - 12 - 18 - 34 - 10, alignment: .leading)
-                .offset(x: 18 + 46 + 12, y: 33)
+                .offset(x: 18 + 46 + 12, y: DesignTokens.FileDropMetrics.notchKeepClearHeight + 1)
 
                 Button {
                     activity.skipToNext()

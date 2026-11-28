@@ -14,29 +14,41 @@ struct DeviceCardLayout<Trailing: View>: View {
 
     var body: some View {
 
-        HStack(spacing: Card.gap) {
+        // Laid out from where the notch actually is. The glyph and the
+        // status disc sit in the free corners, vertically centred; the
+        // two lines of text sit BELOW the notch — wherever this Mac's
+        // notch ends — so nothing is ever behind it.
+        GeometryReader { proxy in
 
-            Device3DIcon(symbolName: symbolName, name: title, size: Card.iconSize)
+            let textLeading = Card.edgePadding + Card.iconSize + Card.gap
+            let textTrailing = Card.edgePadding + Card.trailingSize + 12
 
-            VStack(alignment: .leading, spacing: 2) {
+            ZStack(alignment: .topLeading) {
 
-                Text(status)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(DesignTokens.Color.secondaryText)
+                Device3DIcon(symbolName: symbolName, name: title, size: Card.iconSize)
+                    .position(x: Card.edgePadding + Card.iconSize / 2, y: proxy.size.height / 2)
 
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .tracking(DesignTokens.Typography.letterSpacingTight)
-                    .foregroundStyle(DesignTokens.Color.primaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                VStack(alignment: .leading, spacing: 2) {
+
+                    Text(status)
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .tracking(DesignTokens.Typography.letterSpacingTight)
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .frame(width: max(40, proxy.size.width - textLeading - textTrailing), alignment: .leading)
+                .offset(x: textLeading, y: DesignTokens.FileDropMetrics.notchKeepClearHeight + 3)
+
+                trailing
+                    .frame(width: Card.trailingSize, height: Card.trailingSize)
+                    .position(x: proxy.size.width - Card.edgePadding - Card.trailingSize / 2, y: proxy.size.height / 2)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            trailing
-                .frame(width: Card.trailingSize, height: Card.trailingSize)
         }
-        .padding(.horizontal, Card.edgePadding)
     }
 }
 
@@ -147,20 +159,12 @@ struct BluetoothIslandView: View {
 
     private var card: some View {
 
-        VStack(spacing: 0) {
-
-            // The notch covers only the middle; this is just breathing room.
-            Color.clear
-                .frame(height: DesignTokens.DeviceCard.topInset)
-
-            DeviceCardLayout(
-                symbolName: symbolName,
-                title: deviceName,
-                status: isConnected ? "Connected" : "Disconnected"
-            ) {
-                trailing
-            }
-            .frame(maxHeight: .infinity)
+        DeviceCardLayout(
+            symbolName: symbolName,
+            title: deviceName,
+            status: isConnected ? "Connected" : "Disconnected"
+        ) {
+            trailing
         }
     }
 
