@@ -16,10 +16,28 @@ final class LauncherActivity: ObservableObject {
 
     enum Page: Equatable {
         case home
-        case timer
+        case clock
         case pomodoro
         case clipboard
         case notes
+        case tools
+        case camera
+        case activity
+    }
+
+    /// The two clocks, side by side on the Clock page (Pomodoro has its own).
+    enum ClockMode: String, CaseIterable, Identifiable {
+        case timer
+        case stopwatch
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .timer: return "Timer"
+            case .stopwatch: return "Stopwatch"
+            }
+        }
     }
 
     @Published private(set) var isActive: Bool = false
@@ -29,6 +47,13 @@ final class LauncherActivity: ObservableObject {
             announceLayoutChange()
         }
     }
+
+    /// Which clock the Clock page is showing.
+    @Published var clockMode: ClockMode = .timer
+
+    /// Set by `AppDelegate`: starts Keyboard Cleaning Mode. Returns false
+    /// while macOS hasn't granted the permission it needs.
+    var startCleaning: () -> Bool = { false }
 
     // Remembered between openings, like the Clock app's last-used values.
     @Published var timerMinutes: Int = 10
@@ -49,6 +74,45 @@ final class LauncherActivity: ObservableObject {
     var timerRowCount: Int { min(timer.activeSlots.count, 2) }
 
     private var lastTimerRowCount = 0
+
+    /// One ring in the battery widget.
+    struct BatteryItem: Identifiable, Equatable {
+        let id: String
+        let name: String
+        let symbolName: String
+        let percent: Int
+        /// The Bluetooth address, for "Disconnect"; nil for this Mac.
+        let address: String?
+    }
+
+    /// This Mac's charge, read each time the launcher opens.
+    @Published private(set) var macBatteryPercent: Int?
+
+    /// This Mac first, then each connected device whose level is known.
+    var batteryItems: [BatteryItem] {
+
+        var items: [BatteryItem] = []
+
+        if let macBatteryPercent {
+            items.append(BatteryItem(
+                id: "mac", name: "This Mac", symbolName: "laptopcomputer",
+                percent: macBatteryPercent, address: nil
+            ))
+        }
+
+        for device in bluetooth.connected {
+            if let level = bluetooth.batteries[device.address]?.headline {
+                items.append(BatteryItem(
+                    id: device.address, name: device.name, symbolName: device.symbolName,
+                    percent: level, address: device.address
+                ))
+            }
+        }
+
+        return Array(items.prefix(4))
+    }
+
+    private let powerMonitor = PowerSourceMonitor()
     private var layoutCancellables: Set<AnyCancellable> = []
 
     /// The panel's height depends on the page and on what's running —
@@ -82,7 +146,7 @@ final class LauncherActivity: ObservableObject {
     /// The island window only accepts typing while a number field is up.
     private func updateKeyboardAccess() {
 
-        let wantsKeyboard = isActive && (page == .timer || page == .pomodoro || page == .clipboard || page == .notes)
+        let wantsKeyboard = isActive && (page == .clock || page == .pomodoro || page == .clipboard || page == .notes)
 
         if wantsKeyboard {
             IslandWindow.allowsKeyboardFocus = true
@@ -122,6 +186,18 @@ final class LauncherActivity: ObservableObject {
         self.bluetooth = bluetooth
         self.youtube = youtube
         self.timer = timer
+
+        bluetooth.$batteries
+            .combineLatest(bluetooth.$connected)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _, _ in self?.announceLayoutChange() }
+            .store(in: &layoutCancellables)
+
+        NotificationCenter.default
+            .publisher(for: UserDefaults.didChangeNotification)
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in self?.announceLayoutChange() }
+            .store(in: &layoutCancellables)
 
         timer.objectWillChange
             .receive(on: DispatchQueue.main)
@@ -218,6 +294,9 @@ final class LauncherActivity: ObservableObject {
         timerMinutes = AppSettings.lastTimerMinutes
 
         bluetooth.refreshBatteries()
+
+        let power = powerMonitor.currentSnapshot()
+        macBatteryPercent = power.hasBattery ? power.percent : nil
 
         shownAt = Date()
         hasBeenHovered = false
@@ -336,6 +415,25 @@ final class LauncherActivity: ObservableObject {
         Haptics.confirm()
     }
 
+    /// Closes the launcher and opens the card behind its Now Playing row.
+    func openNowPlayingCard() {
+
+        hide()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.default.post(name: .islandExpandNow, object: nil)
+        }
+    }
+
+    /// Locks the keyboard for cleaning and gets the launcher out of the way.
+    func cleanKeyboard() {
+
+        let started = startCleaning()
+
+        // Without the permission macOS asks for it; stay here meanwhile.
+        if started { hide() }
+    }
+
     func startStopwatch() {
         TimerPreset.start(nil)
         hide()
@@ -376,17 +474,36 @@ final class LauncherActivity: ObservableObject {
         case .notes:
             return CGSize(width: Metrics.notesWidth, height: Metrics.notesHeight)
 
-        case .timer, .pomodoro:
-            // The setup pages keep the launcher's original size.
+        case .clock, .pomodoro:
+            // The clock setup keeps the launcher's original size.
             return CGSize(width: Metrics.width, height: Metrics.height)
+
+        case .tools:
+            return CGSize(width: Metrics.width, height: Metrics.toolsHeight)
+
+        case .camera:
+            return CGSize(width: Metrics.cameraWidth, height: Metrics.cameraHeight)
+
+        case .activity:
+            return CGSize(width: Metrics.activityWidth, height: Metrics.activityHeight)
 
         case .home:
             let timerExtra = CGFloat(timerRowCount) * (Metrics.timerRowHeight + Metrics.sectionSpacing)
 
-            return CGSize(
-                width: Metrics.homeWidth,
-                height: (hasDevice ? Metrics.homeHeight : Metrics.heightWithoutDevice) + timerExtra
-            )
+            let widget = AppSettings.launcherBatteryWidget
+            let hasRings = !batteryItems.isEmpty
+
+            // With the rings on, the devices are in them; otherwise the
+            // connected device gets its own row.
+            let showsDeviceRow = widget == .off && hasDevice
+            let showsBottomRings = widget == .bottom && hasRings
+
+            var height = Metrics.heightWithoutDevice + timerExtra
+
+            if showsDeviceRow { height += Metrics.sectionSpacing + Metrics.deviceCardHeight }
+            if showsBottomRings { height += Metrics.sectionSpacing + Metrics.batteryStripHeight }
+
+            return CGSize(width: Metrics.homeWidth, height: height)
         }
     }
 

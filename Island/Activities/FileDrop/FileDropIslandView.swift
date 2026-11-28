@@ -270,9 +270,9 @@ struct FileDropIslandView: View {
                     Button {
                         activity.clearShelf()
                     } label: {
-                        Image(systemName: "trash.fill")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.red)
+                        Image(systemName: "trash")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -336,43 +336,60 @@ struct FileDropIslandView: View {
 
     private var bottomActionRow: some View {
 
-        HStack(spacing: DesignTokens.FileDropMetrics.bottomButtonSpacing) {
+        let targets = FileConverter.targets(for: activity.shelfItems.map(\.url))
 
-            // "Shelf" — items are already auto-saved to the shelf the
-            // moment they're dropped, so this isn't a commit action;
-            // it's just "done, put this away" — collapses the panel
-            // early rather than waiting out the rest of the auto-reveal
-            // timer. Items themselves are untouched.
-            Button {
-                activity.dismissExpandedState()
+        return HStack(spacing: DesignTokens.FileDropMetrics.bottomButtonSpacing) {
+
+            // Convert: a menu of the formats that fit what's on the shelf.
+            Menu {
+
+                ForEach(targets) { target in
+                    Button {
+                        activity.convertShelf(to: target)
+                    } label: {
+                        Label("To \(target.title)", systemImage: target.symbol)
+                    }
+                }
+
             } label: {
-                Text("Shelf")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: DesignTokens.FileDropMetrics.bottomButtonHeight)
-                    .background(
-                        Capsule()
-                            .fill(Color(red: 0.27, green: 0.27, blue: 0.28))  // derived — eyeballed from the shelf reference screenshot
-                    )
-            }
-            .buttonStyle(.plain)
 
-            // Per direct request: drag multiple files in, then hit this
-            // to hand the whole current shelf to the real system
-            // AirDrop sheet.
+                HStack(spacing: 6) {
+
+                    if activity.isConverting {
+                        ProgressView()
+                            .controlSize(.small)
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+
+                    Text(activity.isConverting ? "Converting…" : "Convert")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundStyle(targets.isEmpty ? DesignTokens.Color.secondaryText : DesignTokens.Color.primaryText)
+                .frame(maxWidth: .infinity)
+                .frame(height: DesignTokens.FileDropMetrics.bottomButtonHeight)
+                .background(Capsule().fill(Color.white.opacity(0.14)))
+                .contentShape(Capsule())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .disabled(targets.isEmpty || activity.isConverting)
+            .help(targets.isEmpty ? "Nothing on the shelf can be converted" : "Convert the files on the shelf")
+
+            // Hands the whole shelf to the system AirDrop sheet.
             Button {
                 activity.airDropShelfItems()
             } label: {
                 Text("AirDrop")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 1.0))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: DesignTokens.FileDropMetrics.bottomButtonHeight)
-                    .background(
-                        Capsule()
-                            .fill(Color(red: 0.11, green: 0.15, blue: 0.24))
-                    )
+                    .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 1.0))
+                .frame(maxWidth: .infinity)
+                .frame(height: DesignTokens.FileDropMetrics.bottomButtonHeight)
+                .background(Capsule().fill(Color(red: 0.11, green: 0.15, blue: 0.24)))
+                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
         }

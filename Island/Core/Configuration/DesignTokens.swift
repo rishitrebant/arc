@@ -37,13 +37,14 @@ enum DesignTokens {
                 MusicMetrics.expandedWidth,
                 FileDropMetrics.expandedWithItemsWidth,
                 LauncherMetrics.clipboardWidth,
-                LauncherMetrics.homeWidth
+                LauncherMetrics.homeMaxWidth
             ),
             height: max(
                 MusicMetrics.expandedHeight,
                 FileDropMetrics.expandedWithItemsHeight,
                 LauncherMetrics.notesHeight,
-                LauncherMetrics.clipboardMaxHeight
+                LauncherMetrics.clipboardMaxHeight,
+                LauncherMetrics.homeMaxHeight
             )
         )
     }
@@ -98,7 +99,7 @@ enum DesignTokens {
 
     enum Shape {
         static let compactTopRadius: CGFloat = 0
-        static let compactBottomRadius: CGFloat = 12
+        static var compactBottomRadius: CGFloat { 12 * CGFloat(AppSettings.cornerRoundness) }
 
         /// How far a flat-topped pill flares out where it meets the top
         /// of the screen — the concave sweep the real notch has.
@@ -112,9 +113,9 @@ enum DesignTokens {
         /// turns on the top flare). Read from Settings every time, so a
         /// change applies the next time a card is drawn.
         static var expandedTopRadius: CGFloat {
-            AppSettings.expandedTopCorners == .blended ? 0 : 36
+            AppSettings.expandedTopCorners == .blended ? 0 : 36 * CGFloat(AppSettings.cornerRoundness)
         }
-        static let expandedBottomRadius: CGFloat = 36
+        static var expandedBottomRadius: CGFloat { 36 * CGFloat(AppSettings.cornerRoundness) }
     }
     // MARK: - Music metrics (measured, from "ongoing music.png" + "Music Expanded.png")
 
@@ -300,7 +301,10 @@ enum DesignTokens {
     /// the notch.
     enum DeviceCard {
         static let width: CGFloat = 340
-        static let height: CGFloat = 92
+        static let height: CGFloat = 82
+        /// The notch only covers the middle of the top edge, so the content
+        /// sits just under the top rather than below the whole notch height.
+        static let topInset: CGFloat = 12
         static let edgePadding: CGFloat = 22
         static let gap: CGFloat = 14
         static let iconSize: CGFloat = 46
@@ -598,12 +602,25 @@ enum DesignTokens {
         static let clipboardEmptyHeight: CGFloat = 150
         static let clipboardMaxHeight: CGFloat = clipboardChrome + CGFloat(clipboardMaxRows) * clipboardRowHeight
 
+        static let toolsHeight: CGFloat = 212
+        static let cameraWidth: CGFloat = 420
+        static let cameraHeight: CGFloat = 300
+        static let activityWidth: CGFloat = 420
+        static let activityHeight: CGFloat = 212
+
         static let notesWidth: CGFloat = 420
-        static let notesHeight: CGFloat = 330
+        static let notesHeight: CGFloat = 348
 
         /// The home page with no Bluetooth device row (its height plus
         /// the spacing above it).
         static let heightWithoutDevice: CGFloat = homeHeight - sectionSpacing - deviceCardHeight
+
+        /// The home page at its fullest: two running clocks and the battery
+        /// rings (the canvas has to fit it, or its bottom would be cut).
+        static let homeMaxWidth: CGFloat = homeWidth
+        static let homeMaxHeight: CGFloat = heightWithoutDevice
+            + 2 * (timerRowHeight + sectionSpacing)
+            + sectionSpacing + batteryStripHeight
 
         static let edgePadding: CGFloat = 20
         static let bottomPadding: CGFloat = 16
@@ -618,6 +635,7 @@ enum DesignTokens {
 
         static let deviceCardHeight: CGFloat = 42
         static let timerRowHeight: CGFloat = 34
+        static let batteryStripHeight: CGFloat = 64
         static let tileSpacing: CGFloat = 10
         static let tileCornerRadius: CGFloat = 16   // concentric: 36pt panel radius - 20pt edge padding
         static let tileGlyphSize: CGFloat = 19

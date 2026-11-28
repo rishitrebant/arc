@@ -137,7 +137,7 @@ struct BluetoothIslandView: View {
             } else {
                 Image(systemName: isConnected ? "checkmark.circle" : "xmark.circle")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(isConnected ? DesignTokens.Color.airDropAccent : DesignTokens.Color.secondaryText)
+                    .foregroundStyle(isConnected ? DesignTokens.Color.chargingAccent : DesignTokens.Color.secondaryText)
             }
         }
         .padding(.horizontal, Metrics.compactEdgePadding + 2)
@@ -149,9 +149,9 @@ struct BluetoothIslandView: View {
 
         VStack(spacing: 0) {
 
-            // Reserves the physical notch cutout.
+            // The notch covers only the middle; this is just breathing room.
             Color.clear
-                .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
+                .frame(height: DesignTokens.DeviceCard.topInset)
 
             DeviceCardLayout(
                 symbolName: symbolName,
@@ -201,14 +201,14 @@ struct BluetoothIslandView: View {
             DeviceStatusRing(
                 fraction: 1,
                 tint: isConnected
-                    ? DesignTokens.Color.airDropAccent
+                    ? DesignTokens.Color.chargingAccent
                     : DesignTokens.Color.secondaryText
             ) {
                 Image(systemName: isConnected ? "checkmark" : "xmark")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(
                         isConnected
-                            ? DesignTokens.Color.airDropAccent
+                            ? DesignTokens.Color.chargingAccent
                             : DesignTokens.Color.secondaryText
                     )
             }

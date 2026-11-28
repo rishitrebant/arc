@@ -67,7 +67,11 @@ final class AppDelegate:
     private var downloadsActivity:
         DownloadsActivity!
 
-    private var waterReminder = WaterReminder()
+    private var waterActivity: WaterActivity!
+
+    private var volumeActivity: VolumeActivity!
+    private var cleaningActivity: CleaningActivity!
+    private var nextUpActivity: NextUpActivity!
 
     private var noteActivity:
         NoteActivity!
@@ -134,6 +138,19 @@ final class AppDelegate:
             musicActivity
         )
 
+        nextUpActivity =
+            NextUpActivity(music: musicActivity)
+
+        nextUpActivity.isIslandCurrentlyHovered =
+            { [weak windowManager] in
+
+                windowManager?.isAnyScreenCurrentlyHovered ?? false
+            }
+
+        activityManager.register(
+            nextUpActivity
+        )
+
         youtubeActivity =
             YouTubeActivity()
 
@@ -197,6 +214,27 @@ final class AppDelegate:
             timerActivity
         )
 
+        waterActivity =
+            WaterActivity()
+
+        activityManager.register(
+            waterActivity
+        )
+
+        volumeActivity =
+            VolumeActivity()
+
+        activityManager.register(
+            volumeActivity
+        )
+
+        cleaningActivity =
+            CleaningActivity()
+
+        activityManager.register(
+            cleaningActivity
+        )
+
         noteActivity =
             NoteActivity()
 
@@ -217,7 +255,7 @@ final class AppDelegate:
         calendarActivity.requestLowRank =
             { [weak self] low in
 
-                self?.activityManager.setRankOverride(.calendar, low ? 11.5 : nil)
+                self?.activityManager.setRankOverride(.calendar, low ? 14.5 : nil)
             }
 
         calendarActivity.isIslandCurrentlyHovered =
@@ -277,6 +315,12 @@ final class AppDelegate:
                 youtube: youtubeActivity,
                 timer: timerActivity
             )
+
+        launcherActivity.startCleaning =
+            { [weak self] in
+
+                self?.cleaningActivity.start() ?? false
+            }
 
         launcherActivity.releaseKeyboard =
             { [weak windowManager] in

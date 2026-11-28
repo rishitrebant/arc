@@ -570,6 +570,9 @@ struct MusicIslandView: View {
 
             albumArtView
 
+            .onTapGesture { openSourceApp() }
+
+            .allowsHitTesting(isExpanded)
                 .position(
 
                     artCenter
@@ -646,6 +649,8 @@ struct MusicIslandView: View {
 
                 airplayButton
 
+
+                sourceAppButton
             }
 
         }
@@ -2847,6 +2852,54 @@ struct MusicIslandView: View {
             }
     }
 
+    // MARK: - Source app
+
+    /// The app the music is coming from, as a muted monochrome mark on the
+    /// opposite corner from AirPlay, so the row of controls sits balanced.
+    private var sourceAppButton: some View {
+
+        Group {
+            if let icon = MusicSourceIcon.image(for: activity.playbackState?.app) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+            }
+        }
+        .frame(width: 30, height: 30)
+        .contentShape(Rectangle())
+        .position(
+            x: DesignTokens.MusicMetrics.expandedWidth - airplayCenter.x,
+            y: airplayCenter.y
+        )
+        .fadeOnly(
+            isVisible: isExpanded,
+            delay: isExpanded ? 0.14 : 0,
+            duration: 0.25
+        )
+        .allowsHitTesting(isExpanded)
+        .onTapGesture {
+            openSourceApp()
+        }
+    }
+
+    /// Brings the app the music is coming from (Music or Spotify) forward.
+    private func openSourceApp() {
+
+        guard
+            isExpanded,
+            let app = activity.playbackState?.app,
+            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleIdentifier)
+        else {
+            return
+        }
+
+        NSWorkspace.shared.openApplication(
+            at: url,
+            configuration: NSWorkspace.OpenConfiguration()
+        )
+    }
+
     // MARK: - Derived Values
 
     private var displayedElapsed: TimeInterval {
@@ -3111,4 +3164,30 @@ private struct FadeOnlyModifier:
 
     }
 
+}
+
+
+/// The Music / Spotify app icon, fetched once from the installed app.
+private enum MusicSourceIcon {
+
+    private static var cache: [String: NSImage] = [:]
+
+    static func image(for app: MusicApp?) -> NSImage? {
+
+        guard let app else { return nil }
+
+        let id = app.bundleIdentifier
+
+        if let cached = cache[id] { return cached }
+
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else {
+            return nil
+        }
+
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+
+        cache[id] = icon
+
+        return icon
+    }
 }

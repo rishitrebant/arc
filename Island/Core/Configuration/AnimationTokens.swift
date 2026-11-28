@@ -18,11 +18,11 @@ enum AnimationTokens {
     /// feels physically responsive rather than mechanically animated.
     static let shapeDuration: TimeInterval = 0.22
     static let shapeDampingFraction: Double = 0.84
-    static var shapeSpring: Animation { .spring(response: shapeDuration, dampingFraction: shapeDampingFraction) }
+    static var shapeSpring: Animation { expandSpring }
 
     /// The island growing out of the notch when an activity arrives:
     /// a touch of bounce at the end, like the Dynamic Island.
-    static var enterSpring: Animation { .spring(response: 0.28, dampingFraction: 0.78) }
+    static var enterSpring: Animation { expandSpring }
 
     /// The island shrinking back into the notch: no bounce — it should
     /// settle into the notch, not rebound out of it.
@@ -34,7 +34,7 @@ enum AnimationTokens {
     /// One activity handing the island to another (launcher → music,
     /// timer → charging…): a springier, slower morph than hover, with a
     /// visible settle — the Dynamic Island's signature bounce.
-    static var handoverSpring: Animation { .spring(response: 0.36, dampingFraction: 0.74) }
+    static var handoverSpring: Animation { expandSpring }
 
     /// Chooses the hand-over spring by direction: bouncy when the island
     /// grows or stays the same height, critically damped when it shrinks.
@@ -56,8 +56,15 @@ enum AnimationTokens {
     /// shape leads (grows immediately) and content follows once there's
     /// room. On collapse, content clears first (see `collapseShapeDelay`).
     static func shapeMorph(isExpanding: Bool) -> Animation {
-        isExpanding ? shapeSpring : collapseSpring.delay(collapseShapeDelay)
+        isExpanding ? expandSpring : collapseSpring.delay(collapseShapeDelay)
     }
+
+    /// Every opening — hover, hand-over, an activity arriving, a page
+    /// growing — uses this one spring: bounce 0.3 by default (Apple's
+    /// `bouncy`, per the SwiftUI documentation), 0.42s, adjustable in
+    /// Settings. `shapeSpring`, `enterSpring` and `handoverSpring` all
+    /// resolve to it, so nothing opens with a different feel.
+    static var expandSpring: Animation { .spring(duration: 0.42, bounce: AppSettings.bounceAmount) }
 
     /// Anything shrinking: critically damped, so it eases into its final
     /// size and never dips below it. (A bouncy spring overshoots its

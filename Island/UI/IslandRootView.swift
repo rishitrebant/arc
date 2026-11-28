@@ -469,7 +469,7 @@ struct IslandRootView: View {
         let growing = new.width * new.height >= old.width * old.height
 
         let spring: Animation = growing
-            ? AnimationTokens.shapeSpring
+            ? AnimationTokens.expandSpring
             : AnimationTokens.collapseSpring.delay(AnimationTokens.collapseShapeDelay)
 
         withAnimation(spring) {
@@ -481,7 +481,10 @@ struct IslandRootView: View {
 
     /// The glow's source shape: exactly this wide and this tall. The glow
     /// itself spreads outward from it.
-    private static let notchGlowSize = CGSize(width: 176, height: 29)
+    private static let notchGlowSize = CGSize(
+        width: DesignTokens.FileDropMetrics.notchWidth,
+        height: DesignTokens.Shape.collapsedNotchHeight
+    )
 
     /// The colour the glow is right now. Changing it (a new choice in
     /// Settings, or the next step of the cycle) cross-fades.
@@ -528,14 +531,14 @@ struct IslandRootView: View {
             shape
                 .fill(tint)
                 .frame(width: size.width, height: size.height)
-                .blur(radius: 18 * (0.6 + 0.4 * intensity))
+                .blur(radius: 7 * (0.6 + 0.4 * intensity))
                 .opacity(min(0.55 * intensity, 1))
 
             // Tighter, brighter edge.
             shape
                 .fill(tint)
                 .frame(width: size.width, height: size.height)
-                .blur(radius: 6 * (0.6 + 0.4 * intensity))
+                .blur(radius: 3 * (0.6 + 0.4 * intensity))
                 .opacity(min(0.8 * intensity, 1))
 
             // The notch itself, over the top.
@@ -713,10 +716,13 @@ struct IslandRootView: View {
 
             } else {
 
+                // As wide as the island is whenever it has content, so
+                // `isOnNotch` (which measures from the middle of that
+                // width) lands on the real notch even with nothing showing.
                 Color.clear
                     .frame(
                         width:
-                            compactSize.width,
+                            max(DesignTokens.sharedCanvasSize.width, compactSize.width),
 
                         height:
                             compactSize.height
@@ -1099,6 +1105,26 @@ struct IslandRootView: View {
             )
         ) { _ in
             layoutTick += 1
+        }
+
+        // The launcher handing straight over to the card it's showing
+        // (its Now Playing title was clicked): once the launcher has
+        // closed and that activity owns the island, open it.
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .islandExpandNow
+            )
+        ) { _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                guard
+                    renderedActivity != nil,
+                    renderedActivity?.kind != .launcher,
+                    !isExpanded
+                else {
+                    return
+                }
+                expandImmediately()
+            }
         }
 
         .onReceive(

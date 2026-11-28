@@ -18,7 +18,13 @@ struct LauncherIslandView: View {
     @State private var copiedID: UUID?
 
     @State private var clipboardQuery = ""
+    @Namespace private var clockSegmentSpace
+    @StateObject private var camera = CameraController()
+    @StateObject private var stats = SystemStats()
+    @ObservedObject private var keepAwake = KeepAwake.shared
     @State private var showNoteHistory = false
+    @AppStorage(AppSettings.Key.launcherBatteryWidget)
+    private var batteryWidget = AppSettings.Default.launcherBatteryWidget
     @FocusState private var noteFocused: Bool
     @ObservedObject private var notes = NoteStore.shared
 
@@ -58,10 +64,16 @@ struct LauncherIslandView: View {
                     switch activity.page {
                     case .home:
                         homePage
-                    case .timer:
-                        timerPage
+                    case .clock:
+                        clockPage
                     case .pomodoro:
                         pomodoroPage
+                    case .tools:
+                        toolsPage
+                    case .camera:
+                        cameraPage
+                    case .activity:
+                        activityPage
                     case .clipboard:
                         clipboardPage
                     case .notes:
@@ -82,7 +94,7 @@ struct LauncherIslandView: View {
             alignment: .topLeading
         )
         .animation(.easeInOut(duration: 0.2), value: activity.page)
-        .animation(.easeInOut(duration: 0.28), value: panelSize)
+        .animation(AnimationTokens.expandSpring, value: panelSize)
         .animation(.easeInOut(duration: 0.2), value: bluetooth.connected.isEmpty)
     }
 
@@ -91,66 +103,76 @@ struct LauncherIslandView: View {
     private var homePage: some View {
 
         VStack(spacing: Metrics.sectionSpacing) {
+            homeContent
+        }
+    }
 
-            nowPlayingRow
+    @ViewBuilder
+    private var homeContent: some View {
 
-            ForEach(Array(timer.activeSlots.prefix(2)), id: \.kind) { slot in
-                LauncherTimerRow(slot: slot)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+        nowPlayingRow
+
+        ForEach(Array(timer.activeSlots.prefix(2)), id: \.kind) { slot in
+            LauncherTimerRow(slot: slot)
+                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+        }
+
+        HStack(spacing: Metrics.tileSpacing) {
+
+            tile(symbol: "clock.fill", title: "Clock", tint: DesignTokens.Color.timerAccent) {
+                activity.page = .clock
             }
 
-            HStack(spacing: Metrics.tileSpacing) {
-
-                tile(
-                    symbol: "timer",
-                    title: "Timer",
-                    tint: DesignTokens.Color.timerAccent
-                ) {
-                    activity.page = .timer
-                }
-
-                tile(
-                    symbol: "brain.head.profile",
-                    title: "Pomodoro",
-                    tint: DesignTokens.Color.pomodoroAccent
-                ) {
-                    activity.page = .pomodoro
-                }
-
-                tile(
-                    symbol: "stopwatch.fill",
-                    title: "Stopwatch",
-                    tint: DesignTokens.Color.timerAccent
-                ) {
-                    activity.startStopwatch()
-                }
-
-                tile(
-                    symbol: "doc.on.clipboard.fill",
-                    title: "Clipboard",
-                    tint: DesignTokens.Color.capsLockAccent
-                ) {
-                    activity.page = .clipboard
-                }
-
-                tile(
-                    symbol: "note.text",
-                    title: "Notes",
-                    tint: NoteActivity.accent
-                ) {
-                    activity.page = .notes
-                }
+            tile(symbol: "brain.head.profile", title: "Pomodoro", tint: DesignTokens.Color.pomodoroAccent) {
+                activity.page = .pomodoro
             }
 
+            tile(symbol: "doc.on.clipboard.fill", title: "Clipboard", tint: DesignTokens.Color.capsLockAccent) {
+                activity.page = .clipboard
+            }
+
+            tile(symbol: "note.text", title: "Notes", tint: NoteActivity.accent) {
+                activity.page = .notes
+            }
+
+            tile(symbol: "square.grid.2x2.fill", title: "Tools", tint: Color(red: 0.69, green: 0.32, blue: 0.87)) {
+                activity.page = .tools
+            }
+        }
+
+        if batteryWidget == LauncherBatteryWidget.bottom.rawValue, !activity.batteryItems.isEmpty {
+            batteryStrip
+        }
+
+        if batteryWidget == LauncherBatteryWidget.off.rawValue {
             bluetoothRow
         }
     }
 
+    // MARK: Battery rings
+
+    private var batteryStrip: some View {
+
+        HStack(spacing: 0) {
+            ForEach(activity.batteryItems) { item in
+                BatteryRingView(item: item, ringSize: 38, percentBelow: true) {
+                    if let address = item.address { activity.bluetooth.disconnect(address: address) }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(height: Metrics.batteryStripHeight)
+        .background(
+            RoundedRectangle(cornerRadius: Metrics.tileCornerRadius, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+        )
+        .transition(.opacity)
+    }
+
     // MARK: Bluetooth
 
-    /// The connected device, like the row Control Center shows: the
-    /// glyph on a soft disc, the name, "Connected · 85%" beneath it, and
-    /// a quiet Disconnect button. Absent when nothing is connected.
+    /// The connected device: its 3D icon, name and state, the battery as
+    /// a ring, and a quiet Disconnect. Absent when nothing is connected.
     @ViewBuilder
     private var bluetoothRow: some View {
 
@@ -158,13 +180,11 @@ struct LauncherIslandView: View {
 
             let battery = bluetooth.batteries[device.address]
             let extra = bluetooth.connected.count - 1
+            let level = battery?.headline
 
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
 
-                DeviceIconView(
-                    symbolName: device.symbolName,
-                    diameter: 28
-                )
+                Device3DIcon(symbolName: device.symbolName, name: device.name, size: 30)
 
                 VStack(alignment: .leading, spacing: 1) {
 
@@ -174,30 +194,10 @@ struct LauncherIslandView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    HStack(spacing: 5) {
-
-                        Text(extra > 0 ? "Connected · +\(extra) more" : "Connected")
-
-                        if let detail = battery?.detail {
-
-                            Text("· \(detail)")
-
-                        } else if let level = battery?.headline {
-
-                            BatteryGlyph(
-                                percent: level,
-                                tint: level <= 20
-                                    ? DesignTokens.Color.lowBatteryAccent
-                                    : DesignTokens.Color.primaryText,
-                                showsBolt: false
-                            )
-                            .scaleEffect(0.7)
-                            .frame(width: 18, height: 9)
-
-                            Text("\(level)%")
-                                .monospacedDigit()
-                        }
-                    }
+                    Text(
+                        battery?.detail
+                            ?? (extra > 0 ? "Connected · +\(extra) more" : "Connected")
+                    )
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DesignTokens.Color.secondaryText)
                     .lineLimit(1)
@@ -205,21 +205,32 @@ struct LauncherIslandView: View {
 
                 Spacer(minLength: 6)
 
+                if let level {
+                    DeviceStatusRing(
+                        fraction: Double(level) / 100,
+                        tint: level <= 20 ? DesignTokens.Color.lowBatteryAccent : DesignTokens.Color.chargingAccent
+                    ) {
+                        Text("\(level)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(DesignTokens.Color.primaryText)
+                    }
+                    .frame(width: 28, height: 28)
+                }
+
                 Button {
                     bluetooth.disconnect(address: device.address)
                 } label: {
-                    Text("Disconnect")
-                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(DesignTokens.Color.primaryText)
-                        .padding(.horizontal, 11)
-                        .frame(height: 24)
-                        .background(
-                            Capsule().fill(DesignTokens.Color.deviceIconBackground)
-                        )
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
                 }
                 .buttonStyle(LauncherPressStyle())
+                .accessibilityLabel("Disconnect")
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
             .frame(height: Metrics.deviceCardHeight)
             .background(
                 RoundedRectangle(
@@ -302,6 +313,9 @@ struct LauncherIslandView: View {
                         .lineLimit(1)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { activity.openNowPlayingCard() }
 
             Spacer(minLength: 8)
 
@@ -353,6 +367,9 @@ struct LauncherIslandView: View {
                         .foregroundStyle(DesignTokens.Color.secondaryText)
                         .lineLimit(1)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { activity.openNowPlayingCard() }
 
                 Spacer(minLength: 8)
 
@@ -436,52 +453,159 @@ struct LauncherIslandView: View {
         .buttonStyle(LauncherPressStyle())
     }
 
-    // MARK: - Timer setup
+    // MARK: - Clock
 
     private let timerPresets = [1, 5, 10, 15, 25, 30]
 
-    private var timerPage: some View {
+    private var clockTint: Color {
+        DesignTokens.Color.timerAccent
+    }
 
-        VStack(spacing: Metrics.sectionSpacing) {
-
-            header(
-                title: "Timer",
-                tint: DesignTokens.Color.timerAccent,
-                startAction: { activity.startTimer() }
-            )
-
-            HStack(spacing: 8) {
-                ForEach(timerPresets, id: \.self) { minutes in
-                    chip(
-                        minutes: minutes,
-                        isSelected: activity.timerMinutes == minutes,
-                        tint: DesignTokens.Color.timerAccent
-                    ) {
-                        activity.timerMinutes = minutes
-                    }
-                }
-            }
-
-            stepperRow(
-                title: "Custom",
-                value: $activity.timerMinutes,
-                range: 1...999,
-                onSubmit: { activity.startTimer() }
-            )
+    private func startClock() {
+        switch activity.clockMode {
+        case .timer: activity.startTimer()
+        case .stopwatch: activity.startStopwatch()
         }
     }
 
-    // MARK: - Pomodoro setup
+    /// Timer, Stopwatch and Pomodoro side by side in one segmented
+    /// control; the highlight slides between them.
+    private var clockSegments: some View {
+
+        HStack(spacing: 2) {
+
+            ForEach(LauncherActivity.ClockMode.allCases) { mode in
+
+                Button {
+                    withAnimation(.smooth(duration: 0.28)) {
+                        activity.clockMode = mode
+                    }
+                } label: {
+                    Text(mode.title)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(
+                            activity.clockMode == mode
+                                ? DesignTokens.Color.primaryText
+                                : DesignTokens.Color.secondaryText
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 28)
+                        .background {
+                            if activity.clockMode == mode {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.18))
+                                    .matchedGeometryEffect(id: "segment", in: clockSegmentSpace)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Capsule().fill(DesignTokens.Color.deviceIconBackground))
+    }
+
+    private var clockPage: some View {
+
+        VStack(spacing: Metrics.sectionSpacing) {
+
+            HStack(spacing: 10) {
+
+                backButton
+
+                clockSegments
+
+                Button(action: startClock) {
+                    Text("Start")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.black)
+                        .padding(.horizontal, 18)
+                        .frame(height: Metrics.startButtonHeight)
+                        .background(Capsule().fill(clockTint))
+                }
+                .buttonStyle(LauncherPressStyle())
+            }
+
+            Group {
+                switch activity.clockMode {
+
+                case .timer:
+                    VStack(spacing: Metrics.sectionSpacing) {
+
+                        HStack(spacing: 8) {
+                            ForEach(timerPresets, id: \.self) { minutes in
+                                chip(
+                                    minutes: minutes,
+                                    isSelected: activity.timerMinutes == minutes,
+                                    tint: DesignTokens.Color.timerAccent
+                                ) {
+                                    activity.timerMinutes = minutes
+                                }
+                            }
+                        }
+
+                        stepperRow(
+                            title: "Custom",
+                            value: $activity.timerMinutes,
+                            range: 1...999,
+                            onSubmit: { activity.startTimer() }
+                        )
+                    }
+
+                case .stopwatch:
+                    VStack(spacing: 8) {
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "stopwatch")
+                            .font(.system(size: 30, weight: .light))
+                            .foregroundStyle(DesignTokens.Color.timerAccent)
+
+                        Text("Counts up from zero and stays in the notch")
+                            .font(Metrics.subtitleFont)
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                        Spacer(minLength: 0)
+                    }
+
+                }
+            }
+            .id(activity.clockMode)
+            .transition(.opacity)
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+        .animation(.smooth(duration: 0.28), value: activity.clockMode)
+    }
+
+    // MARK: - Pomodoro
 
     private var pomodoroPage: some View {
 
         VStack(spacing: Metrics.sectionSpacing) {
 
-            header(
-                title: "Pomodoro",
-                tint: DesignTokens.Color.pomodoroAccent,
-                startAction: { activity.startPomodoro() }
-            )
+            HStack(spacing: 10) {
+
+                backButton
+
+                Text("Pomodoro")
+                    .font(Metrics.titleFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    activity.startPomodoro()
+                } label: {
+                    Text("Start")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.black)
+                        .padding(.horizontal, 18)
+                        .frame(height: Metrics.startButtonHeight)
+                        .background(Capsule().fill(DesignTokens.Color.pomodoroAccent))
+                }
+                .buttonStyle(LauncherPressStyle())
+            }
 
             stepperRow(
                 title: "Focus",
@@ -497,6 +621,289 @@ struct LauncherIslandView: View {
                 onSubmit: { activity.startPomodoro() }
             )
         }
+    }
+
+    // MARK: - Tools
+
+    private var toolsPage: some View {
+
+        VStack(spacing: Metrics.sectionSpacing) {
+
+            HStack(spacing: 10) {
+                backButton
+
+                Text("Tools")
+                    .font(Metrics.titleFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+
+                Spacer(minLength: 0)
+            }
+
+            Grid(horizontalSpacing: Metrics.tileSpacing, verticalSpacing: Metrics.tileSpacing) {
+
+                GridRow {
+
+                    toolTile(symbol: "camera.fill", title: "Camera", subtitle: "Mirror", tint: Color(red: 0.35, green: 0.78, blue: 0.98)) {
+                        activity.page = .camera
+                    }
+
+                    toolTile(symbol: "waveform.path.ecg", title: "Activity", subtitle: "CPU, memory, network", tint: DesignTokens.Color.chargingAccent) {
+                        activity.page = .activity
+                    }
+                }
+
+                GridRow {
+
+                    toolTile(symbol: "keyboard", title: "Clean Keyboard", subtitle: "Lock keys for 90 s", tint: Color(red: 0.69, green: 0.32, blue: 0.87)) {
+                        activity.cleanKeyboard()
+                    }
+
+                    toolTile(
+                        symbol: "cup.and.saucer.fill",
+                        title: "Keep Awake",
+                        subtitle: keepAwake.isOn ? "On" : "Off",
+                        tint: Color(red: 1, green: 0.62, blue: 0.04),
+                        isOn: keepAwake.isOn
+                    ) {
+                        withAnimation(.smooth(duration: 0.25)) { keepAwake.toggle() }
+                    }
+                }
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    private func toolTile(
+        symbol: String,
+        title: String,
+        subtitle: String,
+        tint: Color,
+        isOn: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+
+        Button(action: action) {
+
+            HStack(spacing: 10) {
+
+                Image(systemName: symbol)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(isOn ? Color.black : tint)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(isOn ? tint : tint.opacity(0.16)))
+
+                VStack(alignment: .leading, spacing: 1) {
+
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .lineLimit(1)
+
+                    Text(subtitle)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: Metrics.tileCornerRadius, style: .continuous)
+                    .fill(DesignTokens.Color.deviceIconBackground)
+            )
+        }
+        .buttonStyle(LauncherPressStyle())
+    }
+
+    // MARK: - Camera
+
+    private var cameraPage: some View {
+
+        VStack(spacing: Metrics.sectionSpacing - 4) {
+
+            HStack(spacing: 10) {
+
+                Button {
+                    activity.page = .tools
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                        .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+                }
+                .buttonStyle(LauncherPressStyle())
+                .accessibilityLabel("Back")
+
+                Text("Camera")
+                    .font(Metrics.titleFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+
+                Spacer(minLength: 0)
+            }
+
+            ZStack {
+
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+
+                switch camera.access {
+
+                case .allowed:
+                    CameraPreviewView(session: camera.session)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                case .denied:
+                    VStack(spacing: 8) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
+                        Text("Camera access is off for ARC")
+                            .font(Metrics.subtitleFont)
+                            .foregroundStyle(DesignTokens.Color.secondaryText)
+                        Button("Open Privacy Settings") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                        .buttonStyle(.link)
+                        .font(.system(size: 12, weight: .semibold))
+                    }
+
+                case .checking:
+                    ProgressView().controlSize(.small)
+                }
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onAppear { camera.start() }
+        .onDisappear { camera.stop() }
+    }
+
+    // MARK: - Activity
+
+    private var activityPage: some View {
+
+        VStack(spacing: Metrics.sectionSpacing) {
+
+            HStack(spacing: 10) {
+
+                Button {
+                    activity.page = .tools
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DesignTokens.Color.primaryText)
+                        .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                        .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+                }
+                .buttonStyle(LauncherPressStyle())
+                .accessibilityLabel("Back")
+
+                Text("Activity")
+                    .font(Metrics.titleFont)
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: Metrics.tileSpacing) {
+
+                gauge("CPU", value: stats.cpu, tint: DesignTokens.Color.chargingAccent)
+                gauge("Memory", value: stats.memory, tint: Color(red: 1, green: 0.62, blue: 0.04))
+                gauge("Disk", value: stats.disk, tint: Color(red: 0.35, green: 0.78, blue: 0.98))
+
+                VStack(spacing: 6) {
+
+                    Spacer(minLength: 0)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        rateLine("arrow.down", stats.downloadRate)
+                        rateLine("arrow.up", stats.uploadRate)
+                    }
+
+                    Text("Network")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: Metrics.tileCornerRadius, style: .continuous)
+                        .fill(DesignTokens.Color.deviceIconBackground)
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .onAppear { stats.start() }
+        .onDisappear { stats.stop() }
+    }
+
+    private func gauge(_ title: String, value: Double, tint: Color) -> some View {
+
+        VStack(spacing: 8) {
+
+            Spacer(minLength: 0)
+
+            ZStack {
+
+                Circle()
+                    .stroke(Color.white.opacity(0.12), lineWidth: 4.5)
+
+                Circle()
+                    .trim(from: 0, to: max(0.01, min(1, value)))
+                    .stroke(tint, style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.smooth(duration: 0.6), value: value)
+
+                Text("\(Int((value * 100).rounded()))")
+                    .font(.system(size: 14, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .contentTransition(.numericText())
+            }
+            .frame(width: 52, height: 52)
+
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(DesignTokens.Color.secondaryText)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: Metrics.tileCornerRadius, style: .continuous)
+                .fill(DesignTokens.Color.deviceIconBackground)
+        )
+    }
+
+    private func rateLine(_ symbol: String, _ bytesPerSecond: Double) -> some View {
+
+        HStack(spacing: 4) {
+
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(DesignTokens.Color.secondaryText)
+
+            Text(Self.rate(bytesPerSecond))
+                .font(.system(size: 12, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(DesignTokens.Color.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    private static func rate(_ bytesPerSecond: Double) -> String {
+
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+
+        return formatter.string(fromByteCount: Int64(bytesPerSecond)) + "/s"
     }
 
     // MARK: - Clipboard
@@ -690,16 +1097,6 @@ struct LauncherIslandView: View {
                 Spacer(minLength: 0)
 
                 boardButton(
-                    "square.and.pencil",
-                    label: "New note",
-                    tint: DesignTokens.Color.primaryText
-                ) {
-                    notes.startNewNote()
-                    showNoteHistory = false
-                    noteFocused = true
-                }
-
-                boardButton(
                     "clock",
                     label: "History",
                     tint: showNoteHistory ? NoteActivity.accent : DesignTokens.Color.primaryText
@@ -716,6 +1113,8 @@ struct LauncherIslandView: View {
                 }
                 .disabled(notes.editing == nil)
             }
+
+            noteTabs
 
             ZStack {
 
@@ -778,6 +1177,96 @@ struct LauncherIslandView: View {
                 noteFocused = true
             }
         }
+    }
+
+    /// Open notes as tabs, Safari-style: tap to switch, ✕ on the one you're
+    /// in to close it, + for a fresh one.
+    private var noteTabs: some View {
+
+        ScrollView(.horizontal, showsIndicators: false) {
+
+            HStack(spacing: 6) {
+
+                ForEach(notes.notes.prefix(5)) { note in
+                    noteTab(
+                        title: Self.tabTitle(note.text),
+                        isSelected: notes.editingID == note.id,
+                        onSelect: {
+                            withAnimation(.smooth(duration: 0.25)) {
+                                notes.editingID = note.id
+                                showNoteHistory = false
+                            }
+                            noteFocused = true
+                        },
+                        onClose: { withAnimation(.smooth(duration: 0.25)) { notes.delete(note.id) } }
+                    )
+                }
+
+                // A blank board is its own tab until you type.
+                if notes.editing == nil {
+                    noteTab(title: "New note", isSelected: true, onSelect: {}, onClose: nil)
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                }
+
+                Button {
+                    withAnimation(.smooth(duration: 0.25)) {
+                        notes.startNewNote()
+                        showNoteHistory = false
+                    }
+                    noteFocused = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(DesignTokens.Color.secondaryText)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("New note")
+            }
+            .padding(.horizontal, 2)
+        }
+        .frame(height: 28)
+        .animation(.smooth(duration: 0.25), value: notes.notes.count)
+    }
+
+    private func noteTab(
+        title: String,
+        isSelected: Bool,
+        onSelect: @escaping () -> Void,
+        onClose: (() -> Void)?
+    ) -> some View {
+
+        HStack(spacing: 4) {
+
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+                .frame(maxWidth: 96)
+
+            if isSelected, let onClose {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .frame(width: 14, height: 14)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close tab")
+            }
+        }
+        .foregroundStyle(isSelected ? DesignTokens.Color.primaryText : DesignTokens.Color.secondaryText)
+        .padding(.horizontal, 11)
+        .frame(height: 26)
+        .background(Capsule().fill(Color.white.opacity(isSelected ? 0.16 : 0.07)))
+        .contentShape(Capsule())
+        .onTapGesture(perform: onSelect)
+    }
+
+    private static func tabTitle(_ text: String) -> String {
+        let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? "Untitled" : trimmed
     }
 
     /// Every saved note, newest first — tap one to open it on the board.
@@ -882,44 +1371,6 @@ struct LauncherIslandView: View {
     }
 
     // MARK: - Setup components
-
-    private func header(
-        title: String,
-        tint: Color,
-        startAction: @escaping () -> Void
-    ) -> some View {
-
-        HStack(spacing: 10) {
-
-            Button {
-                activity.page = .home
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(DesignTokens.Color.primaryText)
-                    .frame(width: Metrics.controlSize, height: Metrics.controlSize)
-                    .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
-            }
-            .buttonStyle(LauncherPressStyle())
-            .accessibilityLabel("Back")
-
-            Text(title)
-                .font(Metrics.titleFont)
-                .foregroundStyle(DesignTokens.Color.primaryText)
-
-            Spacer(minLength: 0)
-
-            Button(action: startAction) {
-                Text("Start")
-                    .font(Font.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.black)
-                    .padding(.horizontal, 20)
-                    .frame(height: Metrics.startButtonHeight)
-                    .background(Capsule().fill(tint))
-            }
-            .buttonStyle(LauncherPressStyle())
-        }
-    }
 
     private func chip(
         minutes: Int,
@@ -1126,5 +1577,52 @@ private struct LauncherTimerRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(symbol == "xmark" ? "Stop" : "Pause or resume")
+    }
+}
+
+/// One ring of the launcher's battery widget: the device (or this Mac)
+/// inside, its percentage beneath. Right-click a device to disconnect it.
+private struct BatteryRingView: View {
+
+    let item: LauncherActivity.BatteryItem
+    let ringSize: CGFloat
+    var percentBelow = true
+    let disconnect: () -> Void
+
+    private var tint: Color {
+        item.percent <= 20 ? DesignTokens.Color.lowBatteryAccent : DesignTokens.Color.chargingAccent
+    }
+
+    var body: some View {
+
+        VStack(spacing: 4) {
+
+            ZStack {
+
+                Circle()
+                    .stroke(Color.white.opacity(0.14), lineWidth: 3.5)
+
+                Circle()
+                    .trim(from: 0, to: max(0.02, min(1, Double(item.percent) / 100)))
+                    .stroke(tint, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+
+                Image(systemName: item.symbolName)
+                    .font(.system(size: ringSize * 0.36, weight: .medium))
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+            }
+            .frame(width: ringSize, height: ringSize)
+
+            Text("\(item.percent)%")
+                .font(.system(size: 11, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(DesignTokens.Color.primaryText.opacity(0.9))
+        }
+        .contextMenu {
+            if item.address != nil {
+                Button("Disconnect \(item.name)", action: disconnect)
+            }
+        }
+        .accessibilityLabel("\(item.name), \(item.percent) percent")
     }
 }

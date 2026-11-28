@@ -17,6 +17,9 @@ extension Notification.Name {
     /// Pins the newest note to the notch, or unpins the pinned one.
     static let islandTogglePinnedNote = Notification.Name("IslandTogglePinnedNote")
 
+    /// Opens whatever now owns the island to its expanded card.
+    static let islandExpandNow = Notification.Name("IslandExpandNow")
+
     /// The launcher's panel changed height (page change, a clock started).
     static let islandLauncherLayoutChanged = Notification.Name("IslandLauncherLayoutChanged")
 

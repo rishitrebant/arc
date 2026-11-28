@@ -60,7 +60,7 @@ struct AudioOutputIslandView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(DesignTokens.Color.capsLockAccent)
+                .foregroundStyle(DesignTokens.Color.chargingAccent)
                 .frame(width: Compact.iconSlot, height: Compact.iconSlot)
         }
         .padding(.horizontal, Compact.edgePadding)
@@ -72,19 +72,19 @@ struct AudioOutputIslandView: View {
 
         VStack(spacing: 0) {
 
-            // Reserves the physical notch cutout — nothing renders here.
+            // The notch covers only the middle; this is just breathing room.
             Color.clear
-                .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
+                .frame(height: DesignTokens.DeviceCard.topInset)
 
             DeviceCardLayout(
                 symbolName: symbol,
                 title: activity.device?.name ?? "Speakers",
                 status: "Sound Output"
             ) {
-                DeviceStatusRing(fraction: 1, tint: DesignTokens.Color.capsLockAccent) {
+                DeviceStatusRing(fraction: 1, tint: DesignTokens.Color.chargingAccent) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(DesignTokens.Color.capsLockAccent)
+                        .foregroundStyle(DesignTokens.Color.chargingAccent)
                 }
             }
             .frame(maxHeight: .infinity)

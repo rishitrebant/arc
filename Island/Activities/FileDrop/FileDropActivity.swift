@@ -28,6 +28,9 @@ final class FileDropActivity: ObservableObject {
 
     @Published private(set) var shelfItems: [ShelfItem] = []
 
+    /// A conversion is running (the Convert button shows progress).
+    @Published private(set) var isConverting = false
+
     /// Instant, cosmetic-only — see the type doc above.
     @Published private(set) var isDragNear = false
 
@@ -180,6 +183,38 @@ final class FileDropActivity: ObservableObject {
         guard !shelfItems.isEmpty else { return }
 
         presentAirDropPicker?(shelfItems.map(\.url))
+    }
+
+    /// Converts what's on the shelf to `target`. The results land on the
+    /// shelf as new files; the originals stay where they are.
+    func convertShelf(to target: ConversionTarget) {
+
+        guard !isConverting, !shelfItems.isEmpty else { return }
+
+        isConverting = true
+
+        let urls = shelfItems.map(\.url)
+
+        Task { [weak self] in
+
+            let converted = await FileConverter.convert(urls, to: target)
+
+            guard let self else { return }
+
+            self.isConverting = false
+
+            guard !converted.isEmpty else { return }
+
+            self.dropOnShelf(files: converted.map {
+                DroppedFile(
+                    url: $0,
+                    displayName: $0.lastPathComponent.split(separator: "-", maxSplits: 5, omittingEmptySubsequences: false).last.map(String.init) ?? $0.lastPathComponent,
+                    originalURL: $0
+                )
+            })
+
+            Haptics.confirm()
+        }
     }
 
     func removeShelfItem(_ id: UUID) {

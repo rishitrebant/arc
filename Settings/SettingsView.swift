@@ -72,6 +72,8 @@ struct GeneralSettingsTab: View {
     private var showDockIcon = AppSettings.Default.showDockIcon
     @AppStorage(AppSettings.Key.openClipboardOnPaste)
     private var clipboardOnPaste = AppSettings.Default.openClipboardOnPaste
+    @AppStorage(AppSettings.Key.launcherBatteryWidget)
+    private var launcherBattery = AppSettings.Default.launcherBatteryWidget
     @AppStorage(AppSettings.Key.globalShortcutsEnabled)
     private var shortcuts = AppSettings.Default.globalShortcutsEnabled
 
@@ -121,6 +123,17 @@ struct GeneralSettingsTab: View {
                     SettingLabel(
                         title: "Open the launcher by",
                         detail: "Click the notch, or only the very top edge of the screen near the center — so a click on the notch never opens it by accident. Off turns the launcher menu off completely, including ⌃⌥Space."
+                    )
+                }
+
+                Picker(selection: $launcherBattery) {
+                    ForEach(LauncherBatteryWidget.allCases, id: \.rawValue) { choice in
+                        Text(choice.title).tag(choice.rawValue)
+                    }
+                } label: {
+                    SettingLabel(
+                        title: "Battery rings in the launcher",
+                        detail: "This Mac and your connected devices, as small rings. Off shows the connected device on its own row instead."
                     )
                 }
 
@@ -179,6 +192,10 @@ struct DisplaySettingsTab: View {
     @State private var mode = NotchDisplayMode.current
     @AppStorage(AppSettings.Key.expandedTopCorners)
     private var topCorners = AppSettings.Default.expandedTopCorners
+    @AppStorage(AppSettings.Key.cornerRoundness)
+    private var roundness = AppSettings.Default.cornerRoundness
+    @AppStorage(AppSettings.Key.bounceAmount)
+    private var bounce = AppSettings.Default.bounceAmount
     @AppStorage(AppSettings.Key.notchGlowEnabled)
     private var glowEnabled = AppSettings.Default.notchGlowEnabled
     @AppStorage(AppSettings.Key.notchGlowColor)
@@ -223,6 +240,41 @@ struct DisplaySettingsTab: View {
                 }
             }
 
+            Section("Shape and motion") {
+
+                VStack(alignment: .leading, spacing: 6) {
+                    SettingLabel(
+                        title: "Corner roundness",
+                        detail: "How round the island's corners are, from nearly square to very round."
+                    )
+                    HStack {
+                        Text("Sharp").font(.caption).foregroundStyle(.secondary)
+                        Slider(value: $roundness, in: 0.3...1.4)
+                        Text("Round").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    SettingLabel(
+                        title: "Bounce",
+                        detail: "How much the island overshoots and settles when it opens. Zero is a smooth glide."
+                    )
+                    HStack {
+                        Text("None").font(.caption).foregroundStyle(.secondary)
+                        Slider(value: $bounce, in: 0...0.5)
+                        Text("Lots").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Reset") {
+                        roundness = AppSettings.Default.cornerRoundness
+                        bounce = AppSettings.Default.bounceAmount
+                    }
+                }
+            }
+
             Section("Notch glow") {
 
                 SettingToggle(
@@ -260,6 +312,9 @@ struct MediaSettingsTab: View {
     @AppStorage(AppSettings.Key.musicLingerSeconds)
     private var lingerSeconds = AppSettings.Default.musicLingerSeconds
 
+    @AppStorage(AppSettings.Key.nextUpEnabled)
+    private var nextUp = AppSettings.Default.nextUpEnabled
+
     @AppStorage(AppSettings.Key.youtubeControlsEnabled)
     private var youtubeEnabled = AppSettings.Default.youtubeControlsEnabled
     @AppStorage(AppSettings.Key.youtubeCompactIcon)
@@ -285,6 +340,12 @@ struct MediaSettingsTab: View {
                         detail: "How long the island stays up after playback pauses. It never closes while your cursor is on it. Also applies to YouTube."
                     )
                 }
+
+                SettingToggle(
+                    title: "Show what's next",
+                    detail: "A small card with the next song as one is about to end, with a button to skip to it. Works with Apple Music playlists (not when shuffled); Spotify doesn't share its queue.",
+                    isOn: $nextUp
+                )
             }
 
             Section("YouTube") {
@@ -577,6 +638,8 @@ struct AlertsSettingsTab: View {
     private var showDownloads = AppSettings.Default.showDownloadProgress
     @AppStorage(AppSettings.Key.waterReminderEnabled)
     private var waterReminder = AppSettings.Default.waterReminderEnabled
+    @AppStorage(AppSettings.Key.volumeIndicatorEnabled)
+    private var volumeIndicator = AppSettings.Default.volumeIndicatorEnabled
 
     var body: some View {
         SettingsPage {
@@ -585,7 +648,7 @@ struct AlertsSettingsTab: View {
 
                 SettingToggle(
                     title: "Drink water",
-                    detail: "A notification every hour. macOS asks to allow notifications the first time.",
+                    detail: "A small reminder in the island every hour. No notification, so nothing to allow.",
                     isOn: $waterReminder
                 )
             }
@@ -625,8 +688,23 @@ struct AlertsSettingsTab: View {
 
                 SettingToggle(
                     title: "Focus",
-                    detail: "Shows when a Focus turns on or off. macOS only says whether a Focus is on, not which one.",
+                    detail: "Shows when a Focus turns on or off. macOS only says whether a Focus is on, not which one — and only if \"Focus Status\" is switched on for that Focus in System Settings → Focus.",
                     isOn: $showFocus
+                )
+
+                HStack {
+                    Spacer()
+                    Button("Open Focus Settings…") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Focus-Settings.extension") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
+
+                SettingToggle(
+                    title: "Volume",
+                    detail: "A small level pill when the volume changes.",
+                    isOn: $volumeIndicator
                 )
 
                 SettingToggle(

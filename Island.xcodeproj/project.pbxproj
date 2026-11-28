@@ -158,6 +158,7 @@
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		A52785D730B6B8E2004B2F58 /* Notes */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Notes; sourceTree = "<group>"; };
 		A53269663040165E00EDDE1E /* Utilities */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Utilities; sourceTree = "<group>"; };
 		A532696B3040B9F700EDDE1E /* Vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A53269733040BCBC00EDDE1E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, A53269753041639F00EDDE1E /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Vendor; sourceTree = "<group>"; };
 		A5326977304309F600EDDE1E /* AudioRouting */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AudioRouting; sourceTree = "<group>"; };
@@ -166,7 +167,6 @@
 		A5B6EA7B30A3127100F22126 /* Charging */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Charging; sourceTree = "<group>"; };
 		A5B6EA8A30A4579D00F22126 /* Bluetooth */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Bluetooth; sourceTree = "<group>"; };
 		A5C527A630820BCD00FA8114 /* Settings */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A5C527AB30820C0F00FA8114 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Settings; sourceTree = "<group>"; };
-		A52785D730B6B8E2004B2F58 /* Notes */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Notes; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -462,6 +462,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				A52785D730B6B8E2004B2F58 /* Notes */,
 				A53269663040165E00EDDE1E /* Utilities */,
 				A532696B3040B9F700EDDE1E /* Vendor */,
 				A5326977304309F600EDDE1E /* AudioRouting */,
@@ -469,7 +470,6 @@
 				A59D587B30489F0800C9C957 /* FileDrop */,
 				A5B6EA7B30A3127100F22126 /* Charging */,
 				A5B6EA8A30A4579D00F22126 /* Bluetooth */,
-				A52785D730B6B8E2004B2F58 /* Notes */,
 			);
 			name = Island;
 			packageProductDependencies = (

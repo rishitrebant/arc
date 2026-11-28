@@ -136,7 +136,7 @@ final class AudioOutputActivity: ObservableObject {
 
     /// The colour the island's shadow glows while this is showing.
     var shadowAccent: Color? {
-        DesignTokens.Color.airDropAccent
+        DesignTokens.Color.chargingAccent
     }
 
     var compactSize: CGSize {

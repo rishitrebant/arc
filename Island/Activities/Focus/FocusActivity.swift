@@ -70,9 +70,22 @@ final class FocusActivity: ObservableObject {
 
     // MARK: - Detection → State
 
+    private var lastLoggedStatus: INFocusStatusAuthorizationStatus?
+
     private func poll() {
 
+        let status = INFocusStatusCenter.default.authorizationStatus
+
+        if status != lastLoggedStatus {
+            lastLoggedStatus = status
+            debugLog("🌙 Focus: authorization status", status.rawValue, "(0 undetermined, 1 restricted, 2 denied, 3 authorized)")
+        }
+
         guard let now = Self.currentFocus() else { return }
+
+        if now != lastKnown {
+            debugLog("🌙 Focus: system reports focused =", now)
+        }
 
         defer { lastKnown = now }
 

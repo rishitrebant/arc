@@ -8,6 +8,8 @@
     <!-- Sparkle: public half of the key from `generate_keys`. -->
     <key>SUPublicEDKey</key>
     <string>QWNC5OqyUdlk/1DFZ4BlFtrX3PcctJPhbhOt+m0DOmI=</string>
+    <key>NSCameraUsageDescription</key>
+    <string>ARC shows a live mirror from your camera when you open Camera in the launcher. It is never recorded.</string>
     <key>SUEnableAutomaticChecks</key>
     <true/>
 </dict>
