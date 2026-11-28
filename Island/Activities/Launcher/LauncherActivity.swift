@@ -227,9 +227,10 @@ final class LauncherActivity: ObservableObject {
                 named: .islandOpenLauncher
             ) {
                 // Hovering the notch can ask repeatedly — don't restart a
-                // launcher that's already up.
-                guard let self, !self.isActive else { return }
-                self.show()
+                // launcher that's already up. (This is a loop: leaving it
+                // with `return` would stop listening for good.)
+                guard let self else { return }
+                if !self.isActive { self.show() }
             }
         })
 
@@ -373,7 +374,7 @@ final class LauncherActivity: ObservableObject {
     /// teleprompter) stay open until you press Back — leaving them, or
     /// clicking elsewhere, doesn't close the island.
     var isPinnedOpen: Bool {
-        page == .camera || page == .teleprompter || isPickingColor
+        page == .camera || page == .teleprompter || isPickingColor || isCapturing
     }
 
     private func checkHover() {
@@ -435,10 +436,15 @@ final class LauncherActivity: ObservableObject {
     }
 
     /// Closes the launcher and opens the card behind its Now Playing row.
-    func openNowPlayingCard() {
+    func openCard(for kind: ActivityKind) {
 
-        // The island is told to open first; the launcher then closes into it.
-        NotificationCenter.default.post(name: .islandExpandNow, object: nil)
+        // The island is told to open first (and which card); the launcher
+        // then closes into it.
+        NotificationCenter.default.post(
+            name: .islandExpandNow,
+            object: nil,
+            userInfo: ["kind": kind.rawValue]
+        )
 
         DispatchQueue.main.async { [weak self] in
             self?.hide()
@@ -485,6 +491,72 @@ final class LauncherActivity: ObservableObject {
 
                 if self.pickedColorHex == hex { self.pickedColorHex = nil }
             }
+        }
+    }
+
+    /// "Copied 120 characters" / "No text found", for a few seconds.
+    @Published private(set) var captureNote: String?
+
+    /// A region capture is in progress; the launcher stays open meanwhile.
+    private(set) var isCapturing = false
+
+    /// Drag a region of the screen; its text is copied — selectable or not.
+    func copyTextFromScreen() {
+
+        isCapturing = true
+
+        Task { [weak self] in
+
+            let text = await ScreenCapture.copyTextFromScreen()
+
+            guard let self else { return }
+
+            self.isCapturing = false
+
+            if let text {
+
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+
+                Haptics.confirm()
+
+                self.flashCaptureNote("Copied \(text.count) characters")
+
+            } else {
+                self.flashCaptureNote("No text found")
+            }
+        }
+    }
+
+    /// Drag a region of the screen; a screenshot goes to the clipboard.
+    func copyScreenshot() {
+
+        isCapturing = true
+
+        Task { [weak self] in
+
+            let copied = await ScreenCapture.copyScreenshot()
+
+            guard let self else { return }
+
+            self.isCapturing = false
+
+            if copied {
+                Haptics.confirm()
+                self.flashCaptureNote("Screenshot copied")
+            }
+        }
+    }
+
+    private func flashCaptureNote(_ text: String) {
+
+        captureNote = text
+
+        Task { [weak self] in
+
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+
+            if self?.captureNote == text { self?.captureNote = nil }
         }
     }
 

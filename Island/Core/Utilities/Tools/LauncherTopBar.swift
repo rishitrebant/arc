@@ -47,6 +47,7 @@ struct LauncherTopBar: View {
 
                 if let water = activity.water {
                     WaterCountdown(water: water)
+                        .padding(.leading, 10)
                 }
 
                 Spacer(minLength: 0)

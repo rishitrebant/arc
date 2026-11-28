@@ -126,6 +126,10 @@ struct IslandRootView: View {
     /// no animation context and just pops).
     @State private var showsSplitContent = false
 
+    /// Which card the launcher asked to open (its Now Playing or timer
+    /// row was clicked) — applied when the launcher hands the island over.
+    @State private var pendingExpandKind: ActivityKind?
+
     /// The volume bar on an open activity (a volume change while something
     /// is on the island opens it and shows this at the bottom).
     @StateObject private var overlayVolume = SystemVolumeControl()
@@ -599,7 +603,50 @@ struct IslandRootView: View {
 
         let level = max(glowIsOn || hoverLit ? 1 : 0, introGlowLevel)
 
-        return ZStack(alignment: .top) {
+        // With the launcher set to open from the top edge, only the edge
+        // glows — a line along the top, not the whole notch.
+        if AppSettings.launcherTrigger == .topEdge {
+
+            return AnyView(
+                ZStack(alignment: .top) {
+
+                    Capsule()
+                        .fill(tint)
+                        .frame(width: size.width * 0.8, height: 2)
+                        .blur(radius: 6 * (0.6 + 0.4 * intensity))
+                        .opacity(min(0.6 * intensity, 1))
+
+                    Capsule()
+                        .fill(tint)
+                        .frame(width: size.width * 0.8, height: 1.5)
+                        .blur(radius: 1.5)
+                        .opacity(min(0.95 * intensity, 1))
+                }
+                .frame(width: size.width, height: 12, alignment: .top)
+                .opacity(level)
+                .animation(.easeInOut(duration: 0.6), value: tint)
+                .animation(.easeInOut(duration: 0.4), value: glowIsOn)
+                .animation(.easeInOut(duration: 0.3), value: hoverLit)
+                .allowsHitTesting(false)
+                .task(id: notchGlowColor == NotchGlowColor.cycle.rawValue && (level > 0)) {
+
+                    guard notchGlowColor == NotchGlowColor.cycle.rawValue, level > 0 else {
+                        return
+                    }
+
+                    while !Task.isCancelled {
+
+                        try? await Task.sleep(nanoseconds: 3_500_000_000)
+
+                        if Task.isCancelled { break }
+
+                        glowCycleIndex += 1
+                    }
+                }
+            )
+        }
+
+        return AnyView(ZStack(alignment: .top) {
 
             // Wide, faint bloom.
             shape
@@ -641,7 +688,7 @@ struct IslandRootView: View {
 
                 glowCycleIndex += 1
             }
-        }
+        })
     }
 
     /// The first-launch glow: fades in, holds a moment, fades out.
@@ -1041,7 +1088,11 @@ struct IslandRootView: View {
                     ? .leading
                     : .trailing
 
-                isCursorOnNotch = isOnNotch(point)
+                // The glow marks the hover target: the notch, or — when the
+                // launcher opens from the top edge only — just that edge.
+                isCursorOnNotch = AppSettings.launcherTrigger == .topEdge
+                    ? isOnTopEdge(point)
+                    : isOnNotch(point)
 
                 updateNotchHover(at: point)
 
@@ -1190,7 +1241,10 @@ struct IslandRootView: View {
             NotificationCenter.default.publisher(
                 for: .islandExpandNow
             )
-        ) { _ in
+        ) { note in
+
+            pendingExpandKind = (note.userInfo?["kind"] as? Int)
+                .flatMap(ActivityKind.init(rawValue:))
 
             hoverWorkItem?.cancel()
             hoverWorkItem = nil
@@ -1478,6 +1532,18 @@ struct IslandRootView: View {
 
         Haptics.open()
 
+        // The launcher closing into a card it was asked to open: if that
+        // card isn't the one owning the island (music while a timer runs),
+        // it's the second half that opens.
+        if let pending = pendingExpandKind, newActivity.kind != .launcher {
+
+            pendingExpandKind = nil
+
+            activityManager.expandsSecondary =
+                pending != newActivity.kind
+                && activityManager.secondaryActivity?.kind == pending
+        }
+
         if renderedActivity != nil,
            isPresentationVisible,
            !isDocked {
@@ -1486,8 +1552,12 @@ struct IslandRootView: View {
 
             let oldSize = visibleSize
 
+            let target = (isExpanded && activityManager.expandsSecondary
+                ? activityManager.secondaryActivity
+                : nil) ?? newActivity
+
             let newSize = isExpanded
-                ? newActivity.expandedSize
+                ? target.expandedSize
                 : newActivity.compactSize
 
             // Plant the surface at the OLD size first, with no animation

@@ -137,7 +137,7 @@ struct LauncherIslandView: View {
         nowPlayingRow
 
         ForEach(Array(timer.activeSlots.prefix(2)), id: \.kind) { slot in
-            LauncherTimerRow(slot: slot)
+            LauncherTimerRow(slot: slot, onOpen: { activity.openCard(for: .timer) })
                 .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
         }
 
@@ -286,6 +286,8 @@ struct LauncherIslandView: View {
                         .padding(2)
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { activity.openCard(for: .youtube) }
 
             VStack(alignment: .leading, spacing: 2) {
 
@@ -313,7 +315,7 @@ struct LauncherIslandView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .onTapGesture { activity.openNowPlayingCard() }
+            .onTapGesture { activity.openCard(for: .youtube) }
 
             Spacer(minLength: 8)
 
@@ -351,6 +353,8 @@ struct LauncherIslandView: View {
                     size: Metrics.artSize,
                     cornerRadius: Metrics.artCornerRadius
                 )
+                .contentShape(Rectangle())
+                .onTapGesture { activity.openCard(for: .music) }
 
                 VStack(alignment: .leading, spacing: 2) {
 
@@ -367,7 +371,7 @@ struct LauncherIslandView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
-                .onTapGesture { activity.openNowPlayingCard() }
+                .onTapGesture { activity.openCard(for: .music) }
 
                 Spacer(minLength: 8)
 
@@ -652,6 +656,21 @@ struct LauncherIslandView: View {
                         activity.page = .camera
                     }
 
+                    toolTile(symbol: "text.viewfinder", title: "Copy Text", subtitle: activity.captureNote ?? "From the screen", tint: Color(red: 0.04, green: 0.52, blue: 1)) {
+                        activity.copyTextFromScreen()
+                    }
+
+                    toolTile(symbol: "eyedropper", title: "Color Picker", subtitle: activity.pickedColorHex.map { "Copied \($0)" } ?? "From the screen", tint: Color(red: 1, green: 0.27, blue: 0.4)) {
+                        activity.pickColor()
+                    }
+
+                    toolTile(symbol: "camera.viewfinder", title: "Screenshot", subtitle: "To clipboard", tint: Color(red: 0.19, green: 0.82, blue: 0.35)) {
+                        activity.copyScreenshot()
+                    }
+                }
+
+                GridRow {
+
                     toolTile(symbol: "waveform.path.ecg", title: "Activity", subtitle: "System", tint: DesignTokens.Color.chargingAccent) {
                         activity.page = .activity
                     }
@@ -659,11 +678,8 @@ struct LauncherIslandView: View {
                     toolTile(symbol: "text.alignleft", title: "Teleprompter", subtitle: "Scrolling script", tint: Color(red: 1, green: 0.62, blue: 0.04)) {
                         activity.page = .teleprompter
                     }
-                }
 
-                GridRow {
-
-                    toolTile(symbol: "keyboard", title: "Clean Keyboard", subtitle: "Locks keys 90 s", tint: Color(red: 0.69, green: 0.32, blue: 0.87)) {
+                    toolTile(symbol: "keyboard", title: "Clean Keys", subtitle: "Locks 90 s", tint: Color(red: 0.69, green: 0.32, blue: 0.87)) {
                         activity.cleanKeyboard()
                     }
 
@@ -675,15 +691,6 @@ struct LauncherIslandView: View {
                         isOn: keepAwake.isOn
                     ) {
                         withAnimation(.smooth(duration: 0.25)) { keepAwake.toggle() }
-                    }
-
-                    toolTile(
-                        symbol: "eyedropper",
-                        title: "Color Picker",
-                        subtitle: activity.pickedColorHex.map { "Copied \($0)" } ?? "Pick from screen",
-                        tint: Color(red: 1, green: 0.27, blue: 0.4)
-                    ) {
-                        activity.pickColor()
                     }
                 }
             }
@@ -1737,30 +1744,49 @@ private struct LauncherTimerRow: View {
 
     @ObservedObject var slot: TimerSlot
 
+    /// Tapping the clock itself opens its card on the island.
+    let onOpen: () -> Void
+
     private typealias Metrics = DesignTokens.LauncherMetrics
 
     var body: some View {
 
         HStack(spacing: 8) {
 
-            Image(systemName: slot.glyph)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(slot.accent)
-                .frame(width: 20)
+            HStack(spacing: 8) {
 
-            Text(slot.title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(DesignTokens.Color.secondaryText)
-                .lineLimit(1)
+                Image(systemName: slot.glyph)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(slot.accent)
+                    .frame(width: 20)
 
-            Text(TimerIslandView.format(slot.displaySeconds))
-                .font(.system(size: 13, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(DesignTokens.Color.primaryText)
-                .opacity(slot.phase == .paused ? 0.55 : 1)
-                .contentTransition(.numericText(countsDown: slot.countsDown))
+                Text(slot.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+                    .lineLimit(1)
+
+                Text(TimerIslandView.format(slot.displaySeconds))
+                    .font(.system(size: 13, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .opacity(slot.phase == .paused ? 0.55 : 1)
+                    .contentTransition(.numericText(countsDown: slot.countsDown))
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onOpen)
 
             Spacer(minLength: 6)
+
+            // A Pomodoro's focus sound, play / pause, right here.
+            if slot.kind == .pomodoro {
+                SoundToggle()
+            }
+
+            if slot.kind == .pomodoro, slot.stage == .rest, slot.phase != .finished {
+                button("forward.end.fill", tint: DesignTokens.Color.primaryText) {
+                    withAnimation(.easeInOut(duration: 0.22)) { slot.skipBreak() }
+                }
+            }
 
             if slot.phase != .finished {
                 button(slot.phase == .paused ? "play.fill" : "pause.fill", tint: slot.accent) {
@@ -1797,3 +1823,37 @@ private struct LauncherTimerRow: View {
     }
 }
 
+
+
+/// Play / pause for the Pomodoro's focus sound, on the launcher's timer row.
+private struct SoundToggle: View {
+
+    @ObservedObject private var player = FocusSoundPlayer.shared
+
+    @AppStorage(AppSettings.Key.focusSound)
+    private var sound = AppSettings.Default.focusSound
+
+    var body: some View {
+
+        Button {
+
+            if sound == FocusSound.off.rawValue {
+                sound = FocusSound.rain.rawValue
+                player.resume()
+            } else {
+                player.togglePaused()
+            }
+
+        } label: {
+            Image(systemName: player.isAudible ? "waveform" : "waveform.slash")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(player.isAudible ? DesignTokens.Color.pomodoroAccent : DesignTokens.Color.secondaryText)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(DesignTokens.Color.deviceIconBackground))
+        }
+        .buttonStyle(.plain)
+        .help(player.isAudible ? "Pause the focus sound" : "Play the focus sound")
+        .accessibilityLabel(player.isAudible ? "Pause focus sound" : "Play focus sound")
+    }
+}

@@ -232,6 +232,18 @@ private struct TimerRow: View {
 
                 } else {
 
+                    // A break can be skipped — straight back to focus.
+                    if slot.kind == .pomodoro, slot.stage == .rest {
+                        controlButton(
+                            symbol: "forward.end.fill",
+                            label: "Skip break",
+                            foreground: DesignTokens.Color.primaryText,
+                            background: DesignTokens.Color.controlDisc
+                        ) {
+                            slot.skipBreak()
+                        }
+                    }
+
                     controlButton(
                         symbol: isPaused ? "play.fill" : "pause.fill",
                         label: isPaused ? "Resume" : "Pause",

@@ -476,8 +476,8 @@ enum DesignTokens {
 
         /// Split layout (timer on the left of the notch, another
         /// activity on the right): room for "m:ss" / "h:mm:ss".
-        static let splitTimeWidth: CGFloat = 34
-        static let splitTimeWidthHours: CGFloat = 52
+        static let splitTimeWidth: CGFloat = 38
+        static let splitTimeWidthHours: CGFloat = 56
         static let splitNotchPadding: CGFloat = 8
 
         static let expandedWidth: CGFloat = 360

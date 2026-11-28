@@ -101,7 +101,11 @@ extension TimerActivity: MinimalPresentable {
 
         let hasHours = activeSlots.first.map { $0.displaySeconds >= 3600 } ?? false
 
-        return Ear.edge + Ear.slot + Ear.gap
+        // A pomodoro's glyph sits 5pt further in than the others' (see
+        // `TimerEar`), which the ear has to leave room for.
+        let pomodoroExtra: CGFloat = activeSlots.first?.kind == .pomodoro ? 5 : 0
+
+        return Ear.edge + Ear.slot + Ear.gap + pomodoroExtra
             + (hasHours
                ? DesignTokens.TimerMetrics.splitTimeWidthHours
                : DesignTokens.TimerMetrics.splitTimeWidth)

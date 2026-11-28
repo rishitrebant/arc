@@ -172,6 +172,14 @@ final class TimerSlot: ObservableObject {
         refreshDisplay()
     }
 
+    /// During a Pomodoro's break: straight back to focus.
+    func skipBreak() {
+
+        guard kind == .pomodoro, stage == .rest else { return }
+
+        advancePomodoro()
+    }
+
     func togglePause() {
 
         switch phase {

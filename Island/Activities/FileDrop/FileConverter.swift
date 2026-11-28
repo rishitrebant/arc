@@ -51,7 +51,15 @@ private enum FileKind {
 
     init(url: URL) {
 
-        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {
+        let ext = url.pathExtension.lowercased()
+
+        // Word-processor and web documents that macOS can open as text.
+        if ["doc", "docx", "odt", "rtf", "rtfd", "html", "htm", "txt", "md", "markdown", "webarchive"].contains(ext) {
+            self = .text
+            return
+        }
+
+        guard let type = UTType(filenameExtension: ext) else {
             self = .other
             return
         }
@@ -281,7 +289,7 @@ enum FileConverter {
 
         let text: NSAttributedString
 
-        if let attributed = try? NSAttributedString(url: url, options: [:], documentAttributes: nil) {
+        if let attributed = Self.loadDocument(url) {
             text = attributed
         } else if let plain = try? String(contentsOf: url, encoding: .utf8) {
             text = NSAttributedString(
@@ -326,6 +334,36 @@ enum FileConverter {
         context.closePDF()
 
         return output
+    }
+
+    /// Opens a document with whichever reader fits its extension (the
+    /// automatic one doesn't always recognise Word files).
+    private static func loadDocument(_ url: URL) -> NSAttributedString? {
+
+        let types: [NSAttributedString.DocumentType]
+
+        switch url.pathExtension.lowercased() {
+        case "docx": types = [.officeOpenXML]
+        case "doc": types = [.docFormat]
+        case "odt": types = [.openDocument]
+        case "rtf": types = [.rtf]
+        case "rtfd": types = [.rtfd]
+        case "html", "htm": types = [.html]
+        case "webarchive": types = [.webArchive]
+        default: types = []
+        }
+
+        for type in types {
+            if let result = try? NSAttributedString(
+                url: url,
+                options: [.documentType: type],
+                documentAttributes: nil
+            ) {
+                return result
+            }
+        }
+
+        return try? NSAttributedString(url: url, options: [:], documentAttributes: nil)
     }
 
     // MARK: - Audio / video
