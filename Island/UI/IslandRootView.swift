@@ -126,6 +126,13 @@ struct IslandRootView: View {
     /// no animation context and just pops).
     @State private var showsSplitContent = false
 
+    /// The volume bar on an open activity (a volume change while something
+    /// is on the island opens it and shows this at the bottom).
+    @StateObject private var overlayVolume = SystemVolumeControl()
+    @State private var volumeBarVisible = false
+    @State private var openedForVolume = false
+    @State private var volumeHideWork: DispatchWorkItem?
+
     /// Bumped when an activity's size changes on its own (the launcher
     /// changing page), so `visibleSize` is read again.
     @State private var layoutTick = 0
@@ -338,6 +345,81 @@ struct IslandRootView: View {
             : DesignTokens.Shadow.restYOffset
 
         return lerp(base, DesignTokens.Shadow.expandedYOffset, shadowExpansion)
+    }
+
+    // MARK: - Volume bar
+
+    /// Opens whatever is on the island and shows the volume at its bottom,
+    /// the way Apple Music's card does; closes again afterwards if it was
+    /// the volume that opened it.
+    private func showVolumeBar() {
+
+        guard renderedActivity != nil, !isDocked else { return }
+
+        overlayVolume.refresh()
+
+        withAnimation(.smooth(duration: 0.25)) {
+            volumeBarVisible = true
+        }
+
+        if !isExpanded {
+
+            openedForVolume = true
+
+            hoverWorkItem?.cancel()
+            activityManager.expandsSecondary = false
+
+            withAnimation(AnimationTokens.shapeMorph(isExpanding: true)) {
+                isExpanded = true
+            }
+        }
+
+        volumeHideWork?.cancel()
+
+        let work = DispatchWorkItem {
+
+            withAnimation(.smooth(duration: 0.25)) {
+                volumeBarVisible = false
+            }
+
+            if openedForVolume, !isHovering {
+                withAnimation(AnimationTokens.shapeMorph(isExpanding: false)) {
+                    isExpanded = false
+                }
+            }
+
+            openedForVolume = false
+        }
+
+        volumeHideWork = work
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2, execute: work)
+    }
+
+    private var volumeOverlay: some View {
+
+        ZStack(alignment: .top) {
+
+            // Listens for volume changes while something is on the island.
+            Color.clear
+                .frame(width: 0, height: 0)
+                .onReceive(
+                    NotificationCenter.default.publisher(for: .islandVolumeOnActivity)
+                ) { _ in
+                    showVolumeBar()
+                }
+
+            // Music's own card already carries a volume row.
+            if volumeBarVisible, isExpanded, renderedActivity?.kind != .music, overlayVolume.isAvailable {
+
+                SystemVolumeBar(volume: overlayVolume, width: 150)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color(white: 0.16)))
+                    .offset(y: visibleSize.height - 38)
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            }
+        }
     }
 
     // MARK: - Shadows
@@ -880,6 +962,10 @@ struct IslandRootView: View {
         // and surface swap (a shared pill opening was the worst of it).
         .background(alignment: .top) {
             shadowCaster
+        }
+
+        .overlay(alignment: .top) {
+            volumeOverlay
         }
 
         // Shared pill: the glow is split down the middle — each half

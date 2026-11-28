@@ -279,7 +279,14 @@ final class BluetoothMonitor: NSObject {
         if lowered.contains("airpods") { return "airpods" }
         if lowered.contains("trackpad") { return "rectangle.and.hand.point.up.left.fill" }
         if lowered.contains("keyboard") { return "keyboard.fill" }
-        if lowered.contains("mouse") { return "computermouse.fill" }
+        if lowered.contains("mouse")
+            || lowered.contains("mx master")
+            || lowered.contains("mx anywhere")
+            || lowered.contains("mx ergo")
+            || lowered.contains("pebble m") {
+            return "computermouse.fill"
+        }
+        if lowered.contains("mx keys") || lowered.contains("craft") && lowered.contains("logi") { return "keyboard.fill" }
         if lowered.contains("iphone") { return "iphone" }
         if lowered.contains("ipad") { return "ipad" }
         if lowered.contains("watch") { return "applewatch" }

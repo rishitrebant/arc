@@ -20,6 +20,10 @@ extension Notification.Name {
     /// Opens whatever now owns the island to its expanded card.
     static let islandExpandNow = Notification.Name("IslandExpandNow")
 
+    /// The volume changed while something is on the island: open it and
+    /// show a volume bar at the bottom, instead of a separate pill.
+    static let islandVolumeOnActivity = Notification.Name("IslandVolumeOnActivity")
+
     /// The launcher's panel changed height (page change, a clock started).
     static let islandLauncherLayoutChanged = Notification.Name("IslandLauncherLayoutChanged")
 

@@ -138,6 +138,9 @@ struct TimerIslandView: View {
                     .padding(.bottom, 6)
             }
         }
+        .overlay(alignment: .topLeading) {
+            LauncherBackButton()
+        }
     }
 
     // MARK: - Helpers
@@ -276,8 +279,8 @@ private struct TimerPressStyle: ButtonStyle {
 }
 
 
-/// The Pomodoro's focus sound: what it is and how loud (left), and a
-/// play / pause for it (right).
+/// The Pomodoro's focus sound: pick it (left), set how loud it is
+/// (middle), play or pause it (right).
 private struct PomodoroSoundBar: View {
 
     @ObservedObject private var player = FocusSoundPlayer.shared
@@ -293,28 +296,34 @@ private struct PomodoroSoundBar: View {
 
     var body: some View {
 
-        HStack {
+        HStack(spacing: 10) {
 
             Menu {
 
                 Picker("Sound", selection: $sound) {
-                    ForEach(FocusSound.allCases) { option in
-                        Text(option.title).tag(option.rawValue)
+
+                    Label("Off", systemImage: FocusSound.off.symbol)
+                        .tag(FocusSound.off.rawValue)
+
+                    ForEach([FocusSound.Group.nature, .cozy, .noise], id: \.rawValue) { group in
+                        Section(group.rawValue) {
+                            ForEach(FocusSound.allCases.filter { $0.group == group }) { option in
+                                Label(option.title, systemImage: option.symbol)
+                                    .tag(option.rawValue)
+                            }
+                        }
                     }
                 }
-
-                Divider()
-
-                Button("Louder") { volume = min(1, volume + 0.15); player.refresh() }
-                Button("Quieter") { volume = max(0.05, volume - 0.15); player.refresh() }
+                .pickerStyle(.inline)
 
             } label: {
 
                 HStack(spacing: 5) {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 10, weight: .semibold))
+                    Image(systemName: current.symbol)
+                        .font(.system(size: 10.5, weight: .semibold))
                     Text(current == .off ? "No sound" : current.title)
                         .font(.system(size: 11.5, weight: .semibold))
+                        .lineLimit(1)
                 }
                 .foregroundStyle(DesignTokens.Color.secondaryText)
                 .padding(.horizontal, 10)
@@ -325,9 +334,25 @@ private struct PomodoroSoundBar: View {
             .menuStyle(.button)
             .buttonStyle(.plain)
             .menuIndicator(.hidden)
+            .fixedSize()
             .onChange(of: sound) { _, _ in player.refresh() }
 
-            Spacer(minLength: 0)
+            // How loud — a slider, like the one on the Music card.
+            HStack(spacing: 7) {
+
+                Image(systemName: "speaker.fill")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+
+                ThinSlider(value: $volume, range: 0.05...1) {
+                    player.refresh()
+                }
+
+                Image(systemName: "speaker.wave.3.fill")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(DesignTokens.Color.secondaryText)
+            }
+            .frame(maxWidth: .infinity)
 
             Button {
 

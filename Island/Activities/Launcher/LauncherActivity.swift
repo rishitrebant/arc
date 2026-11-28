@@ -373,7 +373,7 @@ final class LauncherActivity: ObservableObject {
     /// teleprompter) stay open until you press Back — leaving them, or
     /// clicking elsewhere, doesn't close the island.
     var isPinnedOpen: Bool {
-        page == .camera || page == .teleprompter
+        page == .camera || page == .teleprompter || isPickingColor
     }
 
     private func checkHover() {
@@ -442,6 +442,49 @@ final class LauncherActivity: ObservableObject {
 
         DispatchQueue.main.async { [weak self] in
             self?.hide()
+        }
+    }
+
+    /// The last colour picked with the Color Picker, as "#RRGGBB".
+    @Published private(set) var pickedColorHex: String?
+
+    /// The system magnifier is up; the launcher stays open meanwhile.
+    private(set) var isPickingColor = false
+
+    /// Samples any pixel on screen and copies its hex code.
+    func pickColor() {
+
+        isPickingColor = true
+
+        NSColorSampler().show { [weak self] color in
+
+            Task { @MainActor in
+
+                guard let self else { return }
+
+                self.isPickingColor = false
+
+                guard let rgb = color?.usingColorSpace(.sRGB) else { return }
+
+                let hex = String(
+                    format: "#%02X%02X%02X",
+                    Int((rgb.redComponent * 255).rounded()),
+                    Int((rgb.greenComponent * 255).rounded()),
+                    Int((rgb.blueComponent * 255).rounded())
+                )
+
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(hex, forType: .string)
+
+                self.pickedColorHex = hex
+
+                Haptics.confirm()
+
+                // Back to "Click anywhere" after a few seconds.
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+
+                if self.pickedColorHex == hex { self.pickedColorHex = nil }
+            }
         }
     }
 

@@ -21,34 +21,33 @@ struct LauncherTopBar: View {
     /// Devices first, this Mac last (so it sits in the far corner).
     private var orderedRings: [LauncherActivity.BatteryItem] {
         let items = activity.batteryItems
-        return Array(items.filter { $0.address != nil }.prefix(3)) + items.filter { $0.address == nil }
+        return Array(items.filter { $0.address != nil }.prefix(2)) + items.filter { $0.address == nil }
     }
 
     var body: some View {
 
         HStack(spacing: 0) {
 
-            // Left of the notch: the volume, and — right beside the notch —
-            // the water ring.
-            HStack(spacing: 10) {
+            // Left of the notch: the volume.
+            HStack(spacing: 0) {
 
                 if volume.isAvailable {
                     VolumeSlider(volume: volume)
                 }
 
                 Spacer(minLength: 0)
-
-                if let water = activity.water {
-                    WaterCountdown(water: water)
-                }
             }
             .frame(width: 112)
 
             Spacer(minLength: DesignTokens.FileDropMetrics.notchWidth)
 
-            // Right of the notch: the connected devices, and this Mac last,
-            // at the far corner.
+            // Right of the notch, outward: the water ring, the connected
+            // devices, and this Mac last, in the far corner.
             HStack(spacing: 9) {
+
+                if let water = activity.water {
+                    WaterCountdown(water: water)
+                }
 
                 Spacer(minLength: 0)
 
@@ -71,7 +70,7 @@ private struct VolumeSlider: View {
 
     @ObservedObject var volume: SystemVolumeControl
 
-    private let width: CGFloat = 36
+    private let width: CGFloat = 62
 
     private var symbol: String {
         if volume.level <= 0.001 { return "speaker.slash.fill" }

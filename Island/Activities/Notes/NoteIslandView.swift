@@ -89,6 +89,9 @@ struct NoteIslandView: View {
             .padding(.top, 6)
             .frame(maxHeight: .infinity, alignment: .top)
         }
+        .overlay(alignment: .topLeading) {
+            LauncherBackButton()
+        }
     }
 
     private func disc(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {

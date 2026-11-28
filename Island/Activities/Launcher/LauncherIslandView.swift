@@ -677,7 +677,14 @@ struct LauncherIslandView: View {
                         withAnimation(.smooth(duration: 0.25)) { keepAwake.toggle() }
                     }
 
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    toolTile(
+                        symbol: "eyedropper",
+                        title: "Color Picker",
+                        subtitle: activity.pickedColorHex.map { "Copied \($0)" } ?? "Pick from screen",
+                        tint: Color(red: 1, green: 0.27, blue: 0.4)
+                    ) {
+                        activity.pickColor()
+                    }
                 }
             }
             .frame(maxHeight: .infinity)

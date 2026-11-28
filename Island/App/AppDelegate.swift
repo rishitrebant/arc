@@ -224,6 +224,14 @@ final class AppDelegate:
         volumeActivity =
             VolumeActivity()
 
+        volumeActivity.hasActivityOnIsland =
+            { [weak self] in
+
+                guard let kind = self?.activityManager.ownedActivity?.kind else { return false }
+
+                return kind != .volume
+            }
+
         activityManager.register(
             volumeActivity
         )

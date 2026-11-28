@@ -21,6 +21,9 @@ final class VolumeActivity: ObservableObject {
         isActiveSubject.eraseToAnyPublisher()
     }
 
+    /// Set by `AppDelegate`: something other than this pill is on the island.
+    var hasActivityOnIsland: () -> Bool = { false }
+
     private static let displayDuration: TimeInterval = 1.4
 
     private var device = AudioObjectID(kAudioObjectUnknown)
@@ -168,6 +171,13 @@ final class VolumeActivity: ObservableObject {
         guard Date().timeIntervalSince(SystemVolumeControl.lastOwnChange) > 0.8 else { return }
 
         guard level != lastLevel || isMuted != lastMuted else { return }
+
+        // With something already on the island, that opens and carries
+        // the volume bar itself (like Apple Music) — no pill over it.
+        if hasActivityOnIsland() {
+            NotificationCenter.default.post(name: .islandVolumeOnActivity, object: nil)
+            return
+        }
 
         if !isActive {
             isActive = true
