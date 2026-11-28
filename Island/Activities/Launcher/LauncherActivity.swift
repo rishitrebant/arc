@@ -48,6 +48,10 @@ final class LauncherActivity: ObservableObject {
         }
     }
 
+    /// Set by `AppDelegate`: the hourly water reminder, whose countdown
+    /// the home page shows.
+    var water: WaterActivity?
+
     /// Which clock the Clock page is showing.
     @Published var clockMode: ClockMode = .timer
 
@@ -418,10 +422,11 @@ final class LauncherActivity: ObservableObject {
     /// Closes the launcher and opens the card behind its Now Playing row.
     func openNowPlayingCard() {
 
-        hide()
+        // The island is told to open first; the launcher then closes into it.
+        NotificationCenter.default.post(name: .islandExpandNow, object: nil)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            NotificationCenter.default.post(name: .islandExpandNow, object: nil)
+        DispatchQueue.main.async { [weak self] in
+            self?.hide()
         }
     }
 

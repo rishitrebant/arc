@@ -72,6 +72,8 @@ struct GeneralSettingsTab: View {
     private var showDockIcon = AppSettings.Default.showDockIcon
     @AppStorage(AppSettings.Key.openClipboardOnPaste)
     private var clipboardOnPaste = AppSettings.Default.openClipboardOnPaste
+    @AppStorage(AppSettings.Key.showScreenTime)
+    private var screenTime = AppSettings.Default.showScreenTime
     @AppStorage(AppSettings.Key.launcherBatteryWidget)
     private var launcherBattery = AppSettings.Default.launcherBatteryWidget
     @AppStorage(AppSettings.Key.globalShortcutsEnabled)
@@ -136,6 +138,12 @@ struct GeneralSettingsTab: View {
                         detail: "This Mac and your connected devices, as small rings. Off shows the connected device on its own row instead."
                     )
                 }
+
+                SettingToggle(
+                    title: "Show active time in the launcher",
+                    detail: "How long you've been at the Mac today, counted by ARC while it runs. macOS gives apps no Screen Time data, so this is ARC's own count, kept on this Mac.",
+                    isOn: $screenTime
+                )
 
                 SettingToggle(
                     title: "Open the launcher when I hover over the notch",

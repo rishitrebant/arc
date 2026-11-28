@@ -13,13 +13,16 @@ final class WaterActivity: ObservableObject {
 
     @Published private(set) var isActive = false
 
+    /// When the next reminder is due; `nil` while the reminder is off.
+    @Published private(set) var nextReminder: Date?
+
     private let isActiveSubject = CurrentValueSubject<Bool, Never>(false)
 
     var isActivePublisher: AnyPublisher<Bool, Never> {
         isActiveSubject.eraseToAnyPublisher()
     }
 
-    private static let interval: TimeInterval = 3600
+    static let interval: TimeInterval = 3600
     private static let displayDuration: TimeInterval = 7
 
     private var timer: Timer?
@@ -57,16 +60,20 @@ final class WaterActivity: ObservableObject {
 
             RunLoop.main.add(timer, forMode: .common)
             self.timer = timer
+            nextReminder = Date().addingTimeInterval(Self.interval)
 
         } else if !enabled, timer != nil {
 
             timer?.invalidate()
             timer = nil
+            nextReminder = nil
             hide()
         }
     }
 
     private func remind() {
+
+        nextReminder = Date().addingTimeInterval(Self.interval)
 
         guard !isActive else { return }
 

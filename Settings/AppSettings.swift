@@ -50,6 +50,7 @@ enum AppSettings {
         static let bounceAmount = "bounceAmount"
         static let volumeIndicatorEnabled = "volumeIndicatorEnabled"
         static let nextUpEnabled = "nextUpEnabled"
+        static let showScreenTime = "showScreenTime"
         static let focusSound = "focusSound"
         static let focusSoundVolume = "focusSoundVolume"
     }
@@ -93,6 +94,7 @@ enum AppSettings {
         static let bounceAmount: Double = 0.3
         static let volumeIndicatorEnabled = true
         static let nextUpEnabled = true
+        static let showScreenTime = true
         static let focusSound = FocusSound.off.rawValue
         static let focusSoundVolume: Double = 0.5
     }

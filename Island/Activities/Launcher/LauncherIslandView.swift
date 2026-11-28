@@ -18,6 +18,14 @@ struct LauncherIslandView: View {
     @State private var copiedID: UUID?
 
     @State private var clipboardQuery = ""
+    @State private var lastPanelSize: CGSize = .zero
+
+    /// Bounces when the panel grows; eases, without bounce, when it shrinks.
+    private var panelAnimation: Animation {
+        panelSize.height >= lastPanelSize.height && panelSize.width >= lastPanelSize.width
+            ? AnimationTokens.expandSpring
+            : .smooth(duration: 0.28)
+    }
     @Namespace private var clockSegmentSpace
     @StateObject private var camera = CameraController()
     @StateObject private var stats = SystemStats()
@@ -57,8 +65,14 @@ struct LauncherIslandView: View {
             VStack(spacing: 0) {
 
                 // Reserves the physical notch cutout — nothing renders here.
-                Color.clear
-                    .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
+                // Either side of the notch: on the home page that's the
+                // volume and the water / screen-time readouts.
+                if activity.page == .home {
+                    LauncherTopBar(activity: activity)
+                } else {
+                    Color.clear
+                        .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
+                }
 
                 Group {
                     switch activity.page {
@@ -94,7 +108,8 @@ struct LauncherIslandView: View {
             alignment: .topLeading
         )
         .animation(.easeInOut(duration: 0.2), value: activity.page)
-        .animation(AnimationTokens.expandSpring, value: panelSize)
+        .animation(panelAnimation, value: panelSize)
+        .onChange(of: panelSize) { _, new in lastPanelSize = new }
         .animation(.easeInOut(duration: 0.2), value: bluetooth.connected.isEmpty)
     }
 

@@ -219,7 +219,7 @@ final class NextUpActivity: ObservableObject {
 
     var shadowAccent: Color? { nil }
 
-    var compactSize: CGSize { CGSize(width: 340, height: 74) }
+    var compactSize: CGSize { CGSize(width: 340, height: 96) }
 
     var expandedSize: CGSize { compactSize }
 
@@ -248,7 +248,8 @@ private struct NextUpIslandView: View {
 
             VStack(spacing: 0) {
 
-                Color.clear.frame(height: 10)
+                // Clear of the notch (29pt) so nothing sits behind it.
+                Color.clear.frame(height: DesignTokens.Shape.collapsedNotchHeight + 2)
 
                 HStack(spacing: 12) {
 

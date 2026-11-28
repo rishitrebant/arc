@@ -18,7 +18,7 @@ enum AnimationTokens {
     /// feels physically responsive rather than mechanically animated.
     static let shapeDuration: TimeInterval = 0.22
     static let shapeDampingFraction: Double = 0.84
-    static var shapeSpring: Animation { expandSpring }
+    static var shapeSpring: Animation { .spring(response: shapeDuration, dampingFraction: shapeDampingFraction) }
 
     /// The island growing out of the notch when an activity arrives:
     /// a touch of bounce at the end, like the Dynamic Island.
@@ -59,11 +59,11 @@ enum AnimationTokens {
         isExpanding ? expandSpring : collapseSpring.delay(collapseShapeDelay)
     }
 
-    /// Every opening — hover, hand-over, an activity arriving, a page
+    /// Every OPENING — hover, hand-over, an activity arriving, a page
     /// growing — uses this one spring: bounce 0.3 by default (Apple's
     /// `bouncy`, per the SwiftUI documentation), 0.42s, adjustable in
-    /// Settings. `shapeSpring`, `enterSpring` and `handoverSpring` all
-    /// resolve to it, so nothing opens with a different feel.
+    /// Settings. `enterSpring` and `handoverSpring` resolve to it. Closing
+    /// never uses it: shrinking is critically damped, with no bounce.
     static var expandSpring: Animation { .spring(duration: 0.42, bounce: AppSettings.bounceAmount) }
 
     /// Anything shrinking: critically damped, so it eases into its final

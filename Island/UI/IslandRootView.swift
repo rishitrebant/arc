@@ -1107,23 +1107,29 @@ struct IslandRootView: View {
             layoutTick += 1
         }
 
-        // The launcher handing straight over to the card it's showing
-        // (its Now Playing title was clicked): once the launcher has
-        // closed and that activity owns the island, open it.
+        // The launcher handing straight over to the card it's showing (its
+        // Now Playing row was clicked). The island is marked open FIRST,
+        // then the launcher closes — so the hand-over morphs the launcher
+        // straight into the open card instead of closing and reopening.
         .onReceive(
             NotificationCenter.default.publisher(
                 for: .islandExpandNow
             )
         ) { _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                guard
-                    renderedActivity != nil,
-                    renderedActivity?.kind != .launcher,
-                    !isExpanded
-                else {
-                    return
-                }
-                expandImmediately()
+
+            hoverWorkItem?.cancel()
+            hoverWorkItem = nil
+
+            activityManager.expandsSecondary = false
+
+            isHovering = true
+            isPrimed = true
+
+            var instant = Transaction()
+            instant.disablesAnimations = true
+
+            withTransaction(instant) {
+                isExpanded = true
             }
         }
 
@@ -1691,10 +1697,10 @@ struct IslandRootView: View {
             visibleSize.width
         )
 
-        // The measured notch, plus a generous margin: the cursor slips
-        // behind the notch, so a target exactly its size is hard to hit.
-        return abs(point.x - frameWidth / 2) <= NotchGeometry.targetHalfWidth
-            && point.y <= NotchGeometry.targetHeight
+        // Exactly the notch — no margin — so resting the cursor on a
+        // pill's own icon or waveform never opens the launcher.
+        return abs(point.x - frameWidth / 2) <= DesignTokens.FileDropMetrics.notchWidth / 2
+            && point.y <= DesignTokens.Shape.collapsedNotchHeight
     }
 
     /// How far down from the top of the screen counts as "the very top
