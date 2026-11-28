@@ -71,11 +71,7 @@ final class TimerSlot: ObservableObject {
 
         guard kind == .pomodoro else { return }
 
-        if phase == .running, stage == .focus {
-            FocusSoundPlayer.shared.start()
-        } else {
-            FocusSoundPlayer.shared.stop()
-        }
+        FocusSoundPlayer.shared.setWanted(phase == .running && stage == .focus)
     }
 
     /// Pomodoros and countdowns run down; the stopwatch runs up.
@@ -541,10 +537,10 @@ final class TimerActivity: ObservableObject {
     var expandedSize: CGSize {
         CGSize(
             width: DesignTokens.TimerMetrics.expandedWidth,
-            height: activeSlots.count > 1
+            height: (pomodoro.isActive ? DesignTokens.TimerMetrics.soundBarHeight : 0) + (activeSlots.count > 1
                 ? DesignTokens.TimerMetrics.expandedHeaderHeight
                     + CGFloat(activeSlots.count) * DesignTokens.TimerMetrics.expandedRowHeightDual
-                : DesignTokens.TimerMetrics.expandedHeight
+                : DesignTokens.TimerMetrics.expandedHeight)
         )
     }
 

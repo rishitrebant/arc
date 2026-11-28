@@ -39,6 +39,9 @@ final class BluetoothActivity: ObservableObject {
     /// Everything connected right now, for the launcher.
     @Published private(set) var connected: [BluetoothDeviceInfo] = []
 
+    /// Everything connected, whatever it is — the battery rings use this.
+    @Published private(set) var allConnected: [BluetoothDeviceInfo] = []
+
     /// Last known battery per device address.
     @Published private(set) var batteries: [String: BluetoothBattery] = [:]
 
@@ -90,6 +93,7 @@ final class BluetoothActivity: ObservableObject {
         monitor.start()
 
         connected = monitor.currentConnected()
+        allConnected = monitor.currentConnectedAll()
         refreshBatteries(force: true)
     }
 
@@ -103,9 +107,10 @@ final class BluetoothActivity: ObservableObject {
     private func connectedSetChanged() {
 
         connected = monitor.currentConnected()
+        allConnected = monitor.currentConnectedAll()
 
         batteries = batteries.filter { entry in
-            connected.contains { $0.address == entry.key }
+            allConnected.contains { $0.address == entry.key }
         }
 
         // Devices report their battery a moment after connecting.
@@ -122,7 +127,7 @@ final class BluetoothActivity: ObservableObject {
 
         lastBatteryRefresh = Date()
 
-        for info in connected {
+        for info in allConnected {
 
             Task { [weak self] in
 

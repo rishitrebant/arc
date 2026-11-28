@@ -30,9 +30,43 @@ enum FocusSound: String, CaseIterable, Identifiable {
 /// it works offline. Fades in and out so starting or ending a focus
 /// stretch never clicks.
 @MainActor
-final class FocusSoundPlayer {
+final class FocusSoundPlayer: ObservableObject {
 
     static let shared = FocusSoundPlayer()
+
+    /// The sound is actually playing right now.
+    @Published private(set) var isAudible = false
+
+    /// A focus stretch is running, so there should be sound…
+    private var wanted = false
+
+    /// …unless you paused it yourself from the Pomodoro card.
+    private(set) var userPaused = false
+
+    func setWanted(_ wanted: Bool) {
+        self.wanted = wanted
+        refresh()
+    }
+
+    func togglePaused() {
+        userPaused.toggle()
+        refresh()
+    }
+
+    func resume() {
+        userPaused = false
+        refresh()
+    }
+
+    /// Re-reads the chosen sound, volume and pause state.
+    func refresh() {
+
+        if wanted, !userPaused, FocusSound.current != .off {
+            start()
+        } else {
+            stop()
+        }
+    }
 
     private var engine: AVAudioEngine?
     private var stopWork: DispatchWorkItem?
@@ -48,7 +82,7 @@ final class FocusSoundPlayer {
 
     private init() {}
 
-    func start() {
+    private func start() {
 
         let sound = FocusSound.current
 
@@ -63,6 +97,8 @@ final class FocusSoundPlayer {
         let stored = UserDefaults.standard.object(forKey: AppSettings.Key.focusSoundVolume) as? Double
             ?? AppSettings.Default.focusSoundVolume
 
+        isAudible = true
+
         state.kind = sound
         state.target = Float(min(max(stored, 0.05), 1)) * 0.5
 
@@ -73,7 +109,9 @@ final class FocusSoundPlayer {
         try? engine.start()
     }
 
-    func stop() {
+    private func stop() {
+
+        isAudible = false
 
         state.target = 0
 

@@ -429,10 +429,10 @@ struct IslandRootView: View {
 
         let flare = DesignTokens.Shape.notchFlare
 
-        // Follows the pill's own (animated) size, so the flares slide in
-        // with its edges instead of appearing once it has settled. They
-        // fade out as it grows into a card, and back in as it shrinks.
-        let size = earSize == .zero ? visibleSize : earSize
+        // Computed straight from the island's size in the same update that
+        // resizes the island, so it animates with it — and scaled out of
+        // the notch with it — rather than on a spring of its own.
+        let size = visibleSize
 
         let compactness = 1 - min(1, max(0, (size.height - 36) / 12))
 
@@ -457,24 +457,16 @@ struct IslandRootView: View {
         )
         .opacity(visible ? compactness : 0)
         .animation(.easeOut(duration: 0.25), value: showHandoverBackdrop)
+        .scaleEffect(
+            x: isPresentationVisible ? 1 : notchScale.width,
+            y: isPresentationVisible ? 1 : notchScale.height,
+            anchor: .top
+        )
+        .animation(
+            isPresentationVisible ? AnimationTokens.enterSpring : AnimationTokens.exitSpring,
+            value: isPresentationVisible
+        )
         .allowsHitTesting(false)
-    }
-
-    /// The pill's size as the ears follow it — the same springs the
-    /// surface uses, including collapsing's short wait.
-    @State private var earSize: CGSize = .zero
-
-    private func moveEars(from old: CGSize, to new: CGSize) {
-
-        let growing = new.width * new.height >= old.width * old.height
-
-        let spring: Animation = growing
-            ? AnimationTokens.expandSpring
-            : AnimationTokens.collapseSpring.delay(AnimationTokens.collapseShapeDelay)
-
-        withAnimation(spring) {
-            earSize = new
-        }
     }
 
     // MARK: - Notch glow
@@ -822,7 +814,6 @@ struct IslandRootView: View {
             syncInitialPresentation()
 
             casterSize = visibleSize
-            earSize = visibleSize
 
             if isSplitMode {
                 captureSplit()
@@ -981,8 +972,6 @@ struct IslandRootView: View {
             previousVisibleSize = old
 
             moveCaster(from: casterSize == .zero ? old : casterSize, to: new)
-
-            moveEars(from: earSize == .zero ? old : earSize, to: new)
 
             if isSplitMode { captureSplit() }
 

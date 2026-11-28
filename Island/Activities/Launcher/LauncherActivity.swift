@@ -105,7 +105,7 @@ final class LauncherActivity: ObservableObject {
             ))
         }
 
-        for device in bluetooth.connected {
+        for device in bluetooth.allConnected {
             if let level = bluetooth.batteries[device.address]?.headline {
                 items.append(BatteryItem(
                     id: device.address, name: device.name, symbolName: device.symbolName,
@@ -114,7 +114,7 @@ final class LauncherActivity: ObservableObject {
             }
         }
 
-        return Array(items.prefix(4))
+        return Array(items.prefix(5))
     }
 
     private let powerMonitor = PowerSourceMonitor()
@@ -277,7 +277,8 @@ final class LauncherActivity: ObservableObject {
             for await _ in NotificationCenter.default.notifications(
                 named: .islandRequestCollapse
             ) {
-                self?.hide()
+                guard let self, !self.isPinnedOpen else { return }
+                self.hide()
             }
         })
     }
@@ -368,7 +369,20 @@ final class LauncherActivity: ObservableObject {
         hoverTimer = timer
     }
 
+    /// Pages you use while doing something else (the mirror, the
+    /// teleprompter) stay open until you press Back — leaving them, or
+    /// clicking elsewhere, doesn't close the island.
+    var isPinnedOpen: Bool {
+        page == .camera || page == .teleprompter
+    }
+
     private func checkHover() {
+
+        if isPinnedOpen {
+            hasBeenHovered = true
+            leftAt = nil
+            return
+        }
 
         if isIslandCurrentlyHovered() {
 

@@ -44,44 +44,74 @@ private struct SettingToggle: View {
     }
 }
 
-/// A slider whose default sits in the middle, marked with a small dot the
-/// handle snaps to — and ticks against — like Apple's own.
+/// A slider whose default sits in the middle, marked with a small dot.
+/// The handle snaps to the dot and ticks as it lands, like Apple's own —
+/// and Reset slides it straight back there.
 private struct CenteredSlider: View {
 
     @Binding var value: Double
     let range: ClosedRange<Double>
     let center: Double
 
+    private let trackHeight: CGFloat = 4
+    private let handle: CGFloat = 18
+
     var body: some View {
 
-        let snapDistance = (range.upperBound - range.lowerBound) * 0.04
+        GeometryReader { proxy in
 
-        Slider(
-            value: Binding(
-                get: { value },
-                set: { proposed in
+            let travel = max(1, proxy.size.width - handle)
+            let span = range.upperBound - range.lowerBound
+            let fraction = (value - range.lowerBound) / span
+            let centerX = handle / 2 + travel * (center - range.lowerBound) / span
 
-                    let snapped = abs(proposed - center) < snapDistance ? center : proposed
+            ZStack(alignment: .leading) {
 
-                    if snapped == center, value != center {
-                        NSHapticFeedbackManager.defaultPerformer.perform(
-                            .alignment,
-                            performanceTime: .now
-                        )
+                Capsule()
+                    .fill(Color.secondary.opacity(0.25))
+                    .frame(height: trackHeight)
+
+                // The dot: where the default is.
+                Circle()
+                    .fill(Color.secondary.opacity(0.7))
+                    .frame(width: 5, height: 5)
+                    .position(x: centerX, y: proxy.size.height / 2 + 13)
+
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: handle / 2 + travel * fraction, height: trackHeight)
+
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: handle, height: handle)
+                    .shadow(color: .black.opacity(0.28), radius: 2, y: 1)
+                    .offset(x: travel * fraction)
+            }
+            .frame(height: proxy.size.height)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+
+                        let raw = range.lowerBound + span * Double((drag.location.x - handle / 2) / travel)
+                        let clamped = min(max(raw, range.lowerBound), range.upperBound)
+
+                        // Close to the middle: land exactly on it.
+                        let snapped = abs(clamped - center) < span * 0.035 ? center : clamped
+
+                        if snapped == center, value != center {
+                            NSHapticFeedbackManager.defaultPerformer.perform(
+                                .alignment,
+                                performanceTime: .now
+                            )
+                        }
+
+                        value = snapped
                     }
-
-                    value = snapped
-                }
-            ),
-            in: range
-        )
-        .overlay(alignment: .bottom) {
-            Circle()
-                .fill(Color.secondary.opacity(0.6))
-                .frame(width: 4, height: 4)
-                .offset(y: 3)
-                .allowsHitTesting(false)
+            )
+            .animation(.smooth(duration: 0.25), value: value)
         }
+        .frame(height: 28)
     }
 }
 

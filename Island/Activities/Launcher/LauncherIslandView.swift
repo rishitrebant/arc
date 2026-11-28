@@ -102,6 +102,7 @@ struct LauncherIslandView: View {
                     }
                 }
                 .transition(.opacity)
+                .animation(.easeInOut(duration: 0.2), value: activity.page)
                 .padding(.horizontal, Metrics.edgePadding)
                 .padding(.bottom, Metrics.bottomPadding)
                 .frame(maxHeight: .infinity)
@@ -114,7 +115,8 @@ struct LauncherIslandView: View {
             height: canvasSize.height,
             alignment: .topLeading
         )
-        .animation(.easeInOut(duration: 0.2), value: activity.page)
+        // The size has its own animation (it bounces when it grows); the
+        // page's cross-fade is on the content only, so it can't override it.
         .animation(panelAnimation, value: panelSize)
         .onChange(of: panelSize) { _, new in lastPanelSize = new }
         .animation(.easeInOut(duration: 0.2), value: bluetooth.connected.isEmpty)

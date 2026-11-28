@@ -127,7 +127,16 @@ struct TimerIslandView: View {
             }
             .padding(.horizontal, Metrics.expandedEdgePadding)
             .frame(maxHeight: .infinity)
-            .padding(.bottom, Metrics.bottomPadding)
+            .padding(.bottom, slots.contains { $0.kind == .pomodoro } ? 0 : Metrics.bottomPadding)
+
+            // A running Pomodoro: its focus sound — pick it in one corner,
+            // play or pause it in the other.
+            if slots.contains(where: { $0.kind == .pomodoro }) {
+                PomodoroSoundBar()
+                    .padding(.horizontal, Metrics.expandedEdgePadding)
+                    .frame(height: Metrics.soundBarHeight)
+                    .padding(.bottom, 6)
+            }
         }
     }
 
@@ -263,5 +272,82 @@ private struct TimerPressStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.92 : 1)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+
+/// The Pomodoro's focus sound: what it is and how loud (left), and a
+/// play / pause for it (right).
+private struct PomodoroSoundBar: View {
+
+    @ObservedObject private var player = FocusSoundPlayer.shared
+
+    @AppStorage(AppSettings.Key.focusSound)
+    private var sound = AppSettings.Default.focusSound
+    @AppStorage(AppSettings.Key.focusSoundVolume)
+    private var volume = AppSettings.Default.focusSoundVolume
+
+    private var current: FocusSound {
+        FocusSound(rawValue: sound) ?? .off
+    }
+
+    var body: some View {
+
+        HStack {
+
+            Menu {
+
+                Picker("Sound", selection: $sound) {
+                    ForEach(FocusSound.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+
+                Divider()
+
+                Button("Louder") { volume = min(1, volume + 0.15); player.refresh() }
+                Button("Quieter") { volume = max(0.05, volume - 0.15); player.refresh() }
+
+            } label: {
+
+                HStack(spacing: 5) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(current == .off ? "No sound" : current.title)
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .foregroundStyle(DesignTokens.Color.secondaryText)
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(Capsule().fill(Color.white.opacity(0.09)))
+                .contentShape(Capsule())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .onChange(of: sound) { _, _ in player.refresh() }
+
+            Spacer(minLength: 0)
+
+            Button {
+
+                if current == .off {
+                    sound = FocusSound.rain.rawValue
+                    player.resume()
+                } else {
+                    player.togglePaused()
+                }
+
+            } label: {
+                Image(systemName: player.isAudible ? "pause.fill" : "play.fill")
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(DesignTokens.Color.primaryText)
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 26, height: 24)
+                    .background(Capsule().fill(Color.white.opacity(0.09)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(player.isAudible ? "Pause sound" : "Play sound")
+        }
     }
 }

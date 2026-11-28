@@ -50,6 +50,17 @@ final class BluetoothMonitor: NSObject {
     var onConnectedSetChanged: (() -> Void)?
 
     /// Everything connected right now.
+    /// Every connected device — mice, keyboards and trackpads included
+    /// (for the battery rings), not only speakers and headphones.
+    func currentConnectedAll() -> [BluetoothDeviceInfo] {
+
+        connectedAddresses
+            .compactMap { address in
+                devices[address].map { Self.info(for: $0, address: address) }
+            }
+            .sorted { $0.name < $1.name }
+    }
+
     func currentConnected() -> [BluetoothDeviceInfo] {
 
         connectedAddresses

@@ -482,6 +482,8 @@ enum DesignTokens {
 
         static let expandedWidth: CGFloat = 360
         static let expandedHeight: CGFloat = 112
+        /// Extra room under a running Pomodoro for its sound controls.
+        static let soundBarHeight: CGFloat = 30
         /// Notch keep-clear + bottom padding; each row of a multi-clock
         /// panel then adds `expandedRowHeightDual`.
         static let expandedHeaderHeight: CGFloat = 40

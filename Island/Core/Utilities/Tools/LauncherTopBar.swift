@@ -18,32 +18,47 @@ struct LauncherTopBar: View {
         self._bluetooth = ObservedObject(wrappedValue: activity.bluetooth)
     }
 
+    /// Devices first, this Mac last (so it sits in the far corner).
+    private var orderedRings: [LauncherActivity.BatteryItem] {
+        let items = activity.batteryItems
+        return Array(items.filter { $0.address != nil }.prefix(3)) + items.filter { $0.address == nil }
+    }
+
     var body: some View {
 
         HStack(spacing: 0) {
 
-            if volume.isAvailable {
-                VolumeSlider(volume: volume)
-                    .frame(width: 112, alignment: .leading)
-            } else {
-                Color.clear.frame(width: 112)
-            }
+            // Left of the notch: the volume, and — right beside the notch —
+            // the water ring.
+            HStack(spacing: 10) {
 
-            Spacer(minLength: DesignTokens.FileDropMetrics.notchWidth)
-
-            HStack(spacing: 7) {
-
-                if showBatteryRings {
-                    ForEach(activity.batteryItems.prefix(3)) { item in
-                        BatteryDot(item: item)
-                    }
+                if volume.isAvailable {
+                    VolumeSlider(volume: volume)
                 }
+
+                Spacer(minLength: 0)
 
                 if let water = activity.water {
                     WaterCountdown(water: water)
                 }
             }
-            .frame(width: 112, alignment: .trailing)
+            .frame(width: 112)
+
+            Spacer(minLength: DesignTokens.FileDropMetrics.notchWidth)
+
+            // Right of the notch: the connected devices, and this Mac last,
+            // at the far corner.
+            HStack(spacing: 9) {
+
+                Spacer(minLength: 0)
+
+                if showBatteryRings {
+                    ForEach(orderedRings) { item in
+                        BatteryDot(item: item)
+                    }
+                }
+            }
+            .frame(width: 112)
         }
         .padding(.horizontal, DesignTokens.LauncherMetrics.edgePadding)
         .frame(height: DesignTokens.FileDropMetrics.notchKeepClearHeight)
@@ -56,7 +71,7 @@ private struct VolumeSlider: View {
 
     @ObservedObject var volume: SystemVolumeControl
 
-    private let width: CGFloat = 62
+    private let width: CGFloat = 36
 
     private var symbol: String {
         if volume.level <= 0.001 { return "speaker.slash.fill" }
